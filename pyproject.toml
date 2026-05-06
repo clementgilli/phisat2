@@ -1,0 +1,11 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phisat2_project"
+version = "0.1.0"
+description = "PhiSat2 Foundation Models"
+
+[tool.setuptools]
+packages = ["src"]
