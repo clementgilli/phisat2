@@ -214,3 +214,6 @@ Thumbs.db
 secrets.json
 
 *.egg-info/
+
+outputs/
+cache/

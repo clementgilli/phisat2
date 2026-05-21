@@ -1,12 +1,13 @@
 # ---------------------------------------------------------
-# Configuration Globale - Projet PhiSat-2
+# Global Configuration - Project PhiSat-2
 # ---------------------------------------------------------
 
 paths:
   h5_dataset: "/shared/projects/phisat2/data/processed/triplets_v1/phisat2_s2b_dataset_v1.h5"
-  model_weights: "src/core/models/weights/phisat2net_geoaware_best_clean.pt"
+  model_weights: "weights/phisat2net_geoaware_best_clean.pt"
+  lut_cache: "cache/ot_lut_seed_42.npy"
   
-model:
+model_teacher:
   #name: "phisat2net_geoaware"
   input_dim: 8
   output_dim: 8
@@ -16,14 +17,27 @@ model:
   activation: "gelu"
   fixed_task: null
 
+model_student:
+  n_channels: 8
+  n_classes: 3
+  base_filters: 16
+  depth: 3
+  channel_multipliers: [1, 2, 4, 8]
+
+band_order: # This defines the order in which the bands are fed into the model. The original order is [0, 1, 2, 3, 4, 5, 6, 7], and we want to rearrange it to [1, 2, 3, 0, 7, 4, 5, 6] because the model has been trained on this specific order.
+  [1, 2, 3, 0, 7, 4, 5, 6]
+
 normalization:
   real:
-    mean: [15.0381, 14.5305, 14.403, 15.4191, 13.6231, 14.2143, 14.7041, 13.1745]
-    std: [8.2196, 10.6197, 9.4811, 9.0923, 10.5712, 10.4277, 10.3784, 9.7216]
-    max_clip: 38.729
+    offset: 0.0
+    mean: [15.0339, 14.4876, 14.3599, 15.4217, 13.8730, 14.4105, 14.8086, 13.1281]
+    std: [8.2109, 10.5295, 9.3784, 9.0989, 11.2457, 10.9468, 10.6382, 9.6175]
+    max_clip: [32.0460, 35.2403, 35.4247, 38.8570, 48.5077, 46.9023, 43.2530, 33.0750]
+    
   sim:
+    offset: 0.0
     mean: [49.7866, 49.0253, 48.4297, 49.2364, 51.1648, 55.4065, 57.3572, 56.7808]
-    std: [7.28, 6.5203, 6.957, 9.0981, 8.3858, 7.9555, 8.3155, 8.3664]
+    std: [7.2800, 6.5203, 6.9570, 9.0981, 8.3858, 7.9555, 8.3155, 8.3664]
     max_clip: 100.0
 
 dataset:
