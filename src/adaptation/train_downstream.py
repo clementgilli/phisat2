@@ -1,3 +1,4 @@
+from logging import root
 import os
 import argparse
 import yaml
@@ -8,7 +9,7 @@ from tqdm import tqdm
 from datetime import datetime
 
 # --- Custom Imports ---
-from src.dataset.dataset import get_dataloaders
+from src.dataset.dataset_downstreams import get_dataloaders
 from src.utils import set_seed, load_yaml_config
 from src.models.student import PhisatNetEncoder, PhisatNetDecoder
 
@@ -16,12 +17,11 @@ from src.models.student import PhisatNetEncoder, PhisatNetDecoder
 # 0. TASK CONFIGURATION
 # ==========================================
 TASK_CONFIG = {
-    "lc":       {"num_classes": 11}, 
-    "anomaly":  {"num_classes": 9}, 
+    "lulc":       {"num_classes": 11}, 
+    "marine":  {"num_classes": 9}, 
     "burned":   {"num_classes": 4},  
     "clouds":   {"num_classes": 2}, 
     "floods":   {"num_classes": 3},
-    "fire":     {"num_classes": 3}
 }
 
 # ==========================================
@@ -31,8 +31,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Train Downstream Segmentation Decoders (Robust Pipeline)")
     
     # Task & Paths
+    parser.add_argument("--root_dir", type=str, default="/shared/projects/phisat2/data/huggingface", help="Root directory for datasets")
     parser.add_argument("--task", type=str, required=True, choices=list(TASK_CONFIG.keys()), help="Downstream task to train")
-    parser.add_argument("--config", type=str, default="./configs/config.yaml", help="Path to YAML config")
     parser.add_argument("--checkpoint_dir", type=str, default="./checkpoints", help="Directory to save weights")
     parser.add_argument("--encoder_weights", type=str, default="weights/encoder_sim_base.pth", help="Path to frozen encoder weights")
     
@@ -115,16 +115,11 @@ def main():
     with open(os.path.join(run_dir, "training_args.yaml"), 'w') as f:
         yaml.dump(vars(args), f, default_flow_style=False)
         
-    config = load_yaml_config(args.config)
     task_specs = TASK_CONFIG[args.task]
     
     # Load Dataloaders
     print(f"[INFO] Initializing DataLoaders for {args.task}...")
-    # TODO TODO TODO : Implement task-specific dataloader
-    train_loader, val_loader, _ = get_dataloaders(
-        config=config, baseline_mode=0.0, batch_size=args.batch_size, num_workers=args.num_workers
-    )
-    # TODO TODO TODO : Implement task-specific dataloader
+    train_loader, val_loader, _ = get_dataloaders(args.root_dir, task_name=args.task, batch_size=args.batch_size, num_workers=args.num_workers)    
     
     train_iter = get_infinite_iterator(train_loader)
     val_iter = get_infinite_iterator(val_loader)
@@ -176,20 +171,14 @@ def main():
         for _ in pbar:
             batch = next(train_iter)
             
-            # TODO TODO TODO : Implement task-specific dataloader
-            img_sim = batch['sim'].to(device)
-            
-            # Target formatting
-            targets = batch[args.task].to(device).long()
-            if targets.dim() == 4 and targets.shape[1] == 1:
-                targets = targets.squeeze(1)
-            # TODO TODO TODO : Implement task-specific dataloader
-                
+            images = batch['img'].to(device)
+            targets = batch['label'].to(device).long()
+                            
             optimizer.zero_grad()
             
             # Forward pass
             with torch.no_grad():
-                feats = encoder(img_sim)
+                feats = encoder(images)
             preds = decoder(feats)
             
             # Compute Loss
@@ -233,7 +222,6 @@ def main():
             print(f"[INFO] Early stopping triggered after {epoch+1} epochs.")
             break
             
-    # Final plot save just in case early stopping hit without a recent save
     plot_and_save_loss(train_losses, val_losses, plot_path, args.task)
     print("[INFO] Pipeline executed successfully.")
 
