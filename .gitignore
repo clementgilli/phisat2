@@ -218,3 +218,7 @@ secrets.json
 outputs/
 cache/
 pretrain/weights
+
+.*/
+*templates
+AGENTS.md
