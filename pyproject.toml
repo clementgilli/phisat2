@@ -6,6 +6,16 @@ build-backend = "setuptools.build_meta"
 name = "phisat2_project"
 version = "0.1.0"
 description = "PhiSat2 Foundation Models"
+requires-python = ">=3.13"
+dependencies = [
+    "huggingface-hub[hf-xet]>=1.16.1",
+    "jupyter",
+    "lightning",
+    "pandas",
+    "scipy",
+    "seaborn",
+    "torch",
+]
 
 [tool.setuptools]
 packages = ["src"]
