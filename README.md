@@ -1,10 +1,38 @@
-# Phisat-2
+# PhiSat-2
 
 ## Quickstart
-```
+
+Requirements:
+- Python 3.13
+- `uv`
+- `make`
+
+```bash
 git clone https://github.com/clementgilli/phisat2
 cd phisat2
 make install
+```
+
+Open the static docs at [docs/index.html](docs/index.html), or from a terminal:
+
+```bash
+python -m webbrowser docs/index.html
+```
+
+## How to run
+
+Check the install and list the available runtime options:
+
+```bash
+make check
+make list-models
+make list-dataloaders
+```
+
+Run the CPU smoke test with synthetic data:
+
+```bash
+make smoke
 ```
 
 ## Training
@@ -51,3 +79,10 @@ runs use that GPU; CPU-only machines keep Lightning's `auto` hardware behavior.
 Files under `pretrain/weights` are reference artifacts and are not used to
 initialize training. The `myriad2_full_unet` model preserves the inspected
 full-U-Net topology as a benchmark exception, but it still initializes normally.
+
+## Validation
+
+```bash
+make check
+make test
+```
