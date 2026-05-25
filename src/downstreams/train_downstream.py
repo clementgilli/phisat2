@@ -10,25 +10,28 @@ from datetime import datetime
 
 # --- Custom Imports ---
 from src.dataset.dataset_downstreams import get_dataloaders
-from src.utils import set_seed, load_yaml_config
-from src.models.student import PhisatNetEncoder, PhisatNetDecoder
+from src.utils import set_seed
+from src.models.student import PhisatNetEncoder, PhisatNetDecoder, GlobalHeadDecoder
 
 # ==========================================
 # 0. TASK CONFIGURATION
 # ==========================================
 TASK_CONFIG = {
-    "lulc":       {"num_classes": 11}, 
-    "marine":  {"num_classes": 9}, 
-    "burned":   {"num_classes": 4},  
-    "clouds":   {"num_classes": 2}, 
-    "floods":   {"num_classes": 3},
+    "lulc":    {"num_classes": 11, "type": "seg"}, 
+    "marine":  {"num_classes": 9,  "type": "seg"}, 
+    "burned":  {"num_classes": 4,  "type": "seg"},  
+    "clouds":  {"num_classes": 2,  "type": "seg"}, 
+    "floods":  {"num_classes": 3,  "type": "seg"},
+    "roads":   {"num_classes": 1,  "type": "reg"}, 
+    "building":{"num_classes": 1,  "type": "reg"}, 
+    "fire":    {"num_classes": 3,  "type": "classif"}
 }
 
 # ==========================================
 # 1. UTILS
 # ==========================================
 def parse_args():
-    parser = argparse.ArgumentParser(description="Train Downstream Segmentation Decoders (Robust Pipeline)")
+    parser = argparse.ArgumentParser(description="Train Downstream Decoders (Seg, Reg, Classif)")
     
     # Task & Paths
     parser.add_argument("--root_dir", type=str, default="/shared/projects/phisat2/data/huggingface", help="Root directory for datasets")
@@ -56,39 +59,47 @@ def get_infinite_iterator(dataloader):
         for batch in dataloader:
             yield batch
 
-def plot_and_save_loss(train_losses, val_losses, save_path, task_name):
+def plot_and_save_loss(train_losses, val_losses, save_path, task_name, task_type):
     plt.figure(figsize=(10, 5))
-    plt.plot(train_losses, color='blue', linewidth=1.5, label='Train Loss (CE)')
-    plt.plot(val_losses, color='orange', linewidth=1.5, label='Val Loss (CE)', linestyle='--')
-    plt.title(f"Downstream Training: {task_name.upper()}")
+    loss_name = 'MSE Loss' if task_type == 'reg' else 'Cross-Entropy Loss'
+    plt.plot(train_losses, color='blue', linewidth=1.5, label=f'Train Loss ({loss_name})')
+    plt.plot(val_losses, color='orange', linewidth=1.5, label=f'Val Loss ({loss_name})', linestyle='--')
+    plt.title(f"Downstream Training: {task_name.upper()} ({task_type})")
     plt.xlabel("Pseudo-Epoch")
-    plt.ylabel("Cross-Entropy Loss")
+    plt.ylabel(loss_name)
     plt.grid(True, alpha=0.3)
     plt.legend()
     plt.tight_layout()
     plt.savefig(save_path, dpi=300)
     plt.close()
 
+def format_target(batch_label, task_type, device):
+    if task_type in ["seg", "classif"]:
+        targets = batch_label.to(device).long()
+        if targets.dim() == 4 and targets.shape[1] == 1:
+            targets = targets.squeeze(1)
+    elif task_type == "reg":
+        targets = batch_label.to(device).float()
+        if targets.dim() == 3:
+            targets = targets.unsqueeze(1) # [B, H, W] -> [B, 1, H, W]
+    return targets
+
 # ==========================================
 # 2. VALIDATION LOOP
 # ==========================================
 @torch.no_grad()
-def validate(encoder, decoder, val_iter, device, num_steps, task_name, criterion):
+def validate(encoder, decoder, val_iter, device, num_steps, task_type, criterion):
     decoder.eval()
     val_loss_total = 0.0
     
     for _ in tqdm(range(num_steps), desc="Validating", leave=False):
         batch = next(val_iter)
-        img_sim = batch['sim'].to(device)
-        
-        # Format targets (ensure shape is [B, H, W] and type is Long)
-        targets = batch[task_name].to(device).long()
-        if targets.dim() == 4 and targets.shape[1] == 1:
-            targets = targets.squeeze(1)
+        images = batch['img'].to(device)
+        targets = format_target(batch['label'], task_type, device)
             
-        feats = encoder(img_sim)
+        feats = encoder(images)
         preds = decoder(feats)
-        
+
         loss = criterion(preds, targets)
         val_loss_total += loss.item()
         
@@ -116,6 +127,7 @@ def main():
         yaml.dump(vars(args), f, default_flow_style=False)
         
     task_specs = TASK_CONFIG[args.task]
+    task_type = task_specs['type']
     
     # Load Dataloaders
     print(f"[INFO] Initializing DataLoaders for {args.task}...")
@@ -133,21 +145,36 @@ def main():
     print("[INFO] Loading and Freezing Foundation Encoder...")
     encoder = PhisatNetEncoder(n_channels=8, base_filters=cfg_base_filters, depth=cfg_depth, channel_multipliers=cfg_channel_mults).to(device)
     encoder.load_state_dict(torch.load(args.encoder_weights, map_location=device, weights_only=True))
-    encoder.eval() # Keep batchnorms frozen
+    encoder.eval()
     for param in encoder.parameters():
         param.requires_grad = False
 
     # --- 2. INITIALIZE DECODER (TRAINABLE) ---
-    print(f"[INFO] Initializing Spatial Decoder for {args.task} ({task_specs['num_classes']} classes)")
-    decoder = PhisatNetDecoder(
-        n_classes=task_specs['num_classes'], 
-        base_filters=cfg_base_filters, 
-        depth=cfg_depth, 
-        channel_multipliers=cfg_channel_mults
-    ).to(device)
+    print(f"[INFO] Initializing {task_type.upper()} Decoder for {args.task} ({task_specs['num_classes']} outputs)")
+    
+    # Routing architecture based on task type
+    if task_type in ["seg", "reg"]:
+        decoder = PhisatNetDecoder(
+            n_classes=task_specs['num_classes'], 
+            base_filters=cfg_base_filters, 
+            depth=cfg_depth, 
+            channel_multipliers=cfg_channel_mults
+        ).to(device)
+    elif task_type == "classif":
+        decoder = GlobalHeadDecoder(
+            in_channels=cfg_base_filters * cfg_channel_mults[-1], 
+            n_classes=task_specs['num_classes']
+        ).to(device)
+    else:
+        raise ValueError(f"Unknown task type: {task_type}")
     
     # --- 3. LOSS & OPTIMIZER ---
-    criterion = nn.CrossEntropyLoss()
+    # Routing loss based on task type
+    if task_type in ["seg", "classif"]:
+        criterion = nn.CrossEntropyLoss()
+    else: # reg
+        criterion = nn.MSELoss()
+        
     optimizer = torch.optim.AdamW(decoder.parameters(), lr=args.lr, weight_decay=1e-4)
     
     if args.use_scheduler:
@@ -172,7 +199,7 @@ def main():
             batch = next(train_iter)
             
             images = batch['img'].to(device)
-            targets = batch['label'].to(device).long()
+            targets = format_target(batch['label'], task_type, device)
                             
             optimizer.zero_grad()
             
@@ -194,7 +221,7 @@ def main():
         avg_train_loss = epoch_train_loss / args.steps_per_epoch
         train_losses.append(avg_train_loss)
         
-        avg_val_loss = validate(encoder, decoder, val_iter, device, args.val_steps, args.task, criterion)
+        avg_val_loss = validate(encoder, decoder, val_iter, device, args.val_steps, task_type, criterion)
         val_losses.append(avg_val_loss)
         
         print(f"[INFO] Epoch {epoch+1}/{args.epochs} | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f}")
@@ -212,7 +239,7 @@ def main():
             torch.save(decoder.state_dict(), best_ckpt_path)
             
             # Update plot with new best model
-            plot_and_save_loss(train_losses, val_losses, plot_path, args.task)
+            plot_and_save_loss(train_losses, val_losses, plot_path, args.task, task_type)
             print(f"[INFO] New best model saved! (Val Loss: {best_val_loss:.4f})")
         else:
             patience_counter += 1
@@ -222,7 +249,7 @@ def main():
             print(f"[INFO] Early stopping triggered after {epoch+1} epochs.")
             break
             
-    plot_and_save_loss(train_losses, val_losses, plot_path, args.task)
+    plot_and_save_loss(train_losses, val_losses, plot_path, args.task, task_type)
     print("[INFO] Pipeline executed successfully.")
 
 if __name__ == "__main__":

@@ -15,9 +15,10 @@ BAND_PERMUTATIONS = {
     'clouds':      [0, 1, 2, 3, 4, 5, 6, 7],
 }
 
-#TODO
-MEANS = torch.tensor([49.7866, 49.0253, 48.4297, 49.2364, 51.1648, 55.4065, 57.3572, 56.7808]).view(8, 1, 1) 
-STDS = torch.tensor([7.2800, 6.5203, 6.9570, 9.0981, 8.3858, 7.9555, 8.3155, 8.3664]).view(8, 1, 1)
+
+#same as in pretraining
+MEANS = torch.tensor([39.91732045, 37.5492021, 37.54950869, 39.21091477, 44.2665634, 39.50358262, 43.62563718, 45.28759192]).view(8, 1, 1) 
+STDS = torch.tensor([17.06368142, 17.08672835, 20.21215486, 17.8629414, 20.11975944, 20.02886564, 19.79381833, 20.16760416]).view(8, 1, 1)
 
 class DownstreamDataset(Dataset):
     def __init__(self, root_dir, task_name, split='train', val_ratio=0.1, seed=42, crop_size=224):
