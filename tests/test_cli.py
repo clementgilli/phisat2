@@ -23,6 +23,8 @@ def test_cli_parses_multiple_seeds():
         ]
     )
     assert args.seeds == [1, 2]
+    assert args.strategy == "auto"
+    assert not args.auto_ddp
 
 
 def test_run_fit_creates_seed_directories(monkeypatch, tmp_path):
@@ -49,13 +51,56 @@ def test_run_fit_creates_seed_directories(monkeypatch, tmp_path):
         num_workers=0,
         accelerator="cpu",
         devices="1",
+        strategy="auto",
         precision="32-true",
+        auto_ddp=False,
         fast_dev_run=True,
         pretrained=False,
     )
     train.run_fit(args)
     assert (tmp_path / "segmentation" / "clouds" / "phisat2_geoaware" / "seed_3").is_dir()
     assert (tmp_path / "segmentation" / "clouds" / "phisat2_geoaware" / "seed_4").is_dir()
+
+
+def test_auto_ddp_uses_all_cuda_devices(monkeypatch, tmp_path):
+    trainers = []
+
+    class FakeTrainer:
+        def __init__(self, *args, **kwargs):
+            self.kwargs = kwargs
+            trainers.append(self)
+
+        def fit(self, module, datamodule=None):
+            self.module = module
+            self.datamodule = datamodule
+
+    monkeypatch.setattr(train.L, "Trainer", FakeTrainer)
+    monkeypatch.setattr(train.torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(train.torch.cuda, "device_count", lambda: 4)
+    args = argparse.Namespace(
+        task="segmentation",
+        dataset="clouds",
+        model="phisat2_geoaware",
+        dataloader="synthetic",
+        seeds=[3],
+        root_dir=".",
+        output_dir=str(tmp_path),
+        max_epochs=1,
+        batch_size=2,
+        lr=1e-4,
+        num_workers=0,
+        accelerator="auto",
+        devices="auto",
+        strategy="auto",
+        precision="32-true",
+        auto_ddp=True,
+        fast_dev_run=True,
+        pretrained=False,
+    )
+    train.run_fit(args)
+    assert trainers[0].kwargs["accelerator"] == "gpu"
+    assert trainers[0].kwargs["devices"] == 4
+    assert trainers[0].kwargs["strategy"] == "ddp"
 
 
 def test_make_train_dry_run_uses_python_cli():
@@ -77,6 +122,8 @@ def test_make_train_dry_run_uses_python_cli():
     )
     assert "-m phisat2.cli.train fit" in result.stdout
     assert "--seeds 1 2" in result.stdout
+    assert "--strategy auto" in result.stdout
+    assert "--auto-ddp" in result.stdout
 
 
 def test_module_lists_models():

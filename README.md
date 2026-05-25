@@ -39,8 +39,14 @@ OUTPUT_DIR=runs
 PRETRAINED=true
 ACCELERATOR=auto
 DEVICES=auto
+STRATEGY=auto
+AUTO_DDP=true
 PRECISION=32-true
 ```
+
+With the default `AUTO_DDP=true`, `make train` resolves automatic hardware to
+all visible CUDA GPUs. Multi-GPU CUDA runs use Lightning DDP; single-GPU CUDA
+runs use that GPU; CPU-only machines keep Lightning's `auto` hardware behavior.
 
 Files under `pretrain/weights` are reference artifacts and are not used to
 initialize training. The `myriad2_full_unet` model preserves the inspected

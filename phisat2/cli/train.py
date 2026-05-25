@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 import lightning as L
+import torch
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import CSVLogger
 
@@ -32,7 +33,13 @@ def build_parser() -> argparse.ArgumentParser:
     fit.add_argument("--num-workers", type=int, default=4)
     fit.add_argument("--accelerator", default="auto")
     fit.add_argument("--devices", default="auto")
+    fit.add_argument("--strategy", default="auto")
     fit.add_argument("--precision", default="32-true")
+    fit.add_argument(
+        "--auto-ddp",
+        action="store_true",
+        help="Use every visible CUDA GPU and DDP when hardware settings are otherwise auto.",
+    )
     fit.add_argument("--fast-dev-run", action="store_true")
     pretrained = fit.add_mutually_exclusive_group()
     pretrained.add_argument("--pretrained", dest="pretrained", action="store_true")
@@ -59,6 +66,27 @@ def main(argv: list[str] | None = None) -> None:
     run_fit(args)
 
 
+def resolve_trainer_hardware(args: argparse.Namespace) -> dict[str, object]:
+    accelerator = getattr(args, "accelerator", "auto")
+    devices = getattr(args, "devices", "auto")
+    strategy = getattr(args, "strategy", "auto")
+    auto_ddp = getattr(args, "auto_ddp", False)
+
+    if (
+        auto_ddp
+        and devices == "auto"
+        and strategy == "auto"
+        and accelerator in {"auto", "gpu", "cuda"}
+    ):
+        gpu_count = torch.cuda.device_count() if torch.cuda.is_available() else 0
+        if gpu_count > 1:
+            return {"accelerator": "gpu", "devices": gpu_count, "strategy": "ddp"}
+        if gpu_count == 1:
+            return {"accelerator": "gpu", "devices": 1, "strategy": "auto"}
+
+    return {"accelerator": accelerator, "devices": devices, "strategy": strategy}
+
+
 def run_fit(args: argparse.Namespace) -> None:
     spec = resolve_task_spec(args.task, args.dataset)
     output_root = Path(args.output_dir)
@@ -78,10 +106,12 @@ def run_fit(args: argparse.Namespace) -> None:
         )
         model = build_model(args.model, spec, pretrained=args.pretrained)
         module = PhiSat2LightningModule(model, spec, lr=args.lr)
+        hardware = resolve_trainer_hardware(args)
 
         trainer = L.Trainer(
-            accelerator=args.accelerator,
-            devices=args.devices,
+            accelerator=hardware["accelerator"],
+            devices=hardware["devices"],
+            strategy=hardware["strategy"],
             precision=args.precision,
             max_epochs=args.max_epochs,
             default_root_dir=seed_dir,

@@ -17,12 +17,20 @@ OUTPUT_DIR ?= runs
 PRETRAINED ?= true
 ACCELERATOR ?= auto
 DEVICES ?= auto
+STRATEGY ?= auto
 PRECISION ?= 32-true
+AUTO_DDP ?= true
 
 ifeq ($(PRETRAINED),true)
 PRETRAINED_FLAG := --pretrained
 else
 PRETRAINED_FLAG := --no-pretrained
+endif
+
+ifeq ($(AUTO_DDP),true)
+AUTO_DDP_FLAG := --auto-ddp
+else
+AUTO_DDP_FLAG :=
 endif
 
 .DEFAULT_GOAL := help
@@ -81,7 +89,9 @@ train: ## Train with Make variables: TASK DATASET MODEL DATALOADER SEEDS EPOCHS 
 		--num-workers $(NUM_WORKERS) \
 		--accelerator $(ACCELERATOR) \
 		--devices $(DEVICES) \
+		--strategy $(STRATEGY) \
 		--precision $(PRECISION) \
+		$(AUTO_DDP_FLAG) \
 		$(PRETRAINED_FLAG)
 
 train-segmentation: ## Train a segmentation model.
