@@ -6,6 +6,32 @@ build-backend = "setuptools.build_meta"
 name = "phisat2_project"
 version = "0.1.0"
 description = "PhiSat2 Foundation Models"
+requires-python = ">=3.13"
+dependencies = [
+    "huggingface-hub[hf-xet]>=1.16.1",
+    "h5py",
+    "jupyter",
+    "lightning",
+    "matplotlib",
+    "pandas",
+    "pyyaml",
+    "scipy",
+    "seaborn",
+    "terratorch>=1.2.7",
+    "torch",
+    "torchmetrics",
+    "torchvision",
+    "tqdm",
+    "zarr",
+]
 
-[tool.setuptools]
-packages = ["src"]
+[project.scripts]
+phisat2-train = "phisat2.cli.train:main"
+
+[tool.setuptools.packages.find]
+include = ["phisat2*"]
+
+[dependency-groups]
+dev = [
+    "pytest",
+]
