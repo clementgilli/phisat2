@@ -15,9 +15,25 @@ class PhiSat2LightningModule(L.LightningModule):
         self.spec = spec
         self.lr = lr
         self.save_hyperparameters({"task": spec.task, "dataset": spec.dataset, "lr": lr})
+        self._freeze_encoder()
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:
+        if self.training:
+            encoder = getattr(self.model, "encoder", None)
+            adapter = getattr(self.model, "adapter", None)
+            head = getattr(self.model, "head", None)
+            if encoder is not None and adapter is not None and head is not None:
+                self._freeze_encoder()
+                with torch.no_grad():
+                    features = encoder(image)
+                pyramid = adapter(features, image.shape[-2:])
+                return head(pyramid)
         return self.model(image)
+
+    def train(self, mode: bool = True):
+        module = super().train(mode)
+        self._freeze_encoder()
+        return module
 
     def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
         loss = self._shared_step(batch, "train")
@@ -30,7 +46,16 @@ class PhiSat2LightningModule(L.LightningModule):
         self._shared_step(batch, "test")
 
     def configure_optimizers(self):
-        return torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=1e-4)
+        trainable_params = [param for param in self.parameters() if param.requires_grad]
+        return torch.optim.AdamW(trainable_params, lr=self.lr, weight_decay=1e-4)
+
+    def _freeze_encoder(self) -> None:
+        encoder = getattr(self.model, "encoder", None)
+        if encoder is None:
+            return
+        encoder.eval()
+        for param in encoder.parameters():
+            param.requires_grad = False
 
     def _shared_step(self, batch: dict[str, torch.Tensor], prefix: str) -> torch.Tensor:
         image = batch["image"]
