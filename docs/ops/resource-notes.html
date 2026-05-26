@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resource notes | PhiSat-2 Docs</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>Resource notes</h1>
+    <p>Small tuning levers for memory and speed.</p>
+  </div>
+
+  <main>
+    <nav>
+      <a href="../index.html">Docs</a><a href="resource-notes.html">Resources</a>
+    </nav>
+
+    <section>
+      <h2>Quick memory rules</h2>
+      <ol>
+        <li>Lower <code>BATCH_SIZE</code> first.</li>
+        <li>Lower <code>CROP_SIZE</code> next.</li>
+        <li>Use synthetic fast-dev before data-path-heavy runs.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Speed defaults</h2>
+      <ul>
+        <li>Set <code>NUM_WORKERS=0..4</code> for local quick checks.</li>
+        <li>Use CPU for smoke tests if GPU is shared.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

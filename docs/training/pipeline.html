@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Training pipeline | PhiSat-2 Docs</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>Training pipeline</h1>
+    <p>End-to-end flow used by Make targets and CLI.</p>
+  </div>
+
+  <main>
+    <nav>
+      <a href="../index.html">Docs</a><a href="../training/pipeline.html">Training</a>
+    </nav>
+
+    <section>
+      <h2>Execution path</h2>
+      <ol>
+        <li>Make target calls <code>python -m phisat2.cli.train fit ...</code>.</li>
+        <li>CLI parses command and validates <code>task</code> / <code>dataset</code> / <code>model</code> / <code>dataloader</code>.</li>
+        <li><code>resolve_task_spec</code> sets task metadata including output size and target key.</li>
+        <li>For each seed: set RNG seeds, build datamodule, build model, wrap with LightningModule.</li>
+        <li>Lightning Trainer runs fit with callbacks + logger + hardware config.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Training step</h2>
+      <ul>
+        <li>Image is passed to the model from batch key <code>image</code>.</li>
+        <li>Target is batch[<code>spec.target_key</code>] (mask/label/target).</li>
+        <li>Loss: cross-entropy for segmentation/classification, MSE for regression-like outputs.</li>
+        <li>Spatial losses interpolate prediction to target resolution if needed.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Defaults and hardware</h2>
+      <ul>
+        <li>Model + optimizer: AdamW + weight decay 1e-4.</li>
+        <li>Optimizer LR source: Make <code>LR</code> or CLI <code>--lr</code>.</li>
+        <li>Checkpointing saves <code>best</code> (monitor <code>val_loss</code>) and <code>last</code>.</li>
+        <li>Fast-dev mode disables checkpointing and uses one-cycle validation behavior.</li>
+      </ul>
+      <p>Auto-DDP helper converts to DDP only when <code>--auto-ddp</code> and multiple CUDA devices are available.</p>
+    </section>
+
+    <section>
+      <h2>Common Make entry points</h2>
+      <pre><code>make fast-dev-run DATASET=clouds MODEL=phisat2_geoaware DATALOADER=synthetic SEEDS=0
+make train TASK=classification MODEL=terramind_v1_tiny DATASET=climate DATALOADER=h5_pairs SEEDS="13 42" EPOCHS=10
+make smoke</code></pre>
+    </section>
+
+    <section>
+      <h2>Legacy adaptation workflows</h2>
+      <p>Extra scripts are in <code>src/adaptation/</code> and target encoder/probe/distillation experiments. They are separate from the CLI/Make workflow above.</p>
+    </section>
+  </main>
+</body>
+</html>

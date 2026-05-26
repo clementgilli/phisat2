@@ -1,0 +1,118 @@
+:root {
+  --bg: #f5f7fb;
+  --panel: #ffffff;
+  --text: #1f2a37;
+  --muted: #596274;
+  --line: #d8dfee;
+  --accent: #176b87;
+  --accent-2: #0f4f66;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.45;
+}
+
+main {
+  width: min(1020px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 24px 0 48px;
+}
+
+.topbar {
+  background: #0f2530;
+  color: #fff;
+  padding: 28px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 1.9rem;
+}
+
+.topbar p {
+  margin: 8px 0 0;
+  color: #d7e4eb;
+}
+
+section {
+  margin-bottom: 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px 18px;
+}
+
+h2, h3, h4 { margin: 0 0 10px; color: var(--accent-2); }
+h2 { font-size: 1.35rem; }
+h3 { font-size: 1.05rem; }
+p, ul, ol, table { margin: 0 0 10px; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+ul { padding-left: 20px; }
+code, pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+code {
+  background: #ebeff4;
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.93em;
+}
+pre {
+  background: #11252f;
+  color: #edf6fb;
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfdff;
+}
+.card h4 { margin-top: 0; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+th, td {
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+}
+th { background: #f0f5fa; text-align: left; }
+
+.muted { color: var(--muted); }
+
+nav {
+  margin: 0 0 10px;
+}
+nav a + a::before {
+  content: " / ";
+  color: var(--muted);
+  margin: 0 4px;
+}
+
+@media (max-width: 720px) {
+  .topbar { padding: 20px 14px; }
+  main { width: calc(100% - 16px); }
+}

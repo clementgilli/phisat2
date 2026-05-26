@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hyperparameters | PhiSat-2 Docs</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>Hyperparameters</h1>
+    <p>Small practical settings that usually matter first.</p>
+  </div>
+
+  <main>
+    <nav>
+      <a href="../index.html">Docs</a><a href="../training/hyperparameters.html">Hyperparameters</a>
+    </nav>
+
+    <section>
+      <h2>Most used knobs</h2>
+      <table>
+        <tr><th>Variable</th><th>Effect</th><th>Typical start</th></tr>
+        <tr><td><code>LR</code></td><td>Optimizer step size</td><td><code>1e-4</code></td></tr>
+        <tr><td><code>BATCH_SIZE</code></td><td>Memory + stability</td><td><code>8</code> to <code>32</code> (GPU)</td></tr>
+        <tr><td><code>CROP_SIZE</code></td><td>Patch spatial size</td><td><code>224</code></td></tr>
+        <tr><td><code>EPOCHS</code></td><td>Training length</td><td><code>10</code> to <code>100</code></td></tr>
+        <tr><td><code>NUM_WORKERS</code></td><td>Input throughput</td><td><code>4</code> (local), tune for CPU/GPU node</td></tr>
+        <tr><td><code>PRETRAINED</code></td><td>Backbone init</td><td>Default true except smoke</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Task-sensitive defaults</h2>
+      <ul>
+        <li>Start with `make fast-dev-run` + synthetic before scaling.</li>
+        <li>Reduce <code>NUM_WORKERS</code> or <code>BATCH_SIZE</code> before reducing model complexity.</li>
+        <li>For spatial tasks, verify output size by inspecting one batch log before long runs.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

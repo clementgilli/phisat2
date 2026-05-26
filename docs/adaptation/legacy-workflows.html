@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Legacy adaptation workflows | PhiSat-2 Docs</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>Legacy adaptation workflows</h1>
+    <p>Scripts in <code>src/adaptation/</code> and when to use them.</p>
+  </div>
+
+  <main>
+    <nav>
+      <a href="../index.html">Docs</a><a href="legacy-workflows.html">Legacy workflows</a>
+    </nav>
+
+    <section>
+      <h2>Scripts</h2>
+      <ul>
+        <li><code>train_distillation_student.py</code>: SIM to REAL encoder distillation.</li>
+        <li><code>train_distillation_teacher.py</code>: teacher/student feature matching.</li>
+        <li><code>train_downstream.py</code>: frozen encoder plus task decoder training.</li>
+        <li><code>train_pretext.py</code>: climate, geoloc, and reconstruction probes.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Boundary</h2>
+      <p>These scripts are separate from the public CLI and are mainly for research-style experiments.</p>
+    </section>
+  </main>
+</body>
+</html>

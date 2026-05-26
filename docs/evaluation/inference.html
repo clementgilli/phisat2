@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inference | PhiSat-2 Docs</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>Inference notes</h1>
+    <p>How to run a model on new inputs.</p>
+  </div>
+
+  <main>
+    <nav>
+      <a href="../index.html">Docs</a><a href="inference.html">Inference</a>
+    </nav>
+
+    <section>
+      <h2>Checkpoint workflow</h2>
+      <ol>
+        <li>Instantiate the model with <code>build_model(name, spec, pretrained=False)</code>.</li>
+        <li>Load checkpoint weights from <code>runs/.../checkpoints/</code>.</li>
+        <li>Keep inputs shaped as <code>[B, 8, H, W]</code> and normalized like training.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Output shape</h2>
+      <ul>
+        <li>Segmentation and pixel regression: <code>[B, C, H, W]</code>.</li>
+        <li>Classification: <code>[B, 31]</code>.</li>
+        <li>Global regression: <code>[B, 4]</code>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Note</h2>
+      <p>There is no dedicated inference CLI yet. Use a short Python script with the same model construction path as training.</p>
+    </section>
+  </main>
+</body>
+</html>

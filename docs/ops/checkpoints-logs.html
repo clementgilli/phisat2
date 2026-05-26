@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Checkpoints & logs | PhiSat-2 Docs</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>Checkpoints & logs</h1>
+    <p>Where outputs are written during training.</p>
+  </div>
+
+  <main>
+    <nav>
+      <a href="../index.html">Docs</a><a href="checkpoints-logs.html">Checkpoints & logs</a>
+    </nav>
+
+    <section>
+      <h2>Run output path</h2>
+      <p><code>OUTPUT_DIR/TASK/DATASET/MODEL/seed_N/</code></p>
+      <ul>
+        <li><code>checkpoints/</code>: best and last checkpoints</li>
+        <li><code>logs/</code>: CSV training logs</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Names</h2>
+      <ul>
+        <li><code>best.ckpt</code>: checkpoint with min <code>val_loss</code> (when callbacks enabled).</li>
+        <li><code>last.ckpt</code>: final train state.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

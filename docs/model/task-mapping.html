@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Task-to-model mapping | PhiSat-2 Docs</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>Task-to-model mapping</h1>
+    <p>Compact compatibility matrix for tasks, loaders, and model heads.</p>
+  </div>
+
+  <main>
+    <nav>
+      <a href="../index.html">Docs</a><a href="task-mapping.html">Task mapping</a>
+    </nav>
+
+    <section>
+      <h2>Tasks and outputs</h2>
+      <table>
+        <tr><th>Task</th><th>Output</th><th>Target key</th><th>Loader</th><th>Head</th></tr>
+        <tr><td>segmentation</td><td>task-dependent classes</td><td>mask</td><td>zarr_downstream, synthetic</td><td>SharedUNetDecoder or Myriad2 full U-Net</td></tr>
+        <tr><td>classification</td><td>31</td><td>label</td><td>h5_pairs, synthetic</td><td>GlobalPoolingHead</td></tr>
+        <tr><td>global_regression</td><td>4</td><td>target</td><td>h5_pairs, synthetic</td><td>GlobalPoolingHead</td></tr>
+        <tr><td>pixel_regression</td><td>bands (8)</td><td>target</td><td>h5_pairs, synthetic</td><td>SharedUNetDecoder</td></tr>
+      </table>
+    </section>
+  </main>
+</body>
+</html>

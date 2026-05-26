@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CLI & Make commands | PhiSat-2 Docs</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>CLI & Make commands</h1>
+    <p>Short command reference for daily workflows.</p>
+  </div>
+
+  <main>
+    <nav>
+      <a href="../index.html">Docs</a><a href="commands.html">CLI</a>
+    </nav>
+
+    <section>
+      <h2>CLI usage</h2>
+      <pre><code>python -m phisat2.cli.train fit \
+  --task segmentation \
+  --dataset clouds \
+  --model phisat2_geoaware \
+  --dataloader synthetic \
+  --seeds 0 1 \
+  --root-dir . \
+  --output-dir runs \
+  --max-epochs 5 \
+  --batch-size 8 \
+  --crop-size 224 \
+  --lr 1e-4 \
+  --num-workers 4 \
+  --accelerator cpu \
+  --devices 1 \
+  --precision 32-true \
+  --no-pretrained</code></pre>
+    </section>
+
+    <section>
+      <h2>Useful Make aliases</h2>
+      <pre><code>make list-models</code></pre>
+      <pre><code>make list-dataloaders</code></pre>
+      <pre><code>make smoke</code></pre>
+      <pre><code>make fast-dev-run</code></pre>
+      <pre><code>make train</code></pre>
+    </section>
+
+    <section>
+      <h2>One-liner quick map</h2>
+      <table>
+        <tr><th>Goal</th><th>Command</th></tr>
+        <tr><td>Verify install</td><td><code>make check</code></td></tr>
+        <tr><td>List models</td><td><code>make list-models</code></td></tr>
+        <tr><td>List loaders</td><td><code>make list-dataloaders</code></td></tr>
+        <tr><td>Smoke run</td><td><code>make smoke</code></td></tr>
+        <tr><td>Train segmentation</td><td><code>make train TASK=segmentation MODEL=terramind_v1_tiny DATASET=lulc DATALOADER=zarr_downstream</code></td></tr>
+      </table>
+    </section>
+  </main>
+</body>
+</html>
