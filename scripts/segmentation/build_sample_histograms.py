@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Mapping
 import os
 import time
+from concurrent.futures import ProcessPoolExecutor
+import multiprocessing
 
 import numpy as np
 import zarr
@@ -147,7 +149,24 @@ def parse_args() -> argparse.Namespace:
         default=1000,
         help="Log progress every N samples while reading histograms.",
     )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Number of parallel workers for histogram extraction.",
+    )
     return parser.parse_args()
+
+
+def _read_sample_histogram(sample_path: str, label_key: str) -> tuple[str, int, dict[int, int], bool]:
+    sample_name = Path(sample_path).name
+    try:
+        label = _read_mask(Path(sample_path) / label_key)
+    except OSError:
+        return sample_name, 0, {}, False
+    class_counts: dict[int, int] = defaultdict(int)
+    _accumulate_histogram(label, class_counts)
+    return sample_name, int(label.size), class_counts, True
 
 
 def build_histogram_rows(
@@ -156,6 +175,7 @@ def build_histogram_rows(
     class_prefix: str = DEFAULT_CLASS_PREFIX,
     progress_every: int = 1000,
     max_samples: int | None = None,
+    workers: int = 1,
 ) -> tuple[list[dict[str, object]], list[int], int]:
     rows: list[dict[str, object]] = []
     all_class_ids: set[int] = set()
@@ -168,24 +188,45 @@ def build_histogram_rows(
     if not patch_paths:
         raise FileNotFoundError(f"No patch folders found in {source_folder}")
 
-    for i, patch_path in enumerate(patch_paths, start=1):
-        try:
-            label = _read_mask(patch_path / label_key)
-        except OSError:
-            skipped_patches += 1
-            continue
-        class_counts: dict[int, int] = defaultdict(int)
-        _accumulate_histogram(label, class_counts)
-        all_class_ids.update(class_counts)
-        rows.append(
-            {
-                "sample_id": patch_path.name,
-                "total_pixels": int(label.size),
-                "class_counts": class_counts,
-            }
-        )
-        if progress_every > 0 and i % progress_every == 0:
-            print(f"[INFO] Processed {i}/{len(patch_paths)} samples")
+    workers = max(1, workers)
+    if workers == 1:
+        for i, (sample_name, total_pixels, class_counts, ok) in enumerate(
+            (_read_sample_histogram(sample_path, label_key) for sample_path in (str(p) for p in patch_paths)),
+            start=1,
+        ):
+            if not ok:
+                skipped_patches += 1
+                continue
+            all_class_ids.update(class_counts)
+            rows.append(
+                {
+                    "sample_id": sample_name,
+                    "total_pixels": total_pixels,
+                    "class_counts": class_counts,
+                }
+            )
+            if progress_every > 0 and i % progress_every == 0:
+                print(f"[INFO] Processed {i}/{len(patch_paths)} samples")
+    else:
+        ctx = multiprocessing.get_context("fork")
+        with ProcessPoolExecutor(max_workers=workers, mp_context=ctx) as executor:
+            for i, (sample_name, total_pixels, class_counts, ok) in enumerate(
+                executor.map(_read_sample_histogram, [str(p) for p in patch_paths], [label_key] * len(patch_paths)),
+                start=1,
+            ):
+                if not ok:
+                    skipped_patches += 1
+                    continue
+                all_class_ids.update(class_counts)
+                rows.append(
+                    {
+                        "sample_id": sample_name,
+                        "total_pixels": total_pixels,
+                        "class_counts": class_counts,
+                    }
+                )
+                if progress_every > 0 and i % progress_every == 0:
+                    print(f"[INFO] Processed {i}/{len(patch_paths)} samples")
 
     if not rows:
         return [], []
@@ -253,6 +294,7 @@ def main() -> None:
         args.class_prefix,
         progress_every=args.progress_every,
         max_samples=args.max_samples,
+        workers=args.workers,
     )
     output_csv = Path(args.output_csv) if args.output_csv else (
         Path.cwd() / f"{dataset}_{args.split}_sample_histograms.csv"
