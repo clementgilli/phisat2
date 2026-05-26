@@ -1,0 +1,63 @@
+{
+  "hist_csv": "/Users/roberto.delprete/Downloads/phisat2/splits/lulc/lulc_train_50_sample_hist.csv",
+  "requested_size": "50",
+  "seed": 42,
+  "selected_size": 49,
+  "strategy": "global",
+  "summary": {
+    "full_counts": {
+      "class_0": 436783,
+      "class_1": 40,
+      "class_2": 752759,
+      "class_3": 123920,
+      "class_4": 4087,
+      "class_5": 19197,
+      "class_7": 1787206,
+      "class_8": 87272
+    },
+    "full_fractions": {
+      "class_0": 0.13601591149154973,
+      "class_1": 1.2456154336734694e-05,
+      "class_2": 0.23441205705915177,
+      "class_3": 0.03858916613520408,
+      "class_4": 0.0012727075693558674,
+      "class_5": 0.005978019870057398,
+      "class_7": 0.5565428441884567,
+      "class_8": 0.027176837531887755
+    },
+    "full_total_pixels": 3211264.0,
+    "l1_distance": 0.0,
+    "subset_counts": {
+      "class_0": 436783,
+      "class_1": 40,
+      "class_2": 752759,
+      "class_3": 123920,
+      "class_4": 4087,
+      "class_5": 19197,
+      "class_7": 1787206,
+      "class_8": 87272
+    },
+    "subset_fractions": {
+      "class_0": 0.13601591149154973,
+      "class_1": 1.2456154336734694e-05,
+      "class_2": 0.23441205705915177,
+      "class_3": 0.03858916613520408,
+      "class_4": 0.0012727075693558674,
+      "class_5": 0.005978019870057398,
+      "class_7": 0.5565428441884567,
+      "class_8": 0.027176837531887755
+    },
+    "subset_size": 49,
+    "subset_total_pixels": 3211264.0,
+    "target_fractions": {
+      "class_0": 0.13601591149154973,
+      "class_1": 1.2456154336734694e-05,
+      "class_2": 0.23441205705915177,
+      "class_3": 0.03858916613520408,
+      "class_4": 0.0012727075693558674,
+      "class_5": 0.005978019870057398,
+      "class_7": 0.5565428441884567,
+      "class_8": 0.027176837531887755
+    }
+  }
+}

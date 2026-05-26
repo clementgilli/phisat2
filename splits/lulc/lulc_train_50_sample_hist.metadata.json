@@ -1,0 +1,26 @@
+{
+  "class_ids": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    7,
+    8
+  ],
+  "class_prefix": "class_",
+  "class_totals": {
+    "class_0": 436783,
+    "class_1": 40,
+    "class_2": 752759,
+    "class_3": 123920,
+    "class_4": 4087,
+    "class_5": 19197,
+    "class_7": 1787206,
+    "class_8": 87272
+  },
+  "dataset": "lulc",
+  "source_folder": "/Users/roberto.delprete/Downloads/phisat2/data/PhiSatNet/phileo-bench_lc.zarr/trainval",
+  "split": "train"
+}
