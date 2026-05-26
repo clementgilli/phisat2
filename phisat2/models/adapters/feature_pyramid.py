@@ -46,11 +46,18 @@ class FeaturePyramidAdapter(nn.Module):
     @staticmethod
     def _to_spatial(feature: torch.Tensor) -> torch.Tensor:
         if feature.ndim == 4:
+            if feature.shape[1] == feature.shape[2] and feature.shape[-1] > feature.shape[1]:
+                return feature.permute(0, 3, 1, 2).contiguous()
             return feature
         if feature.ndim != 3:
             raise ValueError(f"Expected 3D token or 4D spatial feature tensor, got shape {tuple(feature.shape)}")
         batch, tokens, channels = feature.shape
         side = int(math.sqrt(tokens))
+        if side * side != tokens:
+            side = int(math.sqrt(tokens - 1))
+            if side * side == tokens - 1:
+                feature = feature[:, 1:, :]
+                tokens = tokens - 1
         if side * side != tokens:
             raise ValueError(f"Token count {tokens} cannot be reshaped to a square feature map.")
         return feature.transpose(1, 2).reshape(batch, channels, side, side)

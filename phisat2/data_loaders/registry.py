@@ -52,6 +52,8 @@ def build_datamodule(
     batch_size: int,
     num_workers: int,
     seed: int,
+    crop_size: int = 224,
+    fast_dev_run: bool = False,
 ) -> L.LightningDataModule:
     try:
         entry = REGISTRY[name]
@@ -60,4 +62,21 @@ def build_datamodule(
         raise ValueError(f"Unknown dataloader '{name}'. Expected one of: {valid}.") from exc
     if name == "synthetic":
         return entry.builder(spec=spec, batch_size=batch_size, num_workers=num_workers, seed=seed)
-    return entry.builder(root_dir=root_dir, spec=spec, batch_size=batch_size, num_workers=num_workers, seed=seed)
+    if name == "zarr_downstream":
+        return entry.builder(
+            root_dir=root_dir,
+            spec=spec,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            seed=seed,
+            crop_size=crop_size,
+            fast_dev_run=fast_dev_run,
+        )
+    return entry.builder(
+        root_dir=root_dir,
+        spec=spec,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        seed=seed,
+        crop_size=crop_size,
+    )

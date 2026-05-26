@@ -21,9 +21,41 @@ class ModelEntry:
 REGISTRY = {
     "phisat2_geoaware": ModelEntry("phisat2_geoaware", "Local compact PhiSat-2 CNN encoder baseline.", True),
     "terramind_v1_tiny": ModelEntry("terramind_v1_tiny", "TerraTorch TerraMind tiny with 8-channel input.", True),
+    "terramind_v1_small": ModelEntry("terramind_v1_small", "TerraTorch TerraMind small with 8-channel input.", True),
     "terramind_v1_base": ModelEntry("terramind_v1_base", "TerraTorch TerraMind base with 8-channel input.", True),
+    "terramind_v1_large": ModelEntry("terramind_v1_large", "TerraTorch TerraMind large with 8-channel input.", True),
     "prithvi_eo_v1_100": ModelEntry("prithvi_eo_v1_100", "TerraTorch Prithvi EO 100M backbone.", True),
     "prithvi_eo_tiny": ModelEntry("prithvi_eo_tiny", "TerraTorch Prithvi EO tiny backbone.", True),
+    "prithvi_eo_v2_tiny_tl": ModelEntry("prithvi_eo_v2_tiny_tl", "TerraTorch Prithvi EO v2 tiny TL backbone.", True),
+    "prithvi_eo_v2_100_tl": ModelEntry("prithvi_eo_v2_100_tl", "TerraTorch Prithvi EO v2 100M TL backbone.", True),
+    "prithvi_swin_B": ModelEntry("prithvi_swin_B", "TerraTorch Prithvi Swin-B backbone.", True),
+    "prithvi_swin_L": ModelEntry("prithvi_swin_L", "TerraTorch Prithvi Swin-L backbone.", True),
+    "dofa_small_patch16_224": ModelEntry("dofa_small_patch16_224", "TerraTorch DOFA small ViT backbone.", True),
+    "dofa_base_patch16_224": ModelEntry("dofa_base_patch16_224", "TerraTorch DOFA base ViT backbone.", True),
+    "dofa_large_patch16_224": ModelEntry("dofa_large_patch16_224", "TerraTorch DOFA large ViT backbone.", True),
+    "seco_resnet18_sentinel2_rgb_seco": ModelEntry(
+        "seco_resnet18_sentinel2_rgb_seco", "TerraTorch SeCo Sentinel-2 ResNet-18 backbone.", True
+    ),
+    "seco_resnet50_sentinel2_rgb_seco": ModelEntry(
+        "seco_resnet50_sentinel2_rgb_seco", "TerraTorch SeCo Sentinel-2 ResNet-50 backbone.", True
+    ),
+    "ssl4eos12_resnet18_sentinel2_all_moco": ModelEntry(
+        "ssl4eos12_resnet18_sentinel2_all_moco", "TerraTorch SSL4EO-S12 Sentinel-2 ResNet-18 backbone.", True
+    ),
+    "ssl4eos12_resnet50_sentinel2_all_moco": ModelEntry(
+        "ssl4eos12_resnet50_sentinel2_all_moco", "TerraTorch SSL4EO-S12 Sentinel-2 ResNet-50 backbone.", True
+    ),
+    "ssl4eos12_vit_small_patch16_224_sentinel2_all_moco": ModelEntry(
+        "ssl4eos12_vit_small_patch16_224_sentinel2_all_moco",
+        "TerraTorch SSL4EO-S12 Sentinel-2 ViT-small backbone.",
+        True,
+    ),
+    "satlas_resnet50_sentinel2_si_ms_satlas": ModelEntry(
+        "satlas_resnet50_sentinel2_si_ms_satlas", "TerraTorch Satlas Sentinel-2 ResNet-50 backbone.", True
+    ),
+    "satlas_swin_t_sentinel2_si_ms": ModelEntry(
+        "satlas_swin_t_sentinel2_si_ms", "TerraTorch Satlas Sentinel-2 Swin-T backbone.", True
+    ),
     "myriad2_full_unet": ModelEntry("myriad2_full_unet", "Full-structure Myriad2 U-Net exception.", False),
 }
 

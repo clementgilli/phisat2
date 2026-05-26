@@ -11,6 +11,9 @@ def test_dataloader_registry_contains_public_loaders():
 def test_model_registry_marks_myriad_exception():
     entries = {entry.name: entry for entry in list_models()}
     assert entries["phisat2_geoaware"].shared_decoder is True
+    assert entries["dofa_small_patch16_224"].shared_decoder is True
+    assert entries["seco_resnet18_sentinel2_rgb_seco"].shared_decoder is True
+    assert entries["satlas_swin_t_sentinel2_si_ms"].shared_decoder is True
     assert entries["myriad2_full_unet"].shared_decoder is False
 
 

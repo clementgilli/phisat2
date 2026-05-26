@@ -29,6 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     fit.add_argument("--output-dir", default="runs")
     fit.add_argument("--max-epochs", type=int, default=50)
     fit.add_argument("--batch-size", type=int, default=16)
+    fit.add_argument("--crop-size", type=int, default=224)
     fit.add_argument("--lr", type=float, default=1e-4)
     fit.add_argument("--num-workers", type=int, default=4)
     fit.add_argument("--accelerator", default="auto")
@@ -103,10 +104,23 @@ def run_fit(args: argparse.Namespace) -> None:
             batch_size=args.batch_size,
             num_workers=args.num_workers,
             seed=seed,
+            crop_size=args.crop_size,
+            fast_dev_run=args.fast_dev_run,
         )
         model = build_model(args.model, spec, pretrained=args.pretrained)
         module = PhiSat2LightningModule(model, spec, lr=args.lr)
         hardware = resolve_trainer_hardware(args)
+        callbacks = []
+        if not args.fast_dev_run:
+            callbacks.append(
+                ModelCheckpoint(
+                    dirpath=seed_dir / "checkpoints",
+                    filename="best",
+                    monitor="val_loss",
+                    mode="min",
+                    save_last=True,
+                )
+            )
 
         trainer = L.Trainer(
             accelerator=hardware["accelerator"],
@@ -116,15 +130,7 @@ def run_fit(args: argparse.Namespace) -> None:
             max_epochs=args.max_epochs,
             default_root_dir=seed_dir,
             logger=CSVLogger(save_dir=seed_dir, name="logs"),
-            callbacks=[
-                ModelCheckpoint(
-                    dirpath=seed_dir / "checkpoints",
-                    filename="best",
-                    monitor="val_loss",
-                    mode="min",
-                    save_last=True,
-                )
-            ],
+            callbacks=callbacks,
             fast_dev_run=args.fast_dev_run,
             log_every_n_steps=1,
         )
