@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Model architecture | PhiSat-2 Docs</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>Model architecture</h1>
+    <p>How model names are bound to encoders/decoders.</p>
+  </div>
+
+  <main>
+    <nav>
+      <a href="../index.html">Docs</a><a href="../model/architecture.html">Model</a>
+    </nav>
+
+    <section>
+      <h2>Model registry</h2>
+      <p><code>phisat2/models/registry.py</code> is the source of truth:</p>
+      <ul>
+        <li><code>phisat2_geoaware</code> → shared decoder</li>
+        <li><code>terramind_v1_tiny</code> → shared decoder</li>
+        <li><code>terramind_v1_base</code> → shared decoder</li>
+        <li><code>prithvi_eo_v1_100</code> → shared decoder</li>
+        <li><code>prithvi_eo_tiny</code> → shared decoder</li>
+        <li><code>myriad2_full_unet</code> → full-structure decoder</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Shared-decoder models</h2>
+      <ul>
+        <li>Dispatcher: <code>build_model(name, spec, pretrained)</code> wraps encoder with <code>SharedDecoderModel</code>.</li>
+        <li><code>phisat2_geoaware</code> uses <code>PhiSat2GeoAwareEncoder</code>.</li>
+        <li>TerraTorch-backed names use <code>TerraTorchBackboneEncoder</code>.</li>
+      </ul>
+      <p><code>SharedDecoderModel</code> flow: encoder output → adapter → task head.</p>
+      <ul>
+        <li>Spatial tasks (<code>segmentation</code>, <code>pixel_regression</code>): <code>SharedUNetDecoder</code>.</li>
+        <li>Global tasks (<code>classification</code>, <code>global_regression</code>): <code>GlobalPoolingHead</code>.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Feature adaptation</h2>
+      <p><code>FeaturePyramidAdapter</code> makes heterogeneous encoder outputs compatible:</p>
+      <ol>
+        <li>select 4 feature maps from encoder output</li>
+        <li>project each to channels <code>(32, 64, 128, 256)</code> via <code>LazyConv2d</code></li>
+        <li>resize spatial scales to expected pyramid levels</li>
+      </ol>
+      <p class="muted">So raw feature maps can differ by encoder, but decoder input contract stays identical.</p>
+    </section>
+
+    <section>
+      <h2>Exception model</h2>
+      <p><code>myriad2_full_unet</code> is not wrapped.</p>
+      <ul>
+        <li>Built as a complete U-Net with encoder + decoder.</li>
+        <li>Supports only segmentation and pixel regression.</li>
+        <li>Uses 3 down/upsampling stages with skip concatenation.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

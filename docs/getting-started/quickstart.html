@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quickstart | PhiSat-2 Docs</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>PhiSat-2 Quickstart</h1>
+    <p>Minimal steps to get a first run working.</p>
+  </div>
+
+  <main>
+    <nav>
+      <a href="../index.html">Docs</a><a href="quickstart.html">Getting started</a>
+    </nav>
+
+    <section>
+      <h2>1) Install</h2>
+      <pre><code>git clone https://github.com/clementgilli/phisat2
+cd phisat2
+make install</code></pre>
+      <p class="muted">Requirements: Python 3.13 + uv + make.</p>
+    </section>
+
+    <section>
+      <h2>2) Verify runtime</h2>
+      <pre><code>make check
+make list-models
+make list-dataloaders</code></pre>
+    </section>
+
+    <section>
+      <h2>3) Smoke test</h2>
+      <p>Runs one fast synthetic batch with no local Earth data.</p>
+      <pre><code>make smoke</code></pre>
+    </section>
+
+    <section>
+      <h2>4) First training command</h2>
+      <pre><code>make fast-dev-run \
+  TASK=segmentation \
+  DATASET=clouds \
+  MODEL=phisat2_geoaware \
+  DATALOADER=synthetic \
+  SEEDS=0 \
+  ROOT_DIR=. \
+  OUTPUT_DIR=runs/smoke \
+  EPOCHS=1 \
+  BATCH_SIZE=2 \
+  NUM_WORKERS=0 \
+  ACCELERATOR=cpu \
+  DEVICES=1 \
+  PRETRAINED=false \
+  LR=0.0001</code></pre>
+      <p class="muted">Equivalent command exists under <code>README.md</code> via <code>uv run ... -m phisat2.cli.train fit ...</code>.</p>
+    </section>
+  </main>
+</body>
+</html>

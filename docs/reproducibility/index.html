@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reproducibility | PhiSat-2 Docs</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>Reproducibility</h1>
+    <p>What is fixed and where randomness can still vary.</p>
+  </div>
+
+  <main>
+    <nav>
+      <a href="../index.html">Docs</a><a href="index.html">Reproducibility</a>
+    </nav>
+
+    <section>
+      <h2>Determinism</h2>
+      <p><code>phisat2/utils/seed.py</code> sets Python, NumPy, Torch, and CUDA deterministic flags.</p>
+      <ul>
+        <li>Per-run seeds come from <code>SEEDS</code> in the trainer.</li>
+        <li>Lightning workers are seeded through the same path.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Remaining variance</h2>
+      <ul>
+        <li>External dataset preprocessing.</li>
+        <li>Hardware/backend differences.</li>
+        <li>Distributed training order effects.</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>

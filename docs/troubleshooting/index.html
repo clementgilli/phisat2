@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Troubleshooting | PhiSat-2 Docs</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>Troubleshooting</h1>
+    <p>Common errors and quick fixes.</p>
+  </div>
+
+  <main>
+    <nav>
+      <a href="../index.html">Docs</a><a href="index.html">Troubleshooting</a>
+    </nav>
+
+    <section>
+      <h2>Common failures</h2>
+      <ol>
+        <li><strong>Invalid task/dataset:</strong> check <code>phisat2/tasks/specs.py</code> and selected dataloader support.</li>
+        <li><strong>TerraTorch import error:</strong> install group dependencies and retry <code>make install</code>.</li>
+        <li><strong>Loader path error:</strong> ensure <code>ROOT_DIR</code> points to existing <code>.zarr</code> or <code>.h5</code> dataset tree.</li>
+        <li><strong>Shape mismatch:</strong> this usually appears in loss/logits size checks for segmentation targets.</li>
+        <li><strong>CUDA/DDP mismatch:</strong> use one device first; then enable <code>AUTO_DDP</code> on multi-GPU.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Fast debug flow</h2>
+      <pre><code>make check
+make list-models
+make smoke
+</code></pre>
+      <p>If smoke passes, the issue is typically data path or task-model compatibility.</p>
+    </section>
+  </main>
+</body>
+</html>

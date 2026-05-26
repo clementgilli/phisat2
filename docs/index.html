@@ -4,234 +4,94 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PhiSat-2 Documentation</title>
-  <style>
-    :root {
-      color-scheme: light;
-      --bg: #f7f8fa;
-      --panel: #ffffff;
-      --text: #1d2430;
-      --muted: #5d6675;
-      --line: #d9dee7;
-      --accent: #176b87;
-      --code: #eef3f6;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      line-height: 1.55;
-    }
-
-    header {
-      background: #10242f;
-      color: #fff;
-      padding: 48px 24px 40px;
-    }
-
-    main {
-      width: min(1040px, calc(100% - 32px));
-      margin: 0 auto;
-      padding: 32px 0 56px;
-    }
-
-    section {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      margin: 0 0 20px;
-      padding: 24px;
-    }
-
-    h1,
-    h2,
-    h3 {
-      line-height: 1.2;
-      margin: 0 0 12px;
-    }
-
-    h1 {
-      font-size: clamp(2rem, 5vw, 3.5rem);
-      letter-spacing: 0;
-    }
-
-    h2 {
-      color: #132f3c;
-      font-size: 1.45rem;
-    }
-
-    h3 {
-      font-size: 1.05rem;
-      margin-top: 18px;
-    }
-
-    p,
-    ul,
-    ol {
-      margin: 0 0 14px;
-    }
-
-    a {
-      color: var(--accent);
-      font-weight: 600;
-    }
-
-    code,
-    pre {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    }
-
-    code {
-      background: var(--code);
-      border-radius: 4px;
-      padding: 0.12rem 0.3rem;
-    }
-
-    pre {
-      background: #14232c;
-      border-radius: 8px;
-      color: #edf7fb;
-      margin: 12px 0 18px;
-      overflow-x: auto;
-      padding: 16px;
-    }
-
-    pre code {
-      background: transparent;
-      padding: 0;
-    }
-
-    table {
-      border-collapse: collapse;
-      margin: 12px 0 18px;
-      width: 100%;
-    }
-
-    th,
-    td {
-      border: 1px solid var(--line);
-      padding: 10px 12px;
-      text-align: left;
-      vertical-align: top;
-    }
-
-    th {
-      background: #eef3f6;
-    }
-
-    .lead {
-      color: #d8e8ee;
-      font-size: 1.15rem;
-      max-width: 780px;
-    }
-
-    .muted {
-      color: var(--muted);
-    }
-
-    @media (max-width: 720px) {
-      header {
-        padding: 36px 16px 30px;
-      }
-
-      main {
-        width: calc(100% - 20px);
-        padding-top: 20px;
-      }
-
-      section {
-        padding: 18px;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header>
+  <div class="topbar">
     <h1>PhiSat-2</h1>
-    <p class="lead">A Python 3.13 training package for PhiSat-2 experiments using Lightning, TerraTorch-compatible backbones, and Makefile-driven runs.</p>
-  </header>
+    <p>Repository map, architecture, data, and training flow.</p>
+  </div>
 
   <main>
-    <section id="quickstart">
-      <h2>Quickstart</h2>
-      <p>Install dependencies with <code>uv</code> and the project Makefile.</p>
-      <pre><code>git clone https://github.com/clementgilli/phisat2
-cd phisat2
-make install</code></pre>
-      <p>Requirements: Python 3.13, <code>uv</code>, and <code>make</code>.</p>
+    <section>
+      <h2>Start here</h2>
+      <div class="grid">
+        <div class="card">
+          <h4>Quickstart</h4>
+          <p>Install, smoke test, then list registered options.</p>
+          <a href="getting-started/quickstart.html">Open</a>
+        </div>
+        <div class="card">
+          <h4>Model architecture</h4>
+          <p>Encoders, shared decoder path, and adapter behavior.</p>
+          <a href="model/architecture.html">Open</a>
+        </div>
+        <div class="card">
+          <h4>Training pipeline</h4>
+          <p>CLI/Make orchestration and loss/optimizer behavior.</p>
+          <a href="training/pipeline.html">Open</a>
+        </div>
+        <div class="card">
+          <h4>Data loaders</h4>
+          <p>Task constraints, dataset assumptions, and batch format.</p>
+          <a href="data/dataloaders.html">Open</a>
+        </div>
+        <div class="card">
+          <h4>CLI commands</h4>
+          <p>Make aliases and direct trainer invocation.</p>
+          <a href="cli/commands.html">Open</a>
+        </div>
+        <div class="card">
+          <h4>Hyperparameters</h4>
+          <p>Practical defaults and tuning order.</p>
+          <a href="training/hyperparameters.html">Open</a>
+        </div>
+        <div class="card">
+          <h4>Troubleshooting</h4>
+          <p>Common failures and quick checks.</p>
+          <a href="troubleshooting/index.html">Open</a>
+        </div>
+        <div class="card">
+          <h4>Ops notes</h4>
+          <p>Checkpoints, logs, and resource tips.</p>
+          <a href="ops/checkpoints-logs.html">Open</a>
+        </div>
+        <div class="card">
+          <h4>More</h4>
+          <p>Task mapping, inference, reproducibility, and legacy workflows.</p>
+          <a href="model/task-mapping.html">Open</a>
+        </div>
+      </div>
     </section>
 
-    <section id="run">
-      <h2>How to Run</h2>
-      <p>Use the Makefile as the public interface. Start with a lightweight import check, then inspect available runtime options.</p>
-      <pre><code>make check
-make list-models
-make list-dataloaders</code></pre>
-      <p>Run a one-batch CPU smoke test with synthetic data:</p>
-      <pre><code>make smoke</code></pre>
-      <p>Run the test suite:</p>
-      <pre><code>make test</code></pre>
-    </section>
-
-    <section id="training">
-      <h2>Training</h2>
-      <p>Experiments are configured with Make variables. The default output directory is <code>runs</code>.</p>
-      <pre><code>make train TASK=segmentation DATASET=lulc MODEL=terramind_v1_tiny DATALOADER=zarr_downstream SEEDS="13 42 100" EPOCHS=50
-make train TASK=classification DATASET=climate MODEL=prithvi_eo_v1_100 DATALOADER=h5_pairs SEED=42 EPOCHS=30
-make train TASK=pixel_regression DATASET=reconstruction MODEL=phisat2_geoaware DATALOADER=h5_pairs SEED=7 BATCH_SIZE=16</code></pre>
-      <p>The equivalent Python entrypoint is available after install:</p>
-      <pre><code>uv run --python 3.13 python -m phisat2.cli.train fit --task segmentation --dataset clouds --model phisat2_geoaware --dataloader synthetic --seeds 0 --root-dir . --output-dir runs/smoke --max-epochs 1 --batch-size 2 --num-workers 0 --accelerator cpu --devices 1 --no-pretrained --fast-dev-run</code></pre>
-    </section>
-
-    <section id="configuration">
-      <h2>Configuration</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Variable</th>
-            <th>Values or default</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td><code>TASK</code></td><td><code>segmentation</code>, <code>classification</code>, <code>pixel_regression</code>, <code>global_regression</code></td></tr>
-          <tr><td><code>DATASET</code></td><td><code>lulc</code>, <code>lc</code>, <code>marine</code>, <code>marine_area</code>, <code>anomaly_detection</code>, <code>burned</code>, <code>burned_area</code>, <code>clouds</code>, <code>floods</code>, <code>worldfloods</code>, <code>fire</code>, <code>climate</code>, <code>geoloc</code>, <code>coords</code>, <code>reconstruction</code></td></tr>
-          <tr><td><code>MODEL</code></td><td><code>phisat2_geoaware</code>, <code>terramind_v1_tiny</code>, <code>terramind_v1_base</code>, <code>prithvi_eo_v1_100</code>, <code>prithvi_eo_tiny</code>, <code>myriad2_full_unet</code></td></tr>
-          <tr><td><code>DATALOADER</code></td><td><code>zarr_downstream</code>, <code>h5_pairs</code>, <code>synthetic</code></td></tr>
-          <tr><td><code>SEED</code> / <code>SEEDS</code></td><td><code>42</code> or a space-separated list such as <code>"13 42 100"</code></td></tr>
-          <tr><td><code>EPOCHS</code></td><td><code>50</code></td></tr>
-          <tr><td><code>BATCH_SIZE</code></td><td><code>16</code></td></tr>
-          <tr><td><code>LR</code></td><td><code>0.0001</code></td></tr>
-          <tr><td><code>NUM_WORKERS</code></td><td><code>4</code></td></tr>
-          <tr><td><code>ROOT_DIR</code></td><td>Dataset root. Synthetic runs ignore this value.</td></tr>
-          <tr><td><code>OUTPUT_DIR</code></td><td><code>runs</code></td></tr>
-          <tr><td><code>PRETRAINED</code></td><td><code>true</code> or <code>false</code></td></tr>
-          <tr><td><code>ACCELERATOR</code></td><td><code>auto</code></td></tr>
-          <tr><td><code>DEVICES</code></td><td><code>auto</code></td></tr>
-          <tr><td><code>PRECISION</code></td><td><code>32-true</code></td></tr>
-        </tbody>
-      </table>
-      <p class="muted">Dataset names are task-specific. The CLI reports an error if a dataset is not valid for the selected task.</p>
-    </section>
-
-    <section id="data">
-      <h2>Data Loaders</h2>
+    <section>
+      <h2>Repository map (short)</h2>
       <ul>
-        <li><code>zarr_downstream</code>: Zarr downstream segmentation datasets with image/mask batches.</li>
-        <li><code>h5_pairs</code>: Paired PhiSat-2/Sentinel HDF5 data for climate, geolocation, and reconstruction.</li>
-        <li><code>synthetic</code>: Small random batches used by smoke tests and CI.</li>
+        <li><code>phisat2/</code>: active package for training + CLI.</li>
+        <li><code>src/</code>: legacy/adaptation scripts and alternate training paths.</li>
+        <li><code>tests/</code>: registry and model shape checks.</li>
       </ul>
-      <p>Use <code>ROOT_DIR=/path/to/data</code> for real datasets. The smoke test uses <code>DATALOADER=synthetic</code> and does not require local data.</p>
     </section>
 
-    <section id="notes">
-      <h2>Notes</h2>
-      <p>Files under <code>pretrain/weights</code> are reference artifacts and are not used to initialize training.</p>
-      <p><code>myriad2_full_unet</code> preserves the inspected full-U-Net topology as a benchmark exception and only supports spatial tasks.</p>
+    <section>
+      <h2>Quick run order</h2>
+      <ol>
+        <li><code>make install</code></li>
+        <li><code>make list-models</code> and <code>make list-dataloaders</code></li>
+        <li><code>make smoke</code></li>
+      </ol>
+      <p class="muted">For detailed commands and behavior, use the linked pages.</p>
+    </section>
+
+    <section>
+      <h2>Extra pages</h2>
+      <ul>
+        <li><a href="model/task-mapping.html">Task mapping</a></li>
+        <li><a href="evaluation/inference.html">Inference</a></li>
+        <li><a href="reproducibility/index.html">Reproducibility</a></li>
+        <li><a href="adaptation/legacy-workflows.html">Legacy adaptation workflows</a></li>
+        <li><a href="contributing/index.html">Contributing</a></li>
+      </ul>
     </section>
   </main>
 </body>
