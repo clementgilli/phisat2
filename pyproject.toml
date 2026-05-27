@@ -31,6 +31,9 @@ phisat2-train = "phisat2.cli.train:main"
 [tool.setuptools.packages.find]
 include = ["phisat2*"]
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
 [dependency-groups]
 dev = [
     "pytest",

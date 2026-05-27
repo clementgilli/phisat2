@@ -10,6 +10,7 @@ SEED ?= 42
 SEEDS ?= $(SEED)
 EPOCHS ?= 50
 BATCH_SIZE ?= 16
+CROP_SIZE ?= 224
 LR ?= 0.0001
 NUM_WORKERS ?= 4
 ROOT_DIR ?= .
@@ -20,6 +21,7 @@ DEVICES ?= auto
 STRATEGY ?= auto
 PRECISION ?= 32-true
 AUTO_DDP ?= true
+SUBSET_CSV ?=
 
 ifeq ($(PRETRAINED),true)
 PRETRAINED_FLAG := --pretrained
@@ -33,9 +35,15 @@ else
 AUTO_DDP_FLAG :=
 endif
 
+ifneq ($(SUBSET_CSV),)
+    SUBSET_FLAG = --subset-csv $(SUBSET_CSV)
+else
+    SUBSET_FLAG =
+endif
+
 .DEFAULT_GOAL := help
 
-.PHONY: help install sync mount check test smoke train train-segmentation train-classification train-regression sweep-seeds list-models list-dataloaders clean
+.PHONY: help install sync mount check test smoke fast-dev-run train train-segmentation train-classification train-regression sweep-seeds list-models list-dataloaders clean
 
 help: ## Show available targets.
 	@awk 'BEGIN {FS = ":.*##"; printf "Available targets:\n"} /^[a-zA-Z0-9_.-]+:.*##/ {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -66,12 +74,36 @@ smoke: ## Run a one-batch synthetic Lightning smoke test.
 		--output-dir runs/smoke \
 		--max-epochs 1 \
 		--batch-size 2 \
+		--crop-size 224 \
 		--lr 0.0001 \
 		--num-workers 0 \
 		--accelerator cpu \
 		--devices 1 \
 		--precision 32-true \
 		--no-pretrained \
+		--fast-dev-run
+
+fast-dev-run: ## Run a one-batch Lightning fast-dev run with the configured real dataloader.
+	$(PYTHON) -m phisat2.cli.train fit \
+		--task $(TASK) \
+		--dataset $(DATASET) \
+		--model $(MODEL) \
+		--dataloader $(DATALOADER) \
+		--seeds $(SEEDS) \
+		--root-dir $(ROOT_DIR) \
+		--output-dir $(OUTPUT_DIR) \
+		--max-epochs $(EPOCHS) \
+		--batch-size $(BATCH_SIZE) \
+		--crop-size $(CROP_SIZE) \
+		--lr $(LR) \
+		--num-workers $(NUM_WORKERS) \
+		--accelerator $(ACCELERATOR) \
+		--devices $(DEVICES) \
+		--strategy $(STRATEGY) \
+		--precision $(PRECISION) \
+		$(AUTO_DDP_FLAG) \
+		$(PRETRAINED_FLAG) \
+		$(SUBSET_FLAG) \
 		--fast-dev-run
 
 train: ## Train with Make variables: TASK DATASET MODEL DATALOADER SEEDS EPOCHS etc.
@@ -85,6 +117,7 @@ train: ## Train with Make variables: TASK DATASET MODEL DATALOADER SEEDS EPOCHS 
 		--output-dir $(OUTPUT_DIR) \
 		--max-epochs $(EPOCHS) \
 		--batch-size $(BATCH_SIZE) \
+		--crop-size $(CROP_SIZE) \
 		--lr $(LR) \
 		--num-workers $(NUM_WORKERS) \
 		--accelerator $(ACCELERATOR) \
@@ -92,7 +125,8 @@ train: ## Train with Make variables: TASK DATASET MODEL DATALOADER SEEDS EPOCHS 
 		--strategy $(STRATEGY) \
 		--precision $(PRECISION) \
 		$(AUTO_DDP_FLAG) \
-		$(PRETRAINED_FLAG)
+		$(PRETRAINED_FLAG) \
+		$(SUBSET_FLAG)
 
 train-segmentation: ## Train a segmentation model.
 	$(MAKE) train TASK=segmentation

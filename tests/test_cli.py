@@ -47,6 +47,7 @@ def test_run_fit_creates_seed_directories(monkeypatch, tmp_path):
         output_dir=str(tmp_path),
         max_epochs=1,
         batch_size=2,
+        crop_size=224,
         lr=1e-4,
         num_workers=0,
         accelerator="cpu",
@@ -87,6 +88,7 @@ def test_auto_ddp_uses_all_cuda_devices(monkeypatch, tmp_path):
         output_dir=str(tmp_path),
         max_epochs=1,
         batch_size=2,
+        crop_size=224,
         lr=1e-4,
         num_workers=0,
         accelerator="auto",
@@ -124,6 +126,31 @@ def test_make_train_dry_run_uses_python_cli():
     assert "--seeds 1 2" in result.stdout
     assert "--strategy auto" in result.stdout
     assert "--auto-ddp" in result.stdout
+
+
+def test_make_fast_dev_run_dry_run_uses_python_cli():
+    result = subprocess.run(
+        [
+            "make",
+            "-n",
+            "fast-dev-run",
+            "TASK=segmentation",
+            "DATASET=lc",
+            "MODEL=phisat2_geoaware",
+            "DATALOADER=zarr_downstream",
+            "ROOT_DIR=data/PhiSatNet",
+            "EPOCHS=1",
+            "CROP_SIZE=128",
+        ],
+        check=True,
+        text=True,
+        capture_output=True,
+    )
+    assert "-m phisat2.cli.train fit" in result.stdout
+    assert "--dataset lc" in result.stdout
+    assert "--dataloader zarr_downstream" in result.stdout
+    assert "--crop-size 128" in result.stdout
+    assert "--fast-dev-run" in result.stdout
 
 
 def test_module_lists_models():

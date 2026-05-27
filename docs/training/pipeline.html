@@ -41,7 +41,7 @@
     <section>
       <h2>Defaults and hardware</h2>
       <ul>
-        <li>Model + optimizer: AdamW + weight decay 1e-4.</li>
+        <li>Model + optimizer: frozen <code>model.encoder</code>, trainable non-encoder layers, AdamW + weight decay 1e-4.</li>
         <li>Optimizer LR source: Make <code>LR</code> or CLI <code>--lr</code>.</li>
         <li>Checkpointing saves <code>best</code> (monitor <code>val_loss</code>) and <code>last</code>.</li>
         <li>Fast-dev mode disables checkpointing and uses one-cycle validation behavior.</li>

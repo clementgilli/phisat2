@@ -61,7 +61,7 @@ Useful variables:
 ```bash
 TASK=segmentation|classification|pixel_regression|global_regression
 DATASET=lc|lulc|marine|burned_area|clouds|worldfloods|fire
-MODEL=phisat2_geoaware|terramind_v1_tiny|prithvi_eo_v1_100|myriad2_full_unet
+MODEL=<one from make list-models>
 DATALOADER=zarr_downstream|h5_pairs|synthetic
 SEED=42
 SEEDS="13 42 100"
@@ -90,7 +90,8 @@ full-U-Net topology as a benchmark exception, but it still initializes normally.
 
 ### Decoder behavior
 
-- Shared encoder families (`phisat2_geoaware`, `terramind_*`, `prithvi_*`) use a
+- Shared encoder families (`phisat2_geoaware`, `terramind_*`, `prithvi_*`,
+  `dofa_*`, `seco_*`, `ssl4eos12_*`, and `satlas_*`) use a
   `SharedDecoderModel` wrapper.
 - For spatial tasks (`segmentation`, `pixel_regression`), that wrapper always
   uses the same `SharedUNetDecoder` class.

@@ -1,0 +1,32 @@
+{
+  "class_ids": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+  ],
+  "class_prefix": "class_",
+  "class_totals": {
+    "class_0": 3472128758,
+    "class_1": 1353158864,
+    "class_10": 15228,
+    "class_2": 2729257576,
+    "class_3": 2250231077,
+    "class_4": 586885245,
+    "class_5": 189300765,
+    "class_6": 96162,
+    "class_7": 1254150043,
+    "class_8": 134935988,
+    "class_9": 62053286
+  },
+  "dataset": "lulc",
+  "source_folder": "/shared/projects/phisat2/data/huggingface/lulc.zarr/trainval",
+  "split": "train"
+}
