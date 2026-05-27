@@ -24,6 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
     fit.add_argument("--dataset", required=True)
     fit.add_argument("--model", required=True)
     fit.add_argument("--dataloader", required=True)
+    fit.add_argument("--subset-csv", type=str, default=None, help="Path to a generated N-shot CSV to filter the training set. If None, uses full dataset.")
     fit.add_argument("--seeds", nargs="+", type=int, required=True)
     fit.add_argument("--root-dir", default=".")
     fit.add_argument("--output-dir", default="runs")
@@ -106,6 +107,7 @@ def run_fit(args: argparse.Namespace) -> None:
             seed=seed,
             crop_size=args.crop_size,
             fast_dev_run=args.fast_dev_run,
+            subset_csv=args.subset_csv,
         )
         model = build_model(args.model, spec, pretrained=args.pretrained)
         module = PhiSat2LightningModule(model, spec, lr=args.lr)

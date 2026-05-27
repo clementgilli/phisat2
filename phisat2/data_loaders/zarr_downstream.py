@@ -7,6 +7,7 @@ from pathlib import Path
 
 import lightning as L
 import numpy as np
+import csv
 import torch
 from torch.utils.data import DataLoader, Dataset
 
@@ -42,6 +43,7 @@ class ZarrDownstreamDataset(Dataset):
         crop_size: int = 224,
         max_patches: int | None = None,
         random_crop: bool = True,
+        subset_csv: str | None = None,
     ) -> None:
         if spec.task != "segmentation":
             raise ValueError("zarr_downstream currently supports segmentation datasets.")
@@ -58,7 +60,7 @@ class ZarrDownstreamDataset(Dataset):
         source_folder = base_path / "trainval" if split in {"train", "val"} else base_path / "test"
         if not source_folder.exists():
             raise FileNotFoundError(f"Expected Zarr split folder at {source_folder}")
-        self.patches = self._list_patches(source_folder, split, seed, val_ratio, max_patches)
+        self.patches = self._list_patches(source_folder, split, seed, val_ratio, max_patches, subset_csv=subset_csv)
 
     def __len__(self) -> int:
         return len(self.patches)
@@ -134,17 +136,41 @@ class ZarrDownstreamDataset(Dataset):
         seed: int,
         val_ratio: float,
         max_patches: int | None,
+        subset_csv: str | None = None,
     ) -> list[str]:
         patch_paths = list(_list_patch_dirs(str(source_folder)))
         if not patch_paths:
             raise FileNotFoundError(f"No Zarr patches found in {source_folder}")
+            
+        if subset_csv and split in {"train", "val"}:
+            with open(subset_csv, 'r') as f:
+                reader = csv.DictReader(f)
+                subset_ids = {row['sample_id'] for row in reader}
+                
+            if split == "train":
+                selected = [p for p in patch_paths if Path(p).name in subset_ids]
+                if not selected:
+                    raise ValueError(f"No matching patches found for the IDs in {subset_csv}")
+            elif split == "val":
+                remaining = [p for p in patch_paths if Path(p).name not in subset_ids]
+                rng = np.random.default_rng(seed)
+                val_count = max(1, int(len(patch_paths) * val_ratio))
+                val_indices = set(rng.choice(len(remaining), size=val_count, replace=False).tolist())
+                selected = [path for index, path in enumerate(remaining) if index in val_indices]
+                
+            if max_patches is not None:
+                return selected[:max_patches]
+            return selected
+
         if max_patches is not None:
             return patch_paths[:max_patches]
         if split not in {"train", "val"}:
             return patch_paths
+            
         rng = np.random.default_rng(seed)
         val_count = max(1, int(len(patch_paths) * val_ratio))
         val_indices = set(rng.choice(len(patch_paths), size=val_count, replace=False).tolist())
+        
         if split == "val":
             return [path for index, path in enumerate(patch_paths) if index in val_indices]
         return [path for index, path in enumerate(patch_paths) if index not in val_indices]
@@ -167,6 +193,7 @@ class ZarrDownstreamDataModule(L.LightningDataModule):
         seed: int,
         crop_size: int = 224,
         fast_dev_run: bool = False,
+        subset_csv: str | None = None,
     ) -> None:
         super().__init__()
         self.root_dir = root_dir
@@ -176,7 +203,8 @@ class ZarrDownstreamDataModule(L.LightningDataModule):
         self.seed = seed
         self.crop_size = crop_size
         self.fast_dev_run = fast_dev_run
-
+        self.subset_csv = subset_csv
+        
     def setup(self, stage: str | None = None) -> None:
         max_patches = self.batch_size if self.fast_dev_run else None
         if stage in {None, "fit", "validate"}:
@@ -188,6 +216,7 @@ class ZarrDownstreamDataModule(L.LightningDataModule):
                 crop_size=self.crop_size,
                 max_patches=max_patches,
                 random_crop=not self.fast_dev_run,
+                subset_csv=self.subset_csv,
             )
             self.val_dataset = ZarrDownstreamDataset(
                 self.root_dir,
@@ -197,6 +226,7 @@ class ZarrDownstreamDataModule(L.LightningDataModule):
                 crop_size=self.crop_size,
                 max_patches=max_patches,
                 random_crop=not self.fast_dev_run,
+                subset_csv=self.subset_csv,
             )
         if stage in {None, "test"}:
             self.test_dataset = ZarrDownstreamDataset(
@@ -207,6 +237,7 @@ class ZarrDownstreamDataModule(L.LightningDataModule):
                 crop_size=self.crop_size,
                 max_patches=max_patches,
                 random_crop=not self.fast_dev_run,
+                subset_csv=None,
             )
 
     def train_dataloader(self) -> DataLoader:

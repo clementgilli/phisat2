@@ -54,6 +54,7 @@ def build_datamodule(
     seed: int,
     crop_size: int = 224,
     fast_dev_run: bool = False,
+    subset_csv: str | None = None,
 ) -> L.LightningDataModule:
     try:
         entry = REGISTRY[name]
@@ -71,6 +72,7 @@ def build_datamodule(
             seed=seed,
             crop_size=crop_size,
             fast_dev_run=fast_dev_run,
+            subset_csv=subset_csv,
         )
     return entry.builder(
         root_dir=root_dir,

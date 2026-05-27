@@ -21,6 +21,7 @@ DEVICES ?= auto
 STRATEGY ?= auto
 PRECISION ?= 32-true
 AUTO_DDP ?= true
+SUBSET_CSV ?=
 
 ifeq ($(PRETRAINED),true)
 PRETRAINED_FLAG := --pretrained
@@ -32,6 +33,12 @@ ifeq ($(AUTO_DDP),true)
 AUTO_DDP_FLAG := --auto-ddp
 else
 AUTO_DDP_FLAG :=
+endif
+
+ifneq ($(SUBSET_CSV),)
+    SUBSET_FLAG = --subset-csv $(SUBSET_CSV)
+else
+    SUBSET_FLAG =
 endif
 
 .DEFAULT_GOAL := help
@@ -96,6 +103,7 @@ fast-dev-run: ## Run a one-batch Lightning fast-dev run with the configured real
 		--precision $(PRECISION) \
 		$(AUTO_DDP_FLAG) \
 		$(PRETRAINED_FLAG) \
+		$(SUBSET_FLAG) \
 		--fast-dev-run
 
 train: ## Train with Make variables: TASK DATASET MODEL DATALOADER SEEDS EPOCHS etc.
@@ -117,7 +125,8 @@ train: ## Train with Make variables: TASK DATASET MODEL DATALOADER SEEDS EPOCHS 
 		--strategy $(STRATEGY) \
 		--precision $(PRECISION) \
 		$(AUTO_DDP_FLAG) \
-		$(PRETRAINED_FLAG)
+		$(PRETRAINED_FLAG) \
+		$(SUBSET_FLAG)
 
 train-segmentation: ## Train a segmentation model.
 	$(MAKE) train TASK=segmentation
