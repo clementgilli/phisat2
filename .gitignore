@@ -222,3 +222,4 @@ pretrain/weights
 .*/
 *templates
 AGENTS.md
+logs/

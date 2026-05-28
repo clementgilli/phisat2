@@ -6,14 +6,13 @@ from pathlib import Path
 import lightning as L
 import torch
 from lightning.pytorch.callbacks import ModelCheckpoint
-from lightning.pytorch.loggers import CSVLogger
+from lightning.pytorch.loggers import WandbLogger
 
 from phisat2.data_loaders import build_datamodule, list_dataloaders
 from phisat2.models import build_model, list_models
 from phisat2.tasks import resolve_task_spec
 from phisat2.training.lightning_module import PhiSat2LightningModule
 from phisat2.utils.seed import seed_everything
-
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="PhiSat-2 Makefile-driven Lightning trainer")
@@ -43,6 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Use every visible CUDA GPU and DDP when hardware settings are otherwise auto.",
     )
     fit.add_argument("--fast-dev-run", action="store_true")
+    fit.add_argument("--resume", action="store_true", help="Resume from last checkpoint if exists.")
     pretrained = fit.add_mutually_exclusive_group()
     pretrained.add_argument("--pretrained", dest="pretrained", action="store_true")
     pretrained.add_argument("--no-pretrained", dest="pretrained", action="store_false")
@@ -88,14 +88,19 @@ def resolve_trainer_hardware(args: argparse.Namespace) -> dict[str, object]:
 
     return {"accelerator": accelerator, "devices": devices, "strategy": strategy}
 
-
 def run_fit(args: argparse.Namespace) -> None:
     spec = resolve_task_spec(args.task, args.dataset)
     output_root = Path(args.output_dir)
+    
+    if args.subset_csv:
+        subset_name = Path(args.subset_csv).stem 
+    else:
+        subset_name = "full_dataset"
+    
     for seed in args.seeds:
         seed_everything(seed)
         L.seed_everything(seed, workers=True)
-        seed_dir = output_root / spec.task / spec.dataset / args.model / f"seed_{seed}"
+        seed_dir = output_root / spec.task / spec.dataset / args.model / subset_name / f"seed_{seed}"
         seed_dir.mkdir(parents=True, exist_ok=True)
 
         datamodule = build_datamodule(
@@ -110,6 +115,7 @@ def run_fit(args: argparse.Namespace) -> None:
             subset_csv=args.subset_csv,
         )
         model = build_model(args.model, spec, pretrained=args.pretrained)
+        model = torch.compile(model) if torch.__version__ >= "2.0" else model
         module = PhiSat2LightningModule(model, spec, lr=args.lr)
         hardware = resolve_trainer_hardware(args)
         callbacks = []
@@ -131,13 +137,20 @@ def run_fit(args: argparse.Namespace) -> None:
             precision=args.precision,
             max_epochs=args.max_epochs,
             default_root_dir=seed_dir,
-            logger=CSVLogger(save_dir=seed_dir, name="logs"),
+            logger=WandbLogger(project="PhiSat2", name=f"{args.model}_{subset_name}", save_dir=seed_dir),
             callbacks=callbacks,
             fast_dev_run=args.fast_dev_run,
             log_every_n_steps=1,
         )
-        trainer.fit(module, datamodule=datamodule)
-
+        
+        ckpt_to_resume = None
+        if args.resume:
+            last_ckpt_path = seed_dir / "checkpoints" / "last.ckpt"
+            if last_ckpt_path.exists():
+                ckpt_to_resume = str(last_ckpt_path)
+                print(f"Resuming from checkpoint: {ckpt_to_resume}")
+        
+        trainer.fit(module, datamodule=datamodule, ckpt_path=ckpt_to_resume)
 
 if __name__ == "__main__":
     main()

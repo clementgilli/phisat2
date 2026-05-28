@@ -22,6 +22,7 @@ STRATEGY ?= auto
 PRECISION ?= 32-true
 AUTO_DDP ?= true
 SUBSET_CSV ?=
+RESUME ?= false
 
 ifeq ($(PRETRAINED),true)
 PRETRAINED_FLAG := --pretrained
@@ -39,6 +40,12 @@ ifneq ($(SUBSET_CSV),)
     SUBSET_FLAG = --subset-csv $(SUBSET_CSV)
 else
     SUBSET_FLAG =
+endif
+
+ifneq ($(RESUME),false)
+    RESUME_FLAG = --resume
+else
+    RESUME_FLAG =
 endif
 
 .DEFAULT_GOAL := help
@@ -126,7 +133,8 @@ train: ## Train with Make variables: TASK DATASET MODEL DATALOADER SEEDS EPOCHS 
 		--precision $(PRECISION) \
 		$(AUTO_DDP_FLAG) \
 		$(PRETRAINED_FLAG) \
-		$(SUBSET_FLAG)
+		$(SUBSET_FLAG) \
+		$(RESUME_FLAG)
 
 train-segmentation: ## Train a segmentation model.
 	$(MAKE) train TASK=segmentation
