@@ -137,7 +137,7 @@ def run_fit(args: argparse.Namespace) -> None:
             precision=args.precision,
             max_epochs=args.max_epochs,
             default_root_dir=seed_dir,
-            logger=WandbLogger(project="PhiSat2", name=f"{args.model}_{subset_name}", save_dir=seed_dir),
+            logger=WandbLogger(project="PhiSat2", name=f"{args.model}_{subset_name}", save_dir=seed_dir, config=vars(args)),
             callbacks=callbacks,
             fast_dev_run=args.fast_dev_run,
             log_every_n_steps=1,

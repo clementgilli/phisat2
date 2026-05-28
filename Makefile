@@ -1,3 +1,7 @@
+EXPERIMENT ?=
+ifneq ($(EXPERIMENT),)
+    include $(EXPERIMENT)
+endif
 
 UV ?= uv
 PYTHON ?= $(UV) run --python 3.13 python
@@ -157,3 +161,18 @@ list-dataloaders: ## List registered dataloader names.
 clean: ## Remove common generated Python build and cache artifacts.
 	rm -rf build dist *.egg-info .pytest_cache .ruff_cache .mypy_cache .coverage htmlcov
 	$(PYTHON) -c "from pathlib import Path; import shutil; [shutil.rmtree(p) for p in Path('.').rglob('__pycache__')]"
+
+submit:
+	@if [ -z "$(EXPERIMENT)" ]; then echo "Error: Specify a config with EXPERIMENT=configs/..."; exit 1; fi
+	@echo "Submitting job with $(EXPERIMENT)..."
+	@sed -e "s|__JOB_NAME__|$(JOB_NAME)|g" \
+	     -e "s|__QUEUE__|$(QUEUE)|g" \
+	     -e "s|__WALLTIME__|$(WALLTIME)|g" \
+	     -e "s|__GPUS__|$(GPUS)|g" \
+	     -e "s|__CPUS__|$(CPUS)|g" \
+	     -e "s|__MEM__|$(MEM)|g" \
+	     -e "s|__EXPERIMENT__|$(EXPERIMENT)|g" \
+	     scripts/runner_template.pbs > .temp_job.pbs
+	@qsub .temp_job.pbs
+	@rm .temp_job.pbs
+	@echo "Job submitted to the cluster !"

@@ -1,0 +1,13 @@
+#!/bin/bash
+#PBS -N __JOB_NAME__
+#PBS -q __QUEUE__
+#PBS -l walltime=__WALLTIME__
+#PBS -l select=1:ngpus=__GPUS__:ncpus=__CPUS__:mem=__MEM__
+#PBS -j oe
+#PBS -o /lustre/home/u10010021/phisat2/logs/
+
+export WANDB_MODE=offline
+
+cd /lustre/home/u10010021/phisat2/
+
+make train EXPERIMENT=__EXPERIMENT__
