@@ -10,4 +10,4 @@ export WANDB_MODE=offline
 
 cd /lustre/home/u10010021/phisat2/
 
-make train EXPERIMENT=__EXPERIMENT__
+make __MAKE_TARGET__ EXPERIMENT=__EXPERIMENT__ CKPT_PATH="__CKPT_PATH__"

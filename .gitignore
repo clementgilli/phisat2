@@ -203,6 +203,7 @@ wandb/
 tb_logs/
 lightning_logs/
 core.*
+eval_runs/
 
 .vscode/
 

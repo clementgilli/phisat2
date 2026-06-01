@@ -27,6 +27,7 @@ PRECISION ?= 32-true
 AUTO_DDP ?= true
 SUBSET_CSV ?=
 RESUME ?= false
+CKPT_PATH ?=
 
 ifeq ($(PRETRAINED),true)
 PRETRAINED_FLAG := --pretrained
@@ -149,6 +150,22 @@ train-classification: ## Train a classification model.
 train-regression: ## Train a pixel regression model.
 	$(MAKE) train TASK=pixel_regression
 
+eval: ## Evalue un modèle depuis un checkpoint.
+	$(PYTHON) -m phisat2.cli.eval test \
+		--task $(TASK) \
+		--dataset $(DATASET) \
+		--model $(MODEL) \
+		--dataloader $(DATALOADER) \
+		--ckpt-path $(CKPT_PATH) \
+		--root-dir $(ROOT_DIR) \
+		--batch-size $(BATCH_SIZE) \
+		--num-workers $(NUM_WORKERS) \
+		--accelerator $(ACCELERATOR) \
+		--devices $(DEVICES) \
+		--strategy $(STRATEGY) \
+		--precision $(PRECISION) \
+		$(AUTO_DDP_FLAG)
+
 sweep-seeds: ## Alias for train with SEEDS set to multiple values.
 	$(MAKE) train
 
@@ -162,9 +179,14 @@ clean: ## Remove common generated Python build and cache artifacts.
 	rm -rf build dist *.egg-info .pytest_cache .ruff_cache .mypy_cache .coverage htmlcov
 	$(PYTHON) -c "from pathlib import Path; import shutil; [shutil.rmtree(p) for p in Path('.').rglob('__pycache__')]"
 
-submit:
+submit-train:
+	@$(MAKE) _submit TARGET=train
+
+submit-eval: 
+	@$(MAKE) _submit TARGET=eval
+
+_submit:
 	@if [ -z "$(EXPERIMENT)" ]; then echo "Error: Specify a config with EXPERIMENT=configs/..."; exit 1; fi
-	@echo "Submitting job with $(EXPERIMENT)..."
 	@sed -e "s|__JOB_NAME__|$(JOB_NAME)|g" \
 	     -e "s|__QUEUE__|$(QUEUE)|g" \
 	     -e "s|__WALLTIME__|$(WALLTIME)|g" \
@@ -172,7 +194,9 @@ submit:
 	     -e "s|__CPUS__|$(CPUS)|g" \
 	     -e "s|__MEM__|$(MEM)|g" \
 	     -e "s|__EXPERIMENT__|$(EXPERIMENT)|g" \
+	     -e "s|__MAKE_TARGET__|$(TARGET)|g" \
+	     -e "s|__CKPT_PATH__|$(CKPT_PATH)|g" \
 	     scripts/runner_template.pbs > .temp_job.pbs
 	@qsub .temp_job.pbs
 	@rm .temp_job.pbs
-	@echo "Job submitted to the cluster !"
+	@echo "Job $(TARGET) submitted to the cluster !"
