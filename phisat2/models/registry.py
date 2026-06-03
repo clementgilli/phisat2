@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import torch
 import torch.nn as nn
 
 from phisat2.models.composite import SharedDecoderModel
@@ -14,6 +15,7 @@ from phisat2.tasks import TaskSpec
 @dataclass(frozen=True)
 class ModelEntry:
     name: str
+    role: str
     description: str
     shared_decoder: bool
     pretrain_bands: Optional[Tuple[str, ...]] = None
@@ -29,22 +31,31 @@ _TERRAMIND_MEAN = (2357.089, 2137.385, 2018.788, 2082.986, 2295.651, 2854.537, 3
 _TERRAMIND_STD  = (1624.683, 1675.806, 1557.708, 1833.702, 1823.738, 1733.977, 1732.131, 1679.732, 1727.26, 1024.687, 442.165, 1331.411, 1160.419)
 
 
+
 REGISTRY = {
-    # --- TERRAMIND ---
+    # --- Students ---
+    "phisat2_geoaware": ModelEntry(
+        "phisat2_geoaware", "student", "Local compact PhiSat-2 CNN encoder baseline.", True
+    ),
+    "myriad2_full_unet": ModelEntry(
+        "myriad2_full_unet", "student", "Full-structure Myriad2 U-Net exception.", False
+    ),
+    
+    # --- Teachers ---
     "terramind_v1_tiny": ModelEntry(
-        "terramind_v1_tiny", "TerraTorch TerraMind tiny with 8-channel input.", True,
+        "terramind_v1_tiny", "teacher", "TerraTorch TerraMind tiny.", True,
         pretrain_bands=_TERRAMIND_BANDS, pretrain_mean=_TERRAMIND_MEAN, pretrain_std=_TERRAMIND_STD
     ),
     "terramind_v1_small": ModelEntry(
-        "terramind_v1_small", "TerraTorch TerraMind small with 8-channel input.", True,
+        "terramind_v1_small", "teacher", "TerraTorch TerraMind small.", True,
         pretrain_bands=_TERRAMIND_BANDS, pretrain_mean=_TERRAMIND_MEAN, pretrain_std=_TERRAMIND_STD
     ),
     "terramind_v1_base": ModelEntry(
-        "terramind_v1_base", "TerraTorch TerraMind base with 8-channel input.", True,
+        "terramind_v1_base", "teacher", "TerraTorch TerraMind base.", True,
         pretrain_bands=_TERRAMIND_BANDS, pretrain_mean=_TERRAMIND_MEAN, pretrain_std=_TERRAMIND_STD
     ),
     "terramind_v1_large": ModelEntry(
-        "terramind_v1_large", "TerraTorch TerraMind large with 8-channel input.", True,
+        "terramind_v1_large", "teacher", "TerraTorch TerraMind large .", True,
         pretrain_bands=_TERRAMIND_BANDS, pretrain_mean=_TERRAMIND_MEAN, pretrain_std=_TERRAMIND_STD
     ),
 }
@@ -60,21 +71,72 @@ def get_model_stats(name: str) -> tuple[tuple[str, ...] | None, tuple[float, ...
     entry = REGISTRY[name]
     return entry.pretrain_bands, entry.pretrain_mean, entry.pretrain_std
 
+def _build_encoder(name: str, pretrained: bool, input_bands: list[str]) -> nn.Module:
+    if name == "phisat2_geoaware":
+        return PhiSat2GeoAwareEncoder(in_channels=len(input_bands))
+    else:
+        return TerraTorchBackboneEncoder(name, pretrained=pretrained, input_bands=input_bands)
+
 def build_model(name: str, spec: TaskSpec, *, pretrained: bool, input_bands: list[str]) -> nn.Module:
     if name not in REGISTRY:
         valid = ", ".join(sorted(REGISTRY))
         raise ValueError(f"Unknown model '{name}'. Expected one of: {valid}.")
+    
+    entry = REGISTRY[name]
+
+    # ---------------------------------------------------------
+    # PRE-TRAINING SSL
+    # ---------------------------------------------------------
+    if spec.task == "pretrain_reconstruction":
+        if entry.role != "student":
+            raise ValueError(f"Forbidden : You're trying to pretrain '{name}' which is a {entry.role}. Pretraining is reserved for 'student' models.")
         
-    if name == "myriad2_full_unet":
-        if spec.task not in {"segmentation", "pixel_regression"}:
-            raise ValueError("myriad2_full_unet preserves a spatial U-Net and only supports spatial tasks.")
-        return Myriad2FullUNet(output_channels=spec.num_outputs)
+        encoder = _build_encoder(name, pretrained=pretrained, input_bands=input_bands)
+        return SharedDecoderModel(encoder, spec)
+
+    # ---------------------------------------------------------
+    # DISTILLATION (KD)
+    # ---------------------------------------------------------
+    elif spec.task == "distillation_kd":
+        if entry.role != "teacher":
+            raise ValueError(f"Forbidden : The distillation task (Teacher Benchmarking) requires a 'teacher' model, not a '{entry.role}'.")
         
-    if name == "phisat2_geoaware":
-        return SharedDecoderModel(PhiSat2GeoAwareEncoder(), spec)
+        teacher = _build_encoder(name, pretrained=True, input_bands=input_bands)
         
-    encoder = TerraTorchBackboneEncoder(name, pretrained=pretrained, input_bands=input_bands)
-    return SharedDecoderModel(encoder, spec)
+        student = _build_encoder("phisat2_geoaware", pretrained=False, input_bands=input_bands)
+        
+        raise NotImplementedError("Not implemented yet.")
+
+    # ---------------------------------------------------------
+    # DOWNSTREAM (Linear Probing)
+    # ---------------------------------------------------------
+    else:    
+        target_model_name = name
+        if entry.role == "teacher":
+            raise ValueError(f"Forbidden : The downstream evaluation phase requires a 'student' model, not a '{entry.role}'.")
+
+        if target_model_name == "myriad2_full_unet":
+            model = Myriad2FullUNet(output_channels=spec.num_outputs)
+        else:
+            encoder = _build_encoder(target_model_name, pretrained=False, input_bands=input_bands)
+            model = SharedDecoderModel(encoder, spec)
+
+        if weights_path:
+            ckpt = torch.load(weights_path, map_location="cpu", weights_only=False)
+            state_dict = ckpt.get("state_dict", ckpt)
+            
+            cleaned_dict = {}
+            for k, v in state_dict.items():
+                if k.startswith("model."):
+                    cleaned_dict[k.replace("model.", "", 1)] = v
+                elif k.startswith("student."):
+                    cleaned_dict[k.replace("student.", "", 1)] = v
+                else:
+                    cleaned_dict[k] = v
+            
+            missing, unexpected = model.load_state_dict(cleaned_dict, strict=False)
+                        
+        return model
 
 
 

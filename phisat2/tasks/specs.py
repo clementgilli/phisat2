@@ -13,6 +13,7 @@ TASKS = {
     TASK_PIXEL_REGRESSION,
     TASK_CLASSIFICATION,
     TASK_GLOBAL_REGRESSION,
+    TASK_PRETRAIN_RECONSTRUCTION,
 }
 
 SEGMENTATION_OUTPUTS = {
@@ -39,7 +40,11 @@ GLOBAL_REGRESSION_OUTPUTS = {
 }
 
 PIXEL_REGRESSION_OUTPUTS = {
-    "reconstruction": 8,
+    "TODO": 8,
+}
+
+PRETRAIN_RECONSTRUCTION_OUTPUTS = {
+    "phisat2_simulated": 8,
 }
 
 
@@ -64,7 +69,10 @@ def resolve_task_spec(task: str, dataset: str) -> TaskSpec:
         return TaskSpec(task, dataset, _lookup(dataset, CLASSIFICATION_OUTPUTS), "label", "cross_entropy")
     if task == TASK_GLOBAL_REGRESSION:
         return TaskSpec(task, dataset, _lookup(dataset, GLOBAL_REGRESSION_OUTPUTS), "target", "mse")
-    return TaskSpec(task, dataset, _lookup(dataset, PIXEL_REGRESSION_OUTPUTS), "target", "mse")
+    if task == TASK_PIXEL_REGRESSION:
+        return TaskSpec(task, dataset, _lookup(dataset, PIXEL_REGRESSION_OUTPUTS), "target", "mse")
+    if task == TASK_PRETRAIN_RECONSTRUCTION:
+        return TaskSpec(task, dataset, _lookup(dataset, PRETRAIN_RECONSTRUCTION_OUTPUTS), "image", "mse")
 
 
 def _lookup(dataset: str, outputs: dict[str, int]) -> int:

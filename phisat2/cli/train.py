@@ -10,8 +10,12 @@ from lightning.pytorch.loggers import WandbLogger
 
 from phisat2.data_loaders import build_datamodule, list_dataloaders
 from phisat2.models import build_model, list_models
+
 from phisat2.tasks import resolve_task_spec
-from phisat2.training.lightning_module import PhiSat2LightningModule
+from phisat2.tasks.specs import TASKS 
+
+from phisat2.training.downstream import DownstreamModule
+from phisat2.training.pretrain_ssl import SSLPretrainModule
 from phisat2.utils.seed import seed_everything
 
 def build_parser() -> argparse.ArgumentParser:
@@ -19,10 +23,12 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     fit = subparsers.add_parser("fit", help="Run training for one or more seeds.")
-    fit.add_argument("--task", required=True, choices=["segmentation", "pixel_regression", "classification", "global_regression"])
-    fit.add_argument("--dataset", required=True)
+    
+    fit.add_argument("--task", required=True, choices=list(TASKS))
+    
+    fit.add_argument("--dataset", type=str, default=None)
     fit.add_argument("--model", required=True)
-    fit.add_argument("--dataloader", required=True)
+    fit.add_argument("--dataloader", type=str, default=None)
     fit.add_argument("--subset-csv", type=str, default=None, help="Path to a generated N-shot CSV to filter the training set. If None, uses full dataset.")
     fit.add_argument("--seeds", nargs="+", type=int, required=True)
     fit.add_argument("--root-dir", default=".")
@@ -43,6 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     fit.add_argument("--fast-dev-run", action="store_true")
     fit.add_argument("--resume", action="store_true", help="Resume from last checkpoint if exists.")
+    fit.add_argument("--weights", type=str, default=None, help="Path to a local .ckpt file (SSL or KD) for downstream evaluation.")
     pretrained = fit.add_mutually_exclusive_group()
     pretrained.add_argument("--pretrained", dest="pretrained", action="store_true")
     pretrained.add_argument("--no-pretrained", dest="pretrained", action="store_false")
@@ -89,6 +96,15 @@ def resolve_trainer_hardware(args: argparse.Namespace) -> dict[str, object]:
     return {"accelerator": accelerator, "devices": devices, "strategy": strategy}
 
 def run_fit(args: argparse.Namespace) -> None:
+    
+    if args.task.startswith("pretrain_") or args.task == "distillation_kd":
+        args.dataset = "phisat2_simulated" 
+        args.dataloader = "synthetic" 
+        print(f"Phase '{args.task}' detected : Using dataset '{args.dataset}' and dataloader '{args.dataloader}'.")
+    else:
+        if not args.dataset or not args.dataloader:
+            raise ValueError(f"For the downstream task '{args.task}', you must explicitly provide --dataset and --dataloader in the command.")
+
     spec = resolve_task_spec(args.task, args.dataset)
     output_root = Path(args.output_dir)
     
@@ -116,11 +132,20 @@ def run_fit(args: argparse.Namespace) -> None:
         )
         
         input_bands = datamodule.input_bands
-        model = build_model(args.model, spec, pretrained=args.pretrained, input_bands=input_bands)
+        model = build_model(args.model, spec, pretrained=args.pretrained, input_bands=input_bands, weights_path=args.weights)
         model = torch.compile(model) if torch.__version__ >= "2.0" else model
-        module = PhiSat2LightningModule(model, spec, lr=args.lr)
+        
+        if spec.task.startswith("pretrain_"):
+            if spec.task == "pretrain_reconstruction":
+                module = SSLPretrainModule(model, spec, lr=args.lr)
+            else:
+                raise NotImplementedError(f"Pretraining task '{spec.task}' not supported yet.")
+        else:
+            module = DownstreamModule(model, spec, lr=args.lr)
+
         hardware = resolve_trainer_hardware(args)
         callbacks = []
+        
         if not args.fast_dev_run:
             callbacks.append(
                 ModelCheckpoint(

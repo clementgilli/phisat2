@@ -9,7 +9,7 @@ from phisat2.tasks import TaskSpec
 from phisat2.evaluation.metrics import build_metrics
 
 
-class PhiSat2LightningModule(L.LightningModule):
+class DownstreamModule(L.LightningModule):
     def __init__(self, model: nn.Module, spec: TaskSpec, *, lr: float) -> None:
         super().__init__()
         self.model = model
