@@ -7,6 +7,7 @@ TASK_SEGMENTATION = "segmentation"
 TASK_PIXEL_REGRESSION = "pixel_regression"
 TASK_CLASSIFICATION = "classification"
 TASK_GLOBAL_REGRESSION = "global_regression"
+TASK_PRETRAIN_RECONSTRUCTION = "pretrain_reconstruction"
 
 TASKS = {
     TASK_SEGMENTATION,

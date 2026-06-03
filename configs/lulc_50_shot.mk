@@ -8,7 +8,7 @@ QUEUE      = gpu4_std
 GPUS       = 1
 TASK       = segmentation
 DATASET    = lulc
-MODEL      = terramind_v1_tiny
+MODEL      = phisat2_geoaware
 BATCH_SIZE = 32
 SEEDS      = 42
 ROOT_DIR   = /lustre/home/u10010021/phisat2/data/
@@ -33,7 +33,8 @@ CPUS       = 4
 MEM        = 100g
 
 EPOCHS     = 100
-LR         = 0.05
+LR         = 0.0001
 SUBSET_CSV = /lustre/home/u10010021/phisat2/splits/lulc/lulc_train_50_global.csv
+WEIGHTS = /lustre/home/u10010021/phisat2/weights/encoder_sim_base.pth
 
 endif

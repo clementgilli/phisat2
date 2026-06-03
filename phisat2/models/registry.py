@@ -77,7 +77,7 @@ def _build_encoder(name: str, pretrained: bool, input_bands: list[str]) -> nn.Mo
     else:
         return TerraTorchBackboneEncoder(name, pretrained=pretrained, input_bands=input_bands)
 
-def build_model(name: str, spec: TaskSpec, *, pretrained: bool, input_bands: list[str]) -> nn.Module:
+def build_model(name: str, spec: TaskSpec, *, pretrained: bool, input_bands: list[str], weights_path: str | None = None) -> nn.Module:
     if name not in REGISTRY:
         valid = ", ".join(sorted(REGISTRY))
         raise ValueError(f"Unknown model '{name}'. Expected one of: {valid}.")
@@ -113,7 +113,8 @@ def build_model(name: str, spec: TaskSpec, *, pretrained: bool, input_bands: lis
     else:    
         target_model_name = name
         if entry.role == "teacher":
-            raise ValueError(f"Forbidden : The downstream evaluation phase requires a 'student' model, not a '{entry.role}'.")
+            print(f"Downstream mode : Using 'phisat2_geoaware' architecture.")
+            target_model_name = "phisat2_geoaware"
 
         if target_model_name == "myriad2_full_unet":
             model = Myriad2FullUNet(output_channels=spec.num_outputs)

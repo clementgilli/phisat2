@@ -28,6 +28,7 @@ AUTO_DDP ?= true
 SUBSET_CSV ?=
 RESUME ?= false
 CKPT_PATH ?=
+WEIGHTS ?=
 
 ifeq ($(PRETRAINED),true)
 PRETRAINED_FLAG := --pretrained
@@ -53,12 +54,30 @@ else
     RESUME_FLAG =
 endif
 
+ifneq ($(WEIGHTS),)
+    WEIGHTS_FLAG = --weights $(WEIGHTS)
+else
+    WEIGHTS_FLAG =
+endif
+
+ifneq ($(DATASET),)
+    DATASET_FLAG = --dataset $(DATASET)
+else
+    DATASET_FLAG =
+endif
+
+ifneq ($(DATALOADER),)
+    DATALOADER_FLAG = --dataloader $(DATALOADER)
+else
+    DATALOADER_FLAG =
+endif
+
 .DEFAULT_GOAL := help
 
-.PHONY: help install sync mount check test smoke fast-dev-run train train-segmentation train-classification train-regression sweep-seeds list-models list-dataloaders clean
+.PHONY: help install sync mount check test smoke fast-dev-run train pretrain distillation train-segmentation train-classification train-regression eval sweep-seeds list-models list-dataloaders clean submit-train submit-eval _submit
 
 help: ## Show available targets.
-	@awk 'BEGIN {FS = ":.*##"; printf "Available targets:\n"} /^[a-zA-Z0-9_.-]+:.*##/ {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "Available targets:\n"} /^[a-zA-Z0-9_.-]+:.*##/ {printf "  %-22s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 install: ## Install the package and dependencies with uv.
 	$(UV) sync --python 3.13 --group dev
@@ -98,9 +117,9 @@ smoke: ## Run a one-batch synthetic Lightning smoke test.
 fast-dev-run: ## Run a one-batch Lightning fast-dev run with the configured real dataloader.
 	$(PYTHON) -m phisat2.cli.train fit \
 		--task $(TASK) \
-		--dataset $(DATASET) \
+		$(DATASET_FLAG) \
 		--model $(MODEL) \
-		--dataloader $(DATALOADER) \
+		$(DATALOADER_FLAG) \
 		--seeds $(SEEDS) \
 		--root-dir $(ROOT_DIR) \
 		--output-dir $(OUTPUT_DIR) \
@@ -116,14 +135,15 @@ fast-dev-run: ## Run a one-batch Lightning fast-dev run with the configured real
 		$(AUTO_DDP_FLAG) \
 		$(PRETRAINED_FLAG) \
 		$(SUBSET_FLAG) \
+		$(WEIGHTS_FLAG) \
 		--fast-dev-run
 
-train: ## Train with Make variables: TASK DATASET MODEL DATALOADER SEEDS EPOCHS etc.
+train: ## Train with Make variables: TASK DATASET MODEL DATALOADER SEEDS EPOCHS WEIGHTS etc.
 	$(PYTHON) -m phisat2.cli.train fit \
 		--task $(TASK) \
-		--dataset $(DATASET) \
+		$(DATASET_FLAG) \
 		--model $(MODEL) \
-		--dataloader $(DATALOADER) \
+		$(DATALOADER_FLAG) \
 		--seeds $(SEEDS) \
 		--root-dir $(ROOT_DIR) \
 		--output-dir $(OUTPUT_DIR) \
@@ -139,7 +159,15 @@ train: ## Train with Make variables: TASK DATASET MODEL DATALOADER SEEDS EPOCHS 
 		$(AUTO_DDP_FLAG) \
 		$(PRETRAINED_FLAG) \
 		$(SUBSET_FLAG) \
-		$(RESUME_FLAG)
+		$(RESUME_FLAG) \
+		$(WEIGHTS_FLAG)
+
+
+pretrain: ## Train the SSL Onboard CNN Baseline (no dataset required).
+	$(MAKE) train TASK=pretrain_reconstruction MODEL=phisat2_geoaware DATASET= DATALOADER=
+
+distillation: ## Train the KD pipeline with a Teacher Model (e.g. MODEL=terramind_v1_tiny).
+	$(MAKE) train TASK=distillation_kd DATASET= DATALOADER=
 
 train-segmentation: ## Train a segmentation model.
 	$(MAKE) train TASK=segmentation
@@ -150,12 +178,12 @@ train-classification: ## Train a classification model.
 train-regression: ## Train a pixel regression model.
 	$(MAKE) train TASK=pixel_regression
 
-eval: ## Evalue un modèle depuis un checkpoint.
+eval:
 	$(PYTHON) -m phisat2.cli.eval test \
 		--task $(TASK) \
-		--dataset $(DATASET) \
+		$(DATASET_FLAG) \
 		--model $(MODEL) \
-		--dataloader $(DATALOADER) \
+		$(DATALOADER_FLAG) \
 		--ckpt-path $(CKPT_PATH) \
 		--root-dir $(ROOT_DIR) \
 		--batch-size $(BATCH_SIZE) \
@@ -185,18 +213,24 @@ submit-train:
 submit-eval: 
 	@$(MAKE) _submit TARGET=eval
 
+submit-pretrain:
+	@$(MAKE) _submit TARGET=pretrain
+
+submit-distillation:
+	@$(MAKE) _submit TARGET=distillation
+
 _submit:
 	@if [ -z "$(EXPERIMENT)" ]; then echo "Error: Specify a config with EXPERIMENT=configs/..."; exit 1; fi
 	@sed -e "s|__JOB_NAME__|$(JOB_NAME)|g" \
-	     -e "s|__QUEUE__|$(QUEUE)|g" \
-	     -e "s|__WALLTIME__|$(WALLTIME)|g" \
-	     -e "s|__GPUS__|$(GPUS)|g" \
-	     -e "s|__CPUS__|$(CPUS)|g" \
-	     -e "s|__MEM__|$(MEM)|g" \
-	     -e "s|__EXPERIMENT__|$(EXPERIMENT)|g" \
-	     -e "s|__MAKE_TARGET__|$(TARGET)|g" \
-	     -e "s|__CKPT_PATH__|$(CKPT_PATH)|g" \
-	     scripts/runner_template.pbs > .temp_job.pbs
+		 -e "s|__QUEUE__|$(QUEUE)|g" \
+		 -e "s|__WALLTIME__|$(WALLTIME)|g" \
+		 -e "s|__GPUS__|$(GPUS)|g" \
+		 -e "s|__CPUS__|$(CPUS)|g" \
+		 -e "s|__MEM__|$(MEM)|g" \
+		 -e "s|__EXPERIMENT__|$(EXPERIMENT)|g" \
+		 -e "s|__MAKE_TARGET__|$(TARGET)|g" \
+		 -e "s|__CKPT_PATH__|$(CKPT_PATH)|g" \
+		 scripts/runner_template.pbs > .temp_job.pbs
 	@qsub .temp_job.pbs
 	@rm .temp_job.pbs
 	@echo "Job $(TARGET) submitted to the cluster !"

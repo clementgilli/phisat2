@@ -1,0 +1,10 @@
+JOB_NAME = ssl_phisat2
+QUEUE = gpu4_std
+WALLTIME = 24:00:00
+GPUS = 1
+CPUS = 8
+MEM = 64G
+
+LR = 0.0001
+BATCH_SIZE = 32
+EPOCHS = 100
