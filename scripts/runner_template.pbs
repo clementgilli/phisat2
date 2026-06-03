@@ -7,6 +7,8 @@
 #PBS -o /lustre/home/u10010021/phisat2/logs/
 
 export WANDB_MODE=offline
+export HF_HUB_OFFLINE=1
+export HF_DATASETS_OFFLINE=1
 
 cd /lustre/home/u10010021/phisat2/
 

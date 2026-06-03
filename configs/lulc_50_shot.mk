@@ -8,7 +8,7 @@ QUEUE      = gpu4_std
 GPUS       = 1
 TASK       = segmentation
 DATASET    = lulc
-MODEL      = phisat2_geoaware
+MODEL      = terramind_v1_tiny
 BATCH_SIZE = 32
 SEEDS      = 42
 ROOT_DIR   = /lustre/home/u10010021/phisat2/data/
@@ -29,8 +29,8 @@ else
 # Train
 JOB_NAME   = $(BASE_NAME)_train
 WALLTIME   = 24:00:00
-CPUS       = 64
-MEM        = 400g
+CPUS       = 4
+MEM        = 100g
 
 EPOCHS     = 100
 LR         = 0.05

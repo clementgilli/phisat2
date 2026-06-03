@@ -26,6 +26,7 @@ REGISTRY: dict[str, DataLoaderEntry] = {
         "zarr_downstream",
         "Zarr downstream segmentation datasets with image/mask batches.",
         ZarrDownstreamDataModule,
+        
     ),
     "h5_pairs": DataLoaderEntry(
         "h5_pairs",

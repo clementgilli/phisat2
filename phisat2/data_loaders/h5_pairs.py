@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from phisat2.data_loaders.transforms import crop_pair, normalize_sim_image
+from phisat2.data_loaders.transforms import crop_pair
 from phisat2.tasks import TaskSpec
 
 BAD_PRODUCT_IDS = {
@@ -73,7 +73,7 @@ class H5PairsDataset(Dataset):
         h5_index = int(self.indices[index])
         with h5py.File(self.h5_path, "r") as handle:
             image = torch.from_numpy(handle["sim/images"][h5_index].astype(np.float32))
-            batch = {"image": normalize_sim_image(image)}
+            batch = {"image": image}
             if self.spec.task == "classification":
                 label = int(handle["metadata/koppen_zone"][h5_index])
                 batch["label"] = torch.tensor(label, dtype=torch.long)
@@ -83,7 +83,7 @@ class H5PairsDataset(Dataset):
                 batch["target"] = encode_geolocation(lat, lon)
             elif self.spec.task == "pixel_regression":
                 target = torch.from_numpy(handle["sim/images"][h5_index].astype(np.float32))
-                batch["target"] = normalize_sim_image(target)
+                batch["target"] = target
             else:
                 raise ValueError("h5_pairs does not provide segmentation masks.")
 

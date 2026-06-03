@@ -11,7 +11,6 @@ import csv
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from phisat2.data_loaders.transforms import normalize_sim_image
 from phisat2.tasks import TaskSpec
 
 ZARR_DATASET_NAMES = {
@@ -23,13 +22,12 @@ ZARR_DATASET_NAMES = {
 }
 
 BAND_PERMUTATIONS = {
-    "worldfloods": [0, 1, 2, 3, 4, 5, 6, 7],
-    "burned_area": [0, 1, 2, 3, 4, 5, 6, 7],
     "lulc": [0, 1, 2, 3, 4, 5, 6, 7],
-    "marine_area": [0, 1, 2, 3, 4, 5, 6, 7],
-    "clouds": [0, 1, 2, 3, 4, 5, 6, 7],
 }
 
+DATASET_BANDS = {
+    "lulc":        ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+}
 
 class ZarrDownstreamDataset(Dataset):
     def __init__(
@@ -48,7 +46,7 @@ class ZarrDownstreamDataset(Dataset):
         if spec.task != "segmentation":
             raise ValueError("zarr_downstream currently supports segmentation datasets.")
 
-        self.spec = spec
+        self.spec = spec        
         self.split = split
         self.seed = seed
         self.crop_size = crop_size
@@ -80,7 +78,7 @@ class ZarrDownstreamDataset(Dataset):
         mask = torch.from_numpy(self._read_array(mask_array, mask_selection)).long()
         if mask.ndim == 3 and mask.shape[0] == 1:
             mask = mask.squeeze(0)
-        image = normalize_sim_image(image[self.permutation])
+        image = image[self.permutation]
         return {"image": image, "mask": mask}
 
     @staticmethod
@@ -204,6 +202,10 @@ class ZarrDownstreamDataModule(L.LightningDataModule):
         self.crop_size = crop_size
         self.fast_dev_run = fast_dev_run
         self.subset_csv = subset_csv
+        
+        if self.spec.dataset not in DATASET_BANDS:
+            raise ValueError(f"Dataset '{self.spec.dataset}' has no defined bands order in zarr_downstream.")
+        self.input_bands = DATASET_BANDS[self.spec.dataset]
         
     def setup(self, stage: str | None = None) -> None:
         max_patches = self.batch_size if self.fast_dev_run else None

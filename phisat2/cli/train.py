@@ -114,7 +114,9 @@ def run_fit(args: argparse.Namespace) -> None:
             fast_dev_run=args.fast_dev_run,
             subset_csv=args.subset_csv,
         )
-        model = build_model(args.model, spec, pretrained=args.pretrained)
+        
+        input_bands = datamodule.input_bands
+        model = build_model(args.model, spec, pretrained=args.pretrained, input_bands=input_bands)
         model = torch.compile(model) if torch.__version__ >= "2.0" else model
         module = PhiSat2LightningModule(model, spec, lr=args.lr)
         hardware = resolve_trainer_hardware(args)
