@@ -13,6 +13,11 @@ from torch.utils.data import DataLoader, Dataset
 
 from phisat2.tasks import TaskSpec
 
+PHISAT2_REAL_BANDS = [
+    "PAN", "BLUE", "GREEN", "RED", 
+    "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3", "NIR_BROAD"
+]
+
 ZARR_DATASET_NAMES = {
     "burned": ("burned_area", "burned"),
     "floods": ("worldfloods", "floods"),
@@ -22,14 +27,14 @@ ZARR_DATASET_NAMES = {
 }
 
 BAND_PERMUTATIONS = {
-    "lulc": [0, 1, 2, 3, 4, 5, 6, 7],
+    "lulc":   [3, 0, 1, 2, 5, 6, 7, 4], # Original order: [BLUE, GREEN, RED, PAN, NIR, RE1, RE2, RE3]
 }
 
 DATASET_BANDS = {
-    "lulc":        ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+    "lulc":   PHISAT2_REAL_BANDS,
 }
 
-class ZarrDownstreamDataset(Dataset):
+class DownstreamDataset(Dataset):
     def __init__(
         self,
         root_dir: str | Path,
@@ -180,7 +185,7 @@ def _list_patch_dirs(source_folder: str) -> tuple[str, ...]:
         return tuple(sorted(entry.path for entry in entries if entry.is_dir()))
 
 
-class ZarrDownstreamDataModule(L.LightningDataModule):
+class DownstreamDataModule(L.LightningDataModule):
     def __init__(
         self,
         root_dir: str | Path,
@@ -210,7 +215,7 @@ class ZarrDownstreamDataModule(L.LightningDataModule):
     def setup(self, stage: str | None = None) -> None:
         max_patches = self.batch_size if self.fast_dev_run else None
         if stage in {None, "fit", "validate"}:
-            self.train_dataset = ZarrDownstreamDataset(
+            self.train_dataset = DownstreamDataset(
                 self.root_dir,
                 self.spec,
                 split="train",
@@ -220,7 +225,7 @@ class ZarrDownstreamDataModule(L.LightningDataModule):
                 random_crop=not self.fast_dev_run,
                 subset_csv=self.subset_csv,
             )
-            self.val_dataset = ZarrDownstreamDataset(
+            self.val_dataset = DownstreamDataset(
                 self.root_dir,
                 self.spec,
                 split="val",
@@ -231,7 +236,7 @@ class ZarrDownstreamDataModule(L.LightningDataModule):
                 subset_csv=self.subset_csv,
             )
         if stage in {None, "test"}:
-            self.test_dataset = ZarrDownstreamDataset(
+            self.test_dataset = DownstreamDataset(
                 self.root_dir,
                 self.spec,
                 split="test",

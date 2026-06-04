@@ -7,7 +7,9 @@ TASK_SEGMENTATION = "segmentation"
 TASK_PIXEL_REGRESSION = "pixel_regression"
 TASK_CLASSIFICATION = "classification"
 TASK_GLOBAL_REGRESSION = "global_regression"
+
 TASK_PRETRAIN_RECONSTRUCTION = "pretrain_reconstruction"
+TASK_DISTILLATION_KD = "distillation_kd"
 
 TASKS = {
     TASK_SEGMENTATION,
@@ -15,6 +17,7 @@ TASKS = {
     TASK_CLASSIFICATION,
     TASK_GLOBAL_REGRESSION,
     TASK_PRETRAIN_RECONSTRUCTION,
+    TASK_DISTILLATION_KD,
 }
 
 SEGMENTATION_OUTPUTS = {
@@ -45,7 +48,11 @@ PIXEL_REGRESSION_OUTPUTS = {
 }
 
 PRETRAIN_RECONSTRUCTION_OUTPUTS = {
-    "phisat2_simulated": 8,
+    "triplets": 8,
+}
+
+DISTILLATION_KD_OUTPUTS = {
+    "triplets": 0,
 }
 
 
@@ -72,8 +79,13 @@ def resolve_task_spec(task: str, dataset: str) -> TaskSpec:
         return TaskSpec(task, dataset, _lookup(dataset, GLOBAL_REGRESSION_OUTPUTS), "target", "mse")
     if task == TASK_PIXEL_REGRESSION:
         return TaskSpec(task, dataset, _lookup(dataset, PIXEL_REGRESSION_OUTPUTS), "target", "mse")
+    
+    
     if task == TASK_PRETRAIN_RECONSTRUCTION:
-        return TaskSpec(task, dataset, _lookup(dataset, PRETRAIN_RECONSTRUCTION_OUTPUTS), "image", "mse")
+        return TaskSpec(task, dataset, _lookup(dataset, PRETRAIN_RECONSTRUCTION_OUTPUTS), "simulated", "mse")
+        
+    if task == TASK_DISTILLATION_KD:
+        return TaskSpec(task, dataset, _lookup(dataset, DISTILLATION_KD_OUTPUTS), "none", "kd_loss")
 
 
 def _lookup(dataset: str, outputs: dict[str, int]) -> int:

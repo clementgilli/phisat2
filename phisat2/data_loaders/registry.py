@@ -6,9 +6,9 @@ from typing import Callable
 
 import lightning as L
 
-from phisat2.data_loaders.h5_pairs import H5PairsDataModule
+from phisat2.data_loaders.triplets import TripletsDataModule
 from phisat2.data_loaders.synthetic import SyntheticDataModule
-from phisat2.data_loaders.zarr_downstream import ZarrDownstreamDataModule
+from phisat2.data_loaders.downstream import DownstreamDataModule
 from phisat2.tasks import TaskSpec
 
 DataModuleBuilder = Callable[..., L.LightningDataModule]
@@ -22,16 +22,16 @@ class DataLoaderEntry:
 
 
 REGISTRY: dict[str, DataLoaderEntry] = {
-    "zarr_downstream": DataLoaderEntry(
-        "zarr_downstream",
-        "Zarr downstream segmentation datasets with image/mask batches.",
-        ZarrDownstreamDataModule,
+    "downstream": DataLoaderEntry(
+        "downstream",
+        "Downstream segmentation datasets with image/mask batches.",
+        DownstreamDataModule,
         
     ),
-    "h5_pairs": DataLoaderEntry(
-        "h5_pairs",
-        "Paired PhiSat-2/Sentinel HDF5 dataset for climate, geolocation, and reconstruction.",
-        H5PairsDataModule,
+    "triplets": DataLoaderEntry(
+        "triplets",
+        "Triplet datasets for training and evaluation.",
+        TripletsDataModule,
     ),
     "synthetic": DataLoaderEntry(
         "synthetic",
@@ -64,7 +64,7 @@ def build_datamodule(
         raise ValueError(f"Unknown dataloader '{name}'. Expected one of: {valid}.") from exc
     if name == "synthetic":
         return entry.builder(spec=spec, batch_size=batch_size, num_workers=num_workers, seed=seed)
-    if name == "zarr_downstream":
+    if name == "downstream":
         return entry.builder(
             root_dir=root_dir,
             spec=spec,

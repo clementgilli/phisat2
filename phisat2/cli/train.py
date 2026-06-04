@@ -98,8 +98,8 @@ def resolve_trainer_hardware(args: argparse.Namespace) -> dict[str, object]:
 def run_fit(args: argparse.Namespace) -> None:
     
     if args.task.startswith("pretrain_") or args.task == "distillation_kd":
-        args.dataset = "phisat2_simulated" 
-        args.dataloader = "h5_pairs" 
+        args.dataset = "triplets" 
+        args.dataloader = "triplets" 
         print(f"Phase '{args.task}' detected : Using dataset '{args.dataset}' and dataloader '{args.dataloader}'.")
     else:
         if not args.dataset or not args.dataloader:
