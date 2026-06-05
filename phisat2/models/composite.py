@@ -20,7 +20,7 @@ class ComposedModel(nn.Module):
         super().__init__()
         self.encoder = encoder
         self.adapter = FeaturePyramidAdapter(feature_channels)
-        if spec.task in {"segmentation", "pixel_regression"}:
+        if spec.task in {"segmentation", "pixel_regression", "pretrain_reconstruction"}:
             self.head = SharedUNetDecoder(feature_channels, spec.num_outputs)
         else:
             self.head = GlobalPoolingHead(feature_channels[-1], spec.num_outputs)

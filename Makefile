@@ -8,7 +8,7 @@ PYTHON ?= $(UV) run --python 3.13 python
 
 TASK ?= segmentation
 DATASET ?= lulc
-MODEL ?= phisat2_geoaware
+MODEL ?= phisatnet
 DATALOADER ?= zarr_downstream
 SEED ?= 42
 SEEDS ?= $(SEED)
@@ -98,7 +98,7 @@ smoke: ## Run a one-batch synthetic Lightning smoke test.
 	$(PYTHON) -m phisat2.cli.train fit \
 		--task segmentation \
 		--dataset clouds \
-		--model phisat2_geoaware \
+		--model phisatnet \
 		--dataloader synthetic \
 		--seeds 0 \
 		--root-dir . \
@@ -164,7 +164,7 @@ train: ## Train with Make variables: TASK DATASET MODEL DATALOADER SEEDS EPOCHS 
 
 
 pretrain: ## Train the SSL Onboard CNN Baseline (no dataset required).
-	$(MAKE) train TASK=pretrain_reconstruction MODEL=phisat2_geoaware DATASET= DATALOADER=
+	$(MAKE) train TASK=pretrain_reconstruction MODEL=phisatnet DATASET= DATALOADER=
 
 distillation: ## Train the KD pipeline with a Teacher Model (e.g. MODEL=terramind_v1_tiny).
 	$(MAKE) train TASK=distillation_kd DATASET= DATALOADER=

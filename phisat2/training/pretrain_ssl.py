@@ -76,7 +76,18 @@ class SSLPretrainModule(L.LightningModule):
             reconstruction = F.interpolate(reconstruction, size=image.shape[-2:], mode="bilinear", align_corners=False)
             
         loss_matrix = F.mse_loss(reconstruction, image, reduction="none")
-        loss = (loss_matrix * mask).sum() / (mask.sum() + 1e-8)
         
-        self.log(f"{prefix}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
+        num_masked_elements = mask.sum() * C
+        loss = (loss_matrix * mask).sum() / (num_masked_elements + 1e-8)
+        
+        self.log(
+            f"{prefix}_loss", 
+            loss, 
+            prog_bar=True, 
+            on_step=False, 
+            on_epoch=True, 
+            sync_dist=True,
+            batch_size=B
+        )
+        
         return loss

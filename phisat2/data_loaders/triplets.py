@@ -106,6 +106,8 @@ class TripletsDataset(Dataset):
         real_tensor = self._read_tif(sample_paths["real"])
         s2_tensor = self._read_tif(sample_paths["sentinel2"])
         
+        real_tensor = real_tensor[:8, :, :]
+        
         sim_tensor = normalize_tensor(sim_tensor, self.sim_mean, self.sim_std)
         real_tensor = normalize_tensor(real_tensor, self.real_mean, self.real_std)
         s2_tensor = normalize_tensor(s2_tensor, self.s2_mean, self.s2_std)
