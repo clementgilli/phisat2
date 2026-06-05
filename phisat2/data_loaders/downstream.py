@@ -1,22 +1,18 @@
 from __future__ import annotations
 
+import csv
 import os
 import time
 from functools import lru_cache
 from pathlib import Path
 
-import lightning as L
 import numpy as np
-import csv
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset
 
 from phisat2.tasks import TaskSpec
-
-PHISAT2_REAL_BANDS = [
-    "PAN", "BLUE", "GREEN", "RED", 
-    "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3", "NIR_BROAD"
-]
+from phisat2.data_loaders.sensors import PHISAT2_REAL_BANDS, PHISAT2_SIM_BANDS, get_norm_tensors
+from phisat2.data_loaders.transforms import apply_spatial_transforms, normalize_tensor
 
 ZARR_DATASET_NAMES = {
     "burned": ("burned_area", "burned"),
@@ -26,12 +22,12 @@ ZARR_DATASET_NAMES = {
     "marine": ("marine_area", "marine"),
 }
 
-BAND_PERMUTATIONS = {
-    "lulc":   [3, 0, 1, 2, 5, 6, 7, 4], # Original order: [BLUE, GREEN, RED, PAN, NIR, RE1, RE2, RE3]
-}
-
-DATASET_BANDS = {
-    "lulc":   PHISAT2_REAL_BANDS,
+# ORDER OF BANDS IN THE ZARR DATASETS (MAY VARY FROM THE ORDER IN THE TIFF FILES)
+ZARR_SOURCE_BANDS = {
+    "lulc":   ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+    "burned": ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+    "floods": ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+    "marine": ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
 }
 
 class DownstreamDataset(Dataset):
@@ -55,35 +51,52 @@ class DownstreamDataset(Dataset):
         self.split = split
         self.seed = seed
         self.crop_size = crop_size
-        self.random_crop = random_crop
+        self.is_train = (split == "train" and random_crop)
+        
         dataset_names = ZARR_DATASET_NAMES.get(spec.dataset, (spec.dataset,))
-        self.permutation = BAND_PERMUTATIONS.get(dataset_names[0], list(range(8)))
+        base_name = dataset_names[0]
+        source_bands = ZARR_SOURCE_BANDS.get(base_name)
+        if source_bands is None:
+            raise ValueError(f"Source bands for dataset '{base_name}' are not defined in ZARR_SOURCE_BANDS.")
+        try:
+            self.permutation = [source_bands.index(band) for band in PHISAT2_REAL_BANDS]
+        except ValueError as e:
+            raise ValueError(f"Cannot map {source_bands} to {PHISAT2_REAL_BANDS}.") from e
 
         base_path = self._resolve_base_path(Path(root_dir), dataset_names)
         source_folder = base_path / "trainval" if split in {"train", "val"} else base_path / "test"
         if not source_folder.exists():
             raise FileNotFoundError(f"Expected Zarr split folder at {source_folder}")
+            
         self.patches = self._list_patches(source_folder, split, seed, val_ratio, max_patches, subset_csv=subset_csv)
+        
+        self.mean, self.std = get_norm_tensors("phisat2_sim", PHISAT2_REAL_BANDS) # Using sim stats but real bands order (since we will permute the bands to match the real order)
 
     def __len__(self) -> int:
         return len(self.patches)
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
         patch_path = Path(self.patches[index])
+        
         image_array = self._open_array(patch_path / "img")
         mask_array = self._open_array(patch_path / "label")
-        top, left, crop_h, crop_w = self._crop_window(
-            image_array.shape[-2:],
-            self.crop_size,
-            train=self.split == "train" and self.random_crop,
-        )
-        image_selection = (slice(None), slice(top, top + crop_h), slice(left, left + crop_w))
-        mask_selection = (..., slice(top, top + crop_h), slice(left, left + crop_w))
-        image = torch.from_numpy(self._read_array(image_array, image_selection)).float()
-        mask = torch.from_numpy(self._read_array(mask_array, mask_selection)).long()
+        
+        image = torch.from_numpy(self._read_array(image_array, slice(None))).float()
+        mask = torch.from_numpy(self._read_array(mask_array, slice(None))).long()
+        
+        if mask.ndim == 2:
+            mask = mask.unsqueeze(0)
+
+        image = image[self.permutation]
+        
+        image = normalize_tensor(image, self.mean, self.std)
+
+        transformed = apply_spatial_transforms([image, mask], is_train=self.is_train, crop_size=self.crop_size)
+        image, mask = transformed[0], transformed[1]
+        
         if mask.ndim == 3 and mask.shape[0] == 1:
             mask = mask.squeeze(0)
-        image = image[self.permutation]
+
         return {"image": image, "mask": mask}
 
     @staticmethod
@@ -116,21 +129,6 @@ class DownstreamDataset(Dataset):
                 time.sleep(0.5 * (attempt + 1))
         assert last_error is not None
         raise last_error
-
-    @staticmethod
-    def _crop_window(shape: tuple[int, int], crop_size: int, *, train: bool) -> tuple[int, int, int, int]:
-        height, width = shape
-        crop_h = min(crop_size, height)
-        crop_w = min(crop_size, width)
-        if train and height > crop_h:
-            top = int(torch.randint(0, height - crop_h + 1, (1,)).item())
-        else:
-            top = max(0, (height - crop_h) // 2)
-        if train and width > crop_w:
-            left = int(torch.randint(0, width - crop_w + 1, (1,)).item())
-        else:
-            left = max(0, (width - crop_w) // 2)
-        return top, left, crop_h, crop_w
 
     @staticmethod
     def _list_patches(
@@ -207,10 +205,7 @@ class DownstreamDataModule(L.LightningDataModule):
         self.crop_size = crop_size
         self.fast_dev_run = fast_dev_run
         self.subset_csv = subset_csv
-        
-        if self.spec.dataset not in DATASET_BANDS:
-            raise ValueError(f"Dataset '{self.spec.dataset}' has no defined bands order in zarr_downstream.")
-        self.input_bands = DATASET_BANDS[self.spec.dataset]
+        self.input_bands = PHISAT2_REAL_BANDS
         
     def setup(self, stage: str | None = None) -> None:
         max_patches = self.batch_size if self.fast_dev_run else None

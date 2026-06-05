@@ -9,7 +9,7 @@ from phisat2.models.heads import GlobalPoolingHead
 from phisat2.tasks import TaskSpec
 
 
-class SharedDecoderModel(nn.Module):
+class ComposedModel(nn.Module):
     def __init__(
         self,
         encoder: nn.Module,
