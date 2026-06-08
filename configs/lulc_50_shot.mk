@@ -1,40 +1,43 @@
 # ==========================================
-# CONFIGURATION : LULC 50-Shot
+# CONFIGURATION : LULC 50-Shot - Linear Probing
 # ==========================================
 
-# --- Shared parameters (Train & Eval) ---
-BASE_NAME   = lulc_50_shot
-QUEUE      = gpu4_std
-GPUS       = 1
-TASK       = segmentation
-DATASET    = lulc
-MODEL      = phisat2_geoaware
-BATCH_SIZE = 32
-SEEDS      = 42
-ROOT_DIR   = /lustre/home/u10010021/phisat2/data/
-DATALOADER = zarr_downstream
+BASE_NAME   = lulc_50shot_linprobe
+QUEUE       = gpu4_std
+GPUS        = 1
 
-# ==========================================
+TASK        = segmentation
+DATASET     = lulc
+MODEL       = phisatnet
+DATALOADER  = downstream
+ROOT_DIR    = /lustre/home/u10010021/phisat2/data/
+
+SEEDS       = 42
+DEVICES     = 1
+PRECISION   = bf16-mixed
+NUM_WORKERS = 4
+
 ifneq ($(filter submit-eval eval,$(MAKECMDGOALS) $(TARGET)),)
 
-# Eval
-JOB_NAME  = $(BASE_NAME)_eval
-WALLTIME  = 03:00:00
-CPUS      = 8
-MEM       = 50g
-CKPT_PATH ?= 
+JOB_NAME   = $(BASE_NAME)_eval
+WALLTIME   = 02:00:00
+CPUS       = 4
+MEM        = 32G
+CKPT_PATH  ?= 
 
 else
 
-# Train
 JOB_NAME   = $(BASE_NAME)_train
-WALLTIME   = 24:00:00
-CPUS       = 4
-MEM        = 100g
+WALLTIME   = 02:00:00  
+CPUS       = 8
+MEM        = 64G
 
-EPOCHS     = 100
-LR         = 0.0001
+BATCH_SIZE = 16
+LR         = 0.001
+
+EPOCHS     = 200
+
+WEIGHTS    = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best-v2.ckpt
 SUBSET_CSV = /lustre/home/u10010021/phisat2/splits/lulc/lulc_train_50_global.csv
-WEIGHTS = /lustre/home/u10010021/phisat2/weights/encoder_sim_base.pth
 
 endif

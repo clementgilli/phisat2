@@ -1,24 +1,43 @@
 # ==========================================
-# CONFIGURATION : LULC full
+# CONFIGURATION : LULC Full Dataset - Linear Probing
 # ==========================================
 
-# --- 1. Cluster settings ---
-JOB_NAME = lulc_full
-QUEUE    = gpu4_std
-WALLTIME = 24:00:00
-GPUS     = 2
-CPUS     = 64
-MEM      = 400g
+BASE_NAME   = lulc_full_linprobe
+QUEUE       = gpu4_std
+GPUS        = 1
 
-# --- 2. Training parameters ---
-TASK       = segmentation
-DATASET    = lulc
-MODEL      = phisat2_geoaware
-EPOCHS     = 100
-BATCH_SIZE = 32
-LR         = 0.05
-SEEDS      = 42
+TASK        = segmentation
+DATASET     = lulc
+MODEL       = phisatnet
+DATALOADER  = downstream
+ROOT_DIR    = /lustre/home/u10010021/phisat2/data/
 
-# --- 3. Paths ---
-ROOT_DIR   = /lustre/home/u10010021/phisat2/data/
-SUBSET_CSV = /lustre/home/u10010021/phisat2/splits/lulc/lulc_train_50_global.csv
+SEEDS       = 42
+DEVICES     = 1
+PRECISION   = bf16-mixed
+NUM_WORKERS = 8
+
+ifneq ($(filter submit-eval eval,$(MAKECMDGOALS) $(TARGET)),)
+
+JOB_NAME   = $(BASE_NAME)_eval
+WALLTIME   = 02:00:00
+CPUS       = 8
+MEM        = 64G
+CKPT_PATH  ?= 
+
+else
+
+JOB_NAME   = $(BASE_NAME)_train
+WALLTIME   = 12:00:00  
+CPUS       = 16
+MEM        = 128G
+
+BATCH_SIZE = 128
+
+LR         = 0.0003
+EPOCHS     = 50
+
+WEIGHTS    = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best-v2.ckpt
+SUBSET_CSV = 
+
+endif

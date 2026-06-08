@@ -4,7 +4,10 @@ import lightning as L
 import torch
 import torch.nn.functional as F
 from torch import nn
-
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+    
 from phisat2.tasks import TaskSpec
 from phisat2.evaluation.metrics import build_metrics
 
@@ -21,16 +24,16 @@ class DownstreamModule(L.LightningModule):
         self._freeze_encoder()
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:
-        if self.training:
-            encoder = getattr(self.model, "encoder", None)
-            adapter = getattr(self.model, "adapter", None)
-            head = getattr(self.model, "head", None)
-            if encoder is not None and adapter is not None and head is not None:
-                self._freeze_encoder()
-                with torch.no_grad():
-                    features = encoder(image)
-                pyramid = adapter(features, image.shape[-2:])
-                return head(pyramid)
+        encoder = getattr(self.model, "encoder", None)
+        adapter  = getattr(self.model, "adapter",  None)
+        head     = getattr(self.model, "head",     None)
+
+        if encoder is not None and adapter is not None and head is not None:
+            with torch.no_grad():
+                features = encoder(image)
+            pyramid = adapter(features, image.shape[-2:])
+            return head(pyramid)
+
         return self.model(image)
 
     def train(self, mode: bool = True):
@@ -51,10 +54,21 @@ class DownstreamModule(L.LightningModule):
         loss, preds, targets = self._shared_step(batch, "test")
         self.test_metrics.update(preds, targets)
         self.log_dict(self.test_metrics, on_step=False, on_epoch=True, prog_bar=True)
+        
+        if self.spec.task == "segmentation":
+            self._visualize_and_save_segmentation(batch, preds, targets, batch_idx)
 
     def configure_optimizers(self):
         trainable_params = [param for param in self.parameters() if param.requires_grad]
-        return torch.optim.AdamW(trainable_params, lr=self.lr, weight_decay=1e-4)
+        
+        optimizer = torch.optim.AdamW(trainable_params, lr=self.lr, weight_decay=1e-4)
+        
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, 
+            T_max=self.trainer.max_epochs
+        )
+        
+        return {"optimizer": optimizer, "lr_scheduler": scheduler}
 
     def _freeze_encoder(self) -> None:
         encoder = getattr(self.model, "encoder", None)
@@ -80,3 +94,69 @@ class DownstreamModule(L.LightningModule):
         if self.spec.task in ["segmentation", "classification"]:
             return F.cross_entropy(prediction, target.long())
         return F.mse_loss(prediction, target.float())
+
+    @staticmethod
+    def _percentile_stretch(
+        t: torch.Tensor, lo: float = 2.0, hi: float = 98.0
+    ) -> np.ndarray:
+        flat = t.reshape(-1).float()
+        v_lo = torch.quantile(flat, lo / 100.0)
+        v_hi = torch.quantile(flat, hi / 100.0)
+        return ((t.float() - v_lo) / (v_hi - v_lo + 1e-6)).clamp(0, 1).numpy()
+
+    @staticmethod
+    def _to_falsecolor(
+        t: torch.Tensor,
+        rgb_idx: tuple[int, int, int] = (3, 2, 1),
+    ) -> np.ndarray:
+        C = t.shape[0]
+        idx = [c for c in rgb_idx if c < C]
+        if len(idx) < 3:
+            gray = DownstreamModule._percentile_stretch(t[0])
+            return np.stack([gray, gray, gray], axis=-1)
+        channels = [DownstreamModule._percentile_stretch(t[c]) for c in idx]
+        return np.stack(channels, axis=-1)
+
+    def _visualize_and_save_segmentation(
+        self, batch, preds, targets, batch_idx, max_samples=4
+    ) -> None:
+        
+        if batch_idx % 100 != 0:
+            return
+            
+        image = batch["image"]
+        
+        if preds.ndim == 4:
+            preds = torch.argmax(preds, dim=1)
+
+        n = min(max_samples, image.shape[0])
+        
+        fig, axes = plt.subplots(n, 3, figsize=(12, 4 * n), squeeze=False)
+        fig.suptitle(f"Debug Segmentation (LULC) - Batch {batch_idx}", fontsize=14)
+        
+        col_titles = ["Original (RGB)", "Ground Truth", "Predictions"]
+        for ax, title in zip(axes[0], col_titles):
+            ax.set_title(title, fontsize=11)
+        
+        for i in range(n):
+            orig = image[i].detach().cpu()
+            target_mask = targets[i].detach().cpu().numpy()
+            pred_mask = preds[i].detach().cpu().numpy()
+            
+            axes[i, 0].imshow(self._to_falsecolor(orig, rgb_idx=(3, 2, 1)))
+            
+            axes[i, 1].imshow(target_mask, cmap="tab20", interpolation="nearest")
+            axes[i, 2].imshow(pred_mask, cmap="tab20", interpolation="nearest")
+            
+            for ax in axes[i]:
+                ax.axis("off")
+                
+        os.makedirs(self.trainer.default_root_dir, exist_ok=True)
+        save_path = os.path.join(
+            self.trainer.default_root_dir, 
+            f"segmentation_debug_batch_{batch_idx}.png"
+        )
+        plt.tight_layout()
+        plt.savefig(save_path, dpi=120, bbox_inches="tight")
+        plt.close(fig)
+        print(f"[Viz] saved → {save_path}")

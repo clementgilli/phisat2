@@ -1,41 +1,37 @@
 import torchmetrics
 from phisat2.tasks import TaskSpec
 
-def build_metrics(spec: TaskSpec, prefix: str) -> torchmetrics.MetricCollection:
-    
+def build_metrics(
+    spec: TaskSpec,
+    prefix: str,
+    ignore_index: int | None = None,
+) -> torchmetrics.MetricCollection:
     metrics = {}
-    
+
     if spec.task == "segmentation":
-        # 1. IoU (Jaccard)
+        kw = dict(num_classes=spec.num_outputs, ignore_index=ignore_index)
         metrics[f"{prefix}_iou"] = torchmetrics.classification.MulticlassJaccardIndex(
-            num_classes=spec.num_outputs, 
-            average="macro"
+            **kw, average="macro"
         )
-        # 2. F1 Score (Dice)
         metrics[f"{prefix}_f1"] = torchmetrics.classification.MulticlassF1Score(
-            num_classes=spec.num_outputs, 
-            average="macro"
+            **kw, average="macro"
         )
-        # 3. Pixel Accuracy
         metrics[f"{prefix}_acc"] = torchmetrics.classification.MulticlassAccuracy(
-            num_classes=spec.num_outputs,
-            average="micro"
+            **kw, average="micro"
         )
-        
+
     elif spec.task == "classification":
-        # 1. F1 Score 
+        kw = dict(num_classes=spec.num_outputs)
         metrics[f"{prefix}_f1"] = torchmetrics.classification.MulticlassF1Score(
-            num_classes=spec.num_outputs,
-            average="macro"
+            **kw, average="macro"
         )
-        # 2. Accuracy
         metrics[f"{prefix}_acc"] = torchmetrics.classification.MulticlassAccuracy(
-            num_classes=spec.num_outputs,
-            average="micro"
+            **kw, average="macro"  
         )
-        
+
     elif spec.task in ["pixel_regression", "global_regression"]:
         metrics[f"{prefix}_rmse"] = torchmetrics.regression.MeanSquaredError(squared=False)
-        metrics[f"{prefix}_mae"] = torchmetrics.regression.MeanAbsoluteError()
+        metrics[f"{prefix}_mae"]  = torchmetrics.regression.MeanAbsoluteError()
+        metrics[f"{prefix}_r2"]   = torchmetrics.regression.R2Score()
 
     return torchmetrics.MetricCollection(metrics)

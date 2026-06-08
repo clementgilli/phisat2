@@ -9,7 +9,7 @@ from pathlib import Path
 import lightning as L
 import numpy as np
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader, Dataset
 
 from phisat2.tasks import TaskSpec
 from phisat2.data_loaders.sensors import PHISAT2_REAL_BANDS, PHISAT2_SIM_BANDS, get_norm_tensors
@@ -18,14 +18,13 @@ from phisat2.data_loaders.transforms import apply_spatial_transforms, normalize_
 ZARR_DATASET_NAMES = {
     "burned": ("burned_area", "burned"),
     "floods": ("worldfloods", "floods"),
-    "lc": ("phileo-bench_lc", "lc", "lulc"),
     "lulc": ("phileo-bench_lc", "lulc"),
     "marine": ("marine_area", "marine"),
 }
 
 # ORDER OF BANDS IN THE ZARR DATASETS (MAY VARY FROM THE ORDER IN THE TIFF FILES)
 ZARR_SOURCE_BANDS = {
-    "lulc":   ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+    "phileo-bench_lc":   ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
     "burned": ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
     "floods": ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
     "marine": ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
@@ -88,7 +87,7 @@ class DownstreamDataset(Dataset):
         if mask.ndim == 2:
             mask = mask.unsqueeze(0)
 
-        image = image[self.permutation]
+        image = image[self.permutation] / 10000.
         
         image = normalize_tensor(image, self.mean, self.std)
 

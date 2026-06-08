@@ -1,17 +1,20 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 import lightning as L
 import torch
 from lightning.pytorch.loggers import WandbLogger
-import json
 
 from phisat2.data_loaders import build_datamodule, list_dataloaders
 from phisat2.models import build_model, list_models
 from phisat2.tasks import resolve_task_spec
-from phisat2.training.lightning_module import PhiSat2LightningModule
+from phisat2.tasks.specs import TASKS 
+
+from phisat2.training.downstream import DownstreamModule
+from phisat2.training.pretrain_ssl import SSLPretrainModule
 from phisat2.utils.seed import seed_everything
 
 
@@ -20,10 +23,12 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     test_parser = subparsers.add_parser("test", help="Run evaluation on a specific checkpoint.")
-    test_parser.add_argument("--task", required=True, choices=["segmentation", "pixel_regression", "classification", "global_regression"])
-    test_parser.add_argument("--dataset", required=True)
+    
+    test_parser.add_argument("--task", required=True, choices=list(TASKS))    
+    test_parser.add_argument("--dataset", type=str, default=None)
     test_parser.add_argument("--model", required=True)
-    test_parser.add_argument("--dataloader", required=True)
+    test_parser.add_argument("--dataloader", type=str, default=None)
+    test_parser.add_argument("--subset-csv", type=str, default=None, help="Path to a generated N-shot CSV to filter the evaluation set (optional).")
     test_parser.add_argument("--ckpt-path", type=str, required=True, help="Chemin vers le fichier best.ckpt")    
     test_parser.add_argument("--seed", type=int, default=42, help="Seed unique pour l'évaluation")
     test_parser.add_argument("--root-dir", default=".")
@@ -83,13 +88,26 @@ def resolve_trainer_hardware(args: argparse.Namespace) -> dict[str, object]:
 
 
 def run_test(args: argparse.Namespace) -> None:
+    if args.task.startswith("pretrain_") or args.task == "distillation_kd":
+        args.dataset = "triplets" 
+        args.dataloader = "triplets" 
+        print(f"Phase '{args.task}' detected : Using dataset '{args.dataset}' and dataloader '{args.dataloader}'.")
+    else:
+        if not args.dataset or not args.dataloader:
+            raise ValueError(f"For the downstream task '{args.task}', you must explicitly provide --dataset and --dataloader in the command.")
+
     spec = resolve_task_spec(args.task, args.dataset)
     output_root = Path(args.output_dir)
+    
+    if args.subset_csv:
+        subset_name = Path(args.subset_csv).stem 
+    else:
+        subset_name = "full_dataset"
     
     seed_everything(args.seed)
     L.seed_everything(args.seed, workers=True)
     
-    eval_dir = output_root / spec.task / spec.dataset / args.model / f"eval_seed_{args.seed}"
+    eval_dir = output_root / spec.task / spec.dataset / args.model / subset_name / f"eval_seed_{args.seed}"
     eval_dir.mkdir(parents=True, exist_ok=True)
 
     datamodule = build_datamodule(
@@ -101,17 +119,28 @@ def run_test(args: argparse.Namespace) -> None:
         seed=args.seed,
         crop_size=args.crop_size,
         fast_dev_run=False,
-        subset_csv=None,
+        subset_csv=args.subset_csv,
     )
     
-    model = build_model(args.model, spec, pretrained=False)
+    input_bands = datamodule.input_bands
+    
+    model = build_model(args.model, spec, pretrained=False, input_bands=input_bands)
     model = torch.compile(model) if torch.__version__ >= "2.0" else model
     
-    module = PhiSat2LightningModule.load_from_checkpoint(
+    if spec.task.startswith("pretrain_"):
+        if spec.task == "pretrain_reconstruction":
+            module_class = SSLPretrainModule
+        else:
+            raise NotImplementedError(f"Pretraining task '{spec.task}' not supported yet.")
+    else:
+        module_class = DownstreamModule
+
+    module = module_class.load_from_checkpoint(
         args.ckpt_path,
         model=model,
         spec=spec,
-        lr=0.0
+        lr=0.0,
+        strict=False
     )
 
     hardware = resolve_trainer_hardware(args)
