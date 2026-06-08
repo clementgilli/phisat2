@@ -20,6 +20,8 @@ ZARR_DATASET_NAMES = {
     "floods": ("worldfloods", "floods"),
     "lulc": ("phileo-bench_lc", "lulc"),
     "marine": ("marine_area", "marine"),
+    "roads" : ("phileo-bench_roads", "roads"),
+    "building" : ("phileo-bench_building", "building"),
 }
 
 # ORDER OF BANDS IN THE ZARR DATASETS (MAY VARY FROM THE ORDER IN THE TIFF FILES)
@@ -28,6 +30,8 @@ ZARR_SOURCE_BANDS = {
     "burned": ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
     "floods": ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
     "marine": ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+    "phileo-bench_roads":   ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+    "phileo-bench_building":   ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
 }
 
 class DownstreamDataset(Dataset):
@@ -44,8 +48,6 @@ class DownstreamDataset(Dataset):
         random_crop: bool = True,
         subset_csv: str | None = None,
     ) -> None:
-        if spec.task != "segmentation":
-            raise ValueError("zarr_downstream currently supports segmentation datasets.")
 
         self.spec = spec        
         self.split = split
@@ -79,25 +81,46 @@ class DownstreamDataset(Dataset):
         patch_path = Path(self.patches[index])
         
         image_array = self._open_array(patch_path / "img")
-        mask_array = self._open_array(patch_path / "label")
-        
         image = torch.from_numpy(self._read_array(image_array, slice(None))).float()
-        mask = torch.from_numpy(self._read_array(mask_array, slice(None))).long()
         
-        if mask.ndim == 2:
-            mask = mask.unsqueeze(0)
-
         image = image[self.permutation] / 10000.
-        
         image = normalize_tensor(image, self.mean, self.std)
 
-        transformed = apply_spatial_transforms([image, mask], is_train=self.is_train, crop_size=self.crop_size)
-        image, mask = transformed[0], transformed[1]
-        
-        if mask.ndim == 3 and mask.shape[0] == 1:
-            mask = mask.squeeze(0)
+        target_array = self._open_array(patch_path / "label")
+        target = torch.from_numpy(self._read_array(target_array, slice(None)))
 
-        return {"image": image, "mask": mask}
+        task = self.spec.task
+
+        if task in ["segmentation", "classification"]:
+            target = target.long()
+        elif task in ["pixel_regression", "global_regression"]:
+            target = target.float()
+
+        if task in ["segmentation", "pixel_regression"]:
+            if target.ndim == 2:
+                target = target.unsqueeze(0)
+                
+            transformed = apply_spatial_transforms(
+                [image, target], is_train=self.is_train, crop_size=self.crop_size
+            )
+            image, target = transformed[0], transformed[1]
+            
+            if target.ndim == 3 and target.shape[0] == 1 and task == "segmentation":
+                target = target.squeeze(0)
+                
+        else:
+            transformed = apply_spatial_transforms(
+                [image], is_train=self.is_train, crop_size=self.crop_size
+            )
+            image = transformed[0]
+            
+            if target.ndim > 1:
+                target = target.squeeze()
+
+        return {
+            "image": image, 
+            self.spec.target_key: target
+        }
 
     @staticmethod
     def _resolve_base_path(root_dir: Path, dataset_names: tuple[str, ...]) -> Path:

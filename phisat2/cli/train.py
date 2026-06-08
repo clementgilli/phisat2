@@ -118,6 +118,8 @@ def run_fit(args: argparse.Namespace) -> None:
         L.seed_everything(seed, workers=True)
         seed_dir = output_root / spec.task / spec.dataset / args.model / subset_name / f"seed_{seed}"
         seed_dir.mkdir(parents=True, exist_ok=True)
+        
+        run_name = f"{spec.task}_{args.model}_{subset_name}_s{seed}"
 
         datamodule = build_datamodule(
             args.dataloader,
@@ -164,7 +166,7 @@ def run_fit(args: argparse.Namespace) -> None:
             precision=args.precision,
             max_epochs=args.max_epochs,
             default_root_dir=seed_dir,
-            logger=WandbLogger(project="PhiSat2", name=f"{args.model}_{subset_name}", save_dir=seed_dir, config=vars(args)),
+            logger=WandbLogger(project="PhiSat2", name=run_name, save_dir=seed_dir, config=vars(args)),
             callbacks=callbacks,
             fast_dev_run=args.fast_dev_run,
             log_every_n_steps=1,

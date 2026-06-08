@@ -23,15 +23,15 @@ TASKS = {
 SEGMENTATION_OUTPUTS = {
     "lulc": 11,
     "lc": 11,
-    "marine": 9,
-    "marine_area": 9,
-    "anomaly_detection": 9,
-    "burned": 4,
-    "burned_area": 4,
-    "clouds": 2,
-    "floods": 3,
-    "worldfloods": 3,
-    "fire": 3,
+    #"marine": 9,
+    #"marine_area": 9,
+    #"anomaly_detection": 9,
+    #"burned": 4,
+    #"burned_area": 4,
+    #"clouds": 2,
+    #"floods": 3,
+    #"worldfloods": 3,
+    #"fire": 3,
 }
 
 CLASSIFICATION_OUTPUTS = {
@@ -44,7 +44,8 @@ GLOBAL_REGRESSION_OUTPUTS = {
 }
 
 PIXEL_REGRESSION_OUTPUTS = {
-    "TODO": 8,
+    "roads": 1,
+    "building": 1,
 }
 
 PRETRAIN_RECONSTRUCTION_OUTPUTS = {

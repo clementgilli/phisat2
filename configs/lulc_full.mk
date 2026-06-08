@@ -2,7 +2,7 @@
 # CONFIGURATION : LULC Full Dataset - Linear Probing
 # ==========================================
 
-BASE_NAME   = lulc_full_linprobe
+BASE_NAME   = lulc_full
 QUEUE       = gpu4_std
 GPUS        = 1
 
@@ -37,7 +37,7 @@ BATCH_SIZE = 128
 LR         = 0.0003
 EPOCHS     = 50
 
-WEIGHTS    = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best-v2.ckpt
+WEIGHTS    = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best-v4.ckpt
 SUBSET_CSV = 
 
 endif

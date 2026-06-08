@@ -57,6 +57,9 @@ class DownstreamModule(L.LightningModule):
         
         if self.spec.task == "segmentation":
             self._visualize_and_save_segmentation(batch, preds, targets, batch_idx)
+            
+        if self.spec.task == "pixel_regression":
+            self._visualize_and_save_pixel_regression(batch, preds, targets, batch_idx)
 
     def configure_optimizers(self):
         trainable_params = [param for param in self.parameters() if param.requires_grad]
@@ -155,6 +158,74 @@ class DownstreamModule(L.LightningModule):
         save_path = os.path.join(
             self.trainer.default_root_dir, 
             f"segmentation_debug_batch_{batch_idx}.png"
+        )
+        plt.tight_layout()
+        plt.savefig(save_path, dpi=120, bbox_inches="tight")
+        plt.close(fig)
+        print(f"[Viz] saved → {save_path}")
+        
+        
+    def _visualize_and_save_pixel_regression(
+        self, batch, preds, targets, batch_idx, max_samples=4
+    ) -> None:
+        
+        if batch_idx % 100 != 0:
+            return
+            
+        image = batch["image"]
+        
+        # 🟢 Gestion de la dimension (B, 1, H, W) classique en régression
+        if preds.ndim == 4 and preds.shape[1] == 1:
+            preds = preds.squeeze(1)
+        if targets.ndim == 4 and targets.shape[1] == 1:
+            targets = targets.squeeze(1)
+
+        # Sécurité : Si la régression prédit plusieurs variables (ex: hauteur ET densité),
+        # on affiche uniquement la première variable pour le debug.
+        if preds.ndim == 4:
+            preds = preds[:, 0, ...]
+        if targets.ndim == 4:
+            targets = targets[:, 0, ...]
+
+        n = min(max_samples, image.shape[0])
+        
+        # On élargit légèrement la figure (figsize=15) pour faire la place à l'échelle
+        fig, axes = plt.subplots(n, 3, figsize=(15, 4 * n), squeeze=False)
+        fig.suptitle(f"Debug Pixel Regression - Batch {batch_idx}", fontsize=14)
+        
+        col_titles = ["Original (RGB)", "Ground Truth", "Predictions"]
+        for ax, title in zip(axes[0], col_titles):
+            ax.set_title(title, fontsize=11)
+        
+        for i in range(n):
+            orig = image[i].detach().cpu()
+            target_map = targets[i].detach().cpu().float().numpy()
+            pred_map = preds[i].detach().cpu().float().numpy()
+            
+            axes[i, 0].imshow(self._to_falsecolor(orig, rgb_idx=(3, 2, 1)))
+            axes[i, 0].axis("off")
+            
+            # 🟢 ÉCHELLE COMMUNE ROBUSTE
+            # On calcule le Min/Max sur les percentiles pour ignorer les pixels aberrants
+            vmin = min(np.percentile(target_map, 2), np.percentile(pred_map, 2))
+            vmax = max(np.percentile(target_map, 98), np.percentile(pred_map, 98))
+            
+            # "viridis" ou "magma" sont les meilleures colormaps pour la donnée continue
+            axes[i, 1].imshow(target_map, cmap="viridis", vmin=vmin, vmax=vmax)
+            axes[i, 1].axis("off")
+            
+            im_pred = axes[i, 2].imshow(pred_map, cmap="viridis", vmin=vmin, vmax=vmax)
+            axes[i, 2].axis("off")
+            
+            # 🟢 AJOUT DE LA COLORBAR
+            # Attachée à la dernière colonne (Prédictions)
+            cbar = fig.colorbar(im_pred, ax=axes[i, 2], fraction=0.046, pad=0.04)
+            cbar.ax.tick_params(labelsize=8)
+                
+        os.makedirs(self.trainer.default_root_dir, exist_ok=True)
+        save_path = os.path.join(
+            self.trainer.default_root_dir, 
+            f"pixel_regression_debug_batch_{batch_idx}.png"
         )
         plt.tight_layout()
         plt.savefig(save_path, dpi=120, bbox_inches="tight")

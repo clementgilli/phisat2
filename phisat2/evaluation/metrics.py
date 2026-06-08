@@ -32,6 +32,5 @@ def build_metrics(
     elif spec.task in ["pixel_regression", "global_regression"]:
         metrics[f"{prefix}_rmse"] = torchmetrics.regression.MeanSquaredError(squared=False)
         metrics[f"{prefix}_mae"]  = torchmetrics.regression.MeanAbsoluteError()
-        metrics[f"{prefix}_r2"]   = torchmetrics.regression.R2Score()
 
     return torchmetrics.MetricCollection(metrics)
