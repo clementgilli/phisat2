@@ -16,6 +16,7 @@ from phisat2.tasks.specs import TASKS
 
 from phisat2.training.downstream import DownstreamModule
 from phisat2.training.pretrain_ssl import SSLPretrainModule
+from phisat2.training.domain_adaptation import DomainAdaptationModule
 from phisat2.utils.seed import seed_everything
 
 def build_parser() -> argparse.ArgumentParser:
@@ -134,16 +135,41 @@ def run_fit(args: argparse.Namespace) -> None:
         )
         
         input_bands = datamodule.input_bands
-        model = build_model(args.model, spec, pretrained=args.pretrained, input_bands=input_bands, weights_path=args.weights)
-        model = torch.compile(model) if torch.__version__ >= "2.0" else model
         
-        if spec.task.startswith("pretrain_"):
+        built_models = build_model(
+            args.model, 
+            spec, 
+            pretrained=args.pretrained, 
+            input_bands=input_bands, 
+            weights_path=args.weights
+        )
+        
+        if spec.task in ["domain_adaptation", "distillation_kd"]:
+            teacher, student = built_models
+            
+            if torch.__version__ >= "2.0":
+                teacher = torch.compile(teacher)
+                student = torch.compile(student)
+                
+            if spec.task == "domain_adaptation":
+                module = DomainAdaptationModule(
+                    student_model=student, 
+                    teacher_model=teacher, 
+                    spec=spec, 
+                    lr=args.lr
+                )
+            elif spec.task == "distillation_kd":
+                raise NotImplementedError("Distillation module not implemented yet.")
+
+        else:
+            model = built_models
+            if torch.__version__ >= "2.0":
+                model = torch.compile(model)
+                
             if spec.task == "pretrain_reconstruction":
                 module = SSLPretrainModule(model, spec, lr=args.lr)
             else:
-                raise NotImplementedError(f"Pretraining task '{spec.task}' not supported yet.")
-        else:
-            module = DownstreamModule(model, spec, lr=args.lr)
+                module = DownstreamModule(model, spec, lr=args.lr)
 
         hardware = resolve_trainer_hardware(args)
         callbacks = []

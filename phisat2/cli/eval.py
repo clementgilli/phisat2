@@ -15,6 +15,7 @@ from phisat2.tasks.specs import TASKS
 
 from phisat2.training.downstream import DownstreamModule
 from phisat2.training.pretrain_ssl import SSLPretrainModule
+from phisat2.evaluation.domain_adaptation import DomainEvalModule
 from phisat2.utils.seed import seed_everything
 
 
@@ -29,10 +30,10 @@ def build_parser() -> argparse.ArgumentParser:
     test_parser.add_argument("--model", required=True)
     test_parser.add_argument("--dataloader", type=str, default=None)
     test_parser.add_argument("--subset-csv", type=str, default=None, help="Path to a generated N-shot CSV to filter the evaluation set (optional).")
-    test_parser.add_argument("--ckpt-path", type=str, required=True, help="Chemin vers le fichier best.ckpt")    
-    test_parser.add_argument("--seed", type=int, default=42, help="Seed unique pour l'évaluation")
+    test_parser.add_argument("--ckpt-path", type=str, required=False)    
+    test_parser.add_argument("--seed", type=int, default=42)
     test_parser.add_argument("--root-dir", default=".")
-    test_parser.add_argument("--output-dir", default="eval_runs", help="Dossier séparé pour les logs de test")
+    test_parser.add_argument("--output-dir", default="eval_runs")
     test_parser.add_argument("--batch-size", type=int, default=16)
     test_parser.add_argument("--crop-size", type=int, default=224)
     test_parser.add_argument("--num-workers", type=int, default=4)
@@ -45,7 +46,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Use every visible CUDA GPU and DDP when hardware settings are otherwise auto.",
     )
-
+    test_parser.add_argument("--teacher_ckpt", type=str, required=False, 
+                    help="Path to teacher encoder weights")
+    test_parser.add_argument("--student_ckpt", type=str, required=False, 
+                        help="Path to student encoder weights")
+    test_parser.add_argument("--decoders", type=str, nargs="+", default=[],
+                        help="List of decoders. Format task_name=path/to/ckpt. Ex: lulc=weights/lulc.ckpt")
     subparsers.add_parser("list-models", help="List registered model names.")
     subparsers.add_parser("list-dataloaders", help="List registered dataloader names.")
     return parser
@@ -124,28 +130,47 @@ def run_test(args: argparse.Namespace) -> None:
     
     input_bands = datamodule.input_bands
     
-    model = build_model(args.model, spec, pretrained=False, input_bands=input_bands)
-    model = torch.compile(model) if torch.__version__ >= "2.0" else model
-    
-    if spec.task.startswith("pretrain_"):
-        if spec.task == "pretrain_reconstruction":
-            module_class = SSLPretrainModule
-        else:
-            raise NotImplementedError(f"Pretraining task '{spec.task}' not supported yet.")
-    else:
-        module_class = DownstreamModule
-
-    module = module_class.load_from_checkpoint(
-        args.ckpt_path,
-        model=model,
-        spec=spec,
-        lr=0.0,
-        strict=False
+    built_models = build_model(
+        args.model, 
+        spec, 
+        pretrained=False, 
+        input_bands=input_bands,
+        weights_path=args.ckpt_path,
+        **vars(args)
     )
+    
+    if spec.task == "distillation_kd":
+        raise NotImplementedError("Distillation module not implemented yet.")
+
+    elif spec.task == "eval_domain_gap":
+        teacher, student, decoders_dict = built_models
+        
+        if torch.__version__ >= "2.0":
+            teacher = torch.compile(teacher)
+            student = torch.compile(student)
+            for k in decoders_dict.keys():
+                decoders_dict[k] = torch.compile(decoders_dict[k])
+                
+        module = DomainEvalModule(teacher, student, decoders_dict)
+            
+    else:
+        model = built_models
+        model = torch.compile(model) if torch.__version__ >= "2.0" else model
+        
+        if spec.task == "pretrain_reconstruction":
+            module = SSLPretrainModule(model, spec, lr=0.0)
+        else:
+            module = DownstreamModule(model, spec, lr=0.0)
 
     hardware = resolve_trainer_hardware(args)
 
-    ckpt_parent_name = Path(args.ckpt_path).parent.parent.name
+    if args.ckpt_path:
+        ckpt_parent_name = Path(args.ckpt_path).parent.parent.name
+    elif spec.task == "eval_domain_gap":
+        ckpt_parent_name = "domain_gap_ensemble"
+    else:
+        ckpt_parent_name = "scratch"
+        
     run_name = f"eval_{args.model}_trained_on_{ckpt_parent_name}"
 
     trainer = L.Trainer(
@@ -157,7 +182,10 @@ def run_test(args: argparse.Namespace) -> None:
         logger=WandbLogger(project="PhiSat2", name=run_name, save_dir=eval_dir, config=vars(args)),
     )
     
-    results = trainer.test(module, datamodule=datamodule)
+    if spec.task == "eval_domain_gap":
+        results = trainer.test(module, datamodule=datamodule)
+    else:
+        results = trainer.test(module, datamodule=datamodule, ckpt_path=args.ckpt_path)
 
     if results:
         metrics_file = eval_dir / "test_metrics.json"

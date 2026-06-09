@@ -1,5 +1,5 @@
 # ==========================================
-# CONFIGURATION : LULC 50-Shot - Linear Probing
+# CONFIGURATION : LULC 50-Shot
 # ==========================================
 
 BASE_NAME   = lulc_50shot
@@ -33,9 +33,9 @@ CPUS       = 8
 MEM        = 64G
 
 BATCH_SIZE = 16
-LR         = 0.001
+LR         = 0.0001
 
-EPOCHS     = 200
+EPOCHS     = 400
 
 WEIGHTS    = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best-v4.ckpt
 SUBSET_CSV = /lustre/home/u10010021/phisat2/splits/lulc/lulc_train_50_global.csv

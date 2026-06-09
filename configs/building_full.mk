@@ -1,13 +1,13 @@
 # ==========================================
-# CONFIGURATION : LULC Full Dataset
+# CONFIGURATION : Building Full Dataset
 # ==========================================
 
-BASE_NAME   = lulc_full
+BASE_NAME   = building_full
 QUEUE       = gpu4_std
 GPUS        = 1
 
-TASK        = segmentation
-DATASET     = lulc
+TASK        = pixel_regression
+DATASET     = building
 MODEL       = phisatnet
 DATALOADER  = downstream
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data/

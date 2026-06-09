@@ -2,13 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import re
 import torch
 import torch.nn as nn
 
 from phisat2.models.composite import ComposedModel
-from phisat2.models.encoders.phisatnet import PhiSatNetEncoder
+from phisat2.models.encoders.phisatnet_encoder import PhiSatNetEncoder
+from phisat2.models.decoders.phisatnet_decoder import PhiSatNetDecoder
 from phisat2.models.encoders.terratorch_backbones import TerraTorchBackboneEncoder
 from phisat2.tasks import TaskSpec
+from phisat2.tasks.specs import resolve_task_spec, guess_task_from_dataset
+from phisat2.utils.weights import load_encoder_weights, load_decoder_weights
 
 
 @dataclass(frozen=True)
@@ -57,7 +61,22 @@ def _build_encoder(name: str, pretrained: bool, input_bands: list[str]) -> nn.Mo
     else:
         return TerraTorchBackboneEncoder(name, pretrained=pretrained, input_bands=input_bands)
 
-def build_model(name: str, spec: TaskSpec, *, pretrained: bool, input_bands: list[str], weights_path: str | None = None) -> nn.Module:
+def _build_decoder(spec: TaskSpec, feature_channels: tuple[int, ...]) -> nn.Module:
+    if spec.task in {"segmentation", "pixel_regression", "pretrain_reconstruction"}:
+        return PhiSatNetDecoder(feature_channels, spec.num_outputs)
+    else:
+        return GlobalPoolingHead(feature_channels[-1], spec.num_outputs)
+
+def build_model(
+    name: str, 
+    spec: TaskSpec, 
+    *, 
+    pretrained: bool, 
+    input_bands: list[str], 
+    weights_path: str | None = None,
+    **kwargs
+) -> nn.Module | tuple[nn.Module, nn.Module] | tuple[nn.Module, nn.Module, nn.ModuleDict]:
+    
     if name not in REGISTRY:
         valid = ", ".join(sorted(REGISTRY))
         raise ValueError(f"Unknown model '{name}'. Expected one of: {valid}.")
@@ -69,51 +88,88 @@ def build_model(name: str, spec: TaskSpec, *, pretrained: bool, input_bands: lis
     # ---------------------------------------------------------
     if spec.task == "pretrain_reconstruction":
         if entry.role != "student":
-            raise ValueError(f"Forbidden: You're trying to pretrain '{name}' which is a {entry.role}. Pretraining is reserved for 'student' models.")
+            raise ValueError("Forbidden: Pretraining is reserved for 'student' models.")
         
         encoder = _build_encoder(name, pretrained=pretrained, input_bands=input_bands)
-        return ComposedModel(encoder, spec)
+        head = _build_decoder(spec, tuple(encoder.out_channels))
+        return ComposedModel(encoder, head)
 
     # ---------------------------------------------------------
     # DISTILLATION (KD)
     # ---------------------------------------------------------
     elif spec.task == "distillation_kd":
         if entry.role != "teacher":
-            raise ValueError(f"Forbidden: The distillation task (Teacher Benchmarking) requires a 'teacher' model, not a '{entry.role}'.")
+            raise ValueError("Forbidden: KD requires a 'teacher' model.")
         
         teacher = _build_encoder(name, pretrained=True, input_bands=input_bands)
         student = _build_encoder("phisatnet", pretrained=False, input_bands=input_bands)
         
-        raise NotImplementedError("Not implemented yet.")
+        if weights_path:
+            load_encoder_weights(student, weights_path)
+            
+        return teacher, student
 
     # ---------------------------------------------------------
-    # DOWNSTREAM (Linear Probing)
+    # DOMAIN ADAPTATION (DA) - Sim to Real
+    # ---------------------------------------------------------
+    elif spec.task == "domain_adaptation":
+        teacher = _build_encoder("phisatnet", pretrained=False, input_bands=input_bands)
+        student = _build_encoder("phisatnet", pretrained=False, input_bands=input_bands)
+        
+        if weights_path:
+            load_encoder_weights(teacher, weights_path)
+            load_encoder_weights(student, weights_path)
+            
+        return teacher, student
+
+    # ---------------------------------------------------------
+    # DOMAIN GAP EVALUATION
+    # ---------------------------------------------------------
+    elif spec.task == "eval_domain_gap":
+        teacher_ckpt = kwargs.get("teacher_ckpt")
+        student_ckpt = kwargs.get("student_ckpt")
+        raw_decoders = kwargs.get("decoders") or []
+
+        teacher = _build_encoder("phisatnet", pretrained=False, input_bands=input_bands)
+        student = _build_encoder("phisatnet", pretrained=False, input_bands=input_bands)
+        
+        if teacher_ckpt:
+            load_encoder_weights(teacher, teacher_ckpt)
+        if student_ckpt:
+            load_encoder_weights(student, student_ckpt)
+        else:
+            load_encoder_weights(student, teacher_ckpt)
+            
+        decoders_dict = nn.ModuleDict()
+        
+        for dec_arg in raw_decoders:
+            dataset_name, ckpt_path = dec_arg.split("=")
+            
+            inferred_task = guess_task_from_dataset(dataset_name)            
+            dec_spec = resolve_task_spec(inferred_task, dataset=dataset_name)
+            
+            head = _build_decoder(dec_spec, tuple(teacher.out_channels))
+            load_decoder_weights(head, ckpt_path)
+            decoders_dict[dataset_name] = head
+                
+        return teacher, student, decoders_dict
+
+    # ---------------------------------------------------------
+    # DOWNSTREAM
     # ---------------------------------------------------------
     else:    
         target_model_name = name
         if entry.role == "teacher":
-            print(f"Downstream mode: Using 'phisatnet' architecture.")
+            print("Downstream mode: Using 'phisatnet' architecture.")
             target_model_name = "phisatnet"
 
         encoder = _build_encoder(target_model_name, pretrained=False, input_bands=input_bands)
-        model = ComposedModel(encoder, spec)
-
         if weights_path:
-            ckpt = torch.load(weights_path, map_location="cpu", weights_only=False)
-            state_dict = ckpt.get("state_dict", ckpt)
+            load_encoder_weights(encoder, weights_path)
             
-            cleaned_dict = {}
-            for k, v in state_dict.items():
-                if k.startswith("model."):
-                    cleaned_dict[k.replace("model.", "", 1)] = v
-                elif k.startswith("student."):
-                    cleaned_dict[k.replace("student.", "", 1)] = v
-                else:
-                    cleaned_dict[k] = v
-            
-            missing, unexpected = model.load_state_dict(cleaned_dict, strict=False)
-                        
-        return model
+        head = _build_decoder(spec, tuple(encoder.out_channels))
+        
+        return ComposedModel(encoder, head)
 
 
 

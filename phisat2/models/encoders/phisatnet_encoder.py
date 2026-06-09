@@ -7,7 +7,6 @@ from phisat2.models.blocks import ConvBlock
 
 
 class PhiSatNetEncoder(nn.Module):
-    """Compact local PhiSat-2 CNN encoder baseline."""
 
     def __init__(
         self,

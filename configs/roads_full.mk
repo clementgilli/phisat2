@@ -1,5 +1,5 @@
 # ==========================================
-# CONFIGURATION : LULC Full Dataset - Linear Probing
+# CONFIGURATION : Roads Full Dataset
 # ==========================================
 
 BASE_NAME   = roads_full

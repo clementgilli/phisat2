@@ -27,8 +27,9 @@ PRECISION ?= 32-true
 AUTO_DDP ?= true
 SUBSET_CSV ?=
 RESUME ?= false
-CKPT_PATH ?=
+CKPT_FLAG ?=
 WEIGHTS ?=
+EXTRA_ARGS ?=
 
 ifeq ($(PRETRAINED),true)
 PRETRAINED_FLAG := --pretrained
@@ -70,6 +71,12 @@ ifneq ($(DATALOADER),)
     DATALOADER_FLAG = --dataloader $(DATALOADER)
 else
     DATALOADER_FLAG =
+endif
+
+ifneq ($(strip $(CKPT_PATH)),)
+    CKPT_FLAG = --ckpt-path $(CKPT_PATH)
+else
+    CKPT_FLAG =
 endif
 
 .DEFAULT_GOAL := help
@@ -160,7 +167,8 @@ train: ## Train with Make variables: TASK DATASET MODEL DATALOADER SEEDS EPOCHS 
 		$(PRETRAINED_FLAG) \
 		$(SUBSET_FLAG) \
 		$(RESUME_FLAG) \
-		$(WEIGHTS_FLAG)
+		$(WEIGHTS_FLAG) \
+		$(EXTRA_ARGS)
 
 
 pretrain: ## Train the SSL Onboard CNN Baseline (no dataset required).
@@ -184,7 +192,7 @@ eval:
 		$(DATASET_FLAG) \
 		--model $(MODEL) \
 		$(DATALOADER_FLAG) \
-		--ckpt-path $(CKPT_PATH) \
+		$(CKPT_FLAG) \
 		--root-dir $(ROOT_DIR) \
 		--batch-size $(BATCH_SIZE) \
 		--num-workers $(NUM_WORKERS) \
@@ -192,7 +200,8 @@ eval:
 		--devices $(DEVICES) \
 		--strategy $(STRATEGY) \
 		--precision $(PRECISION) \
-		$(AUTO_DDP_FLAG)
+		$(AUTO_DDP_FLAG) \
+		$(EXTRA_ARGS)
 
 sweep-seeds: ## Alias for train with SEEDS set to multiple values.
 	$(MAKE) train
