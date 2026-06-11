@@ -1,13 +1,13 @@
 # ==========================================
-# CONFIGURATION : LULC Full Dataset
+# CONFIGURATION : Burned area Full Dataset
 # ==========================================
 
-BASE_NAME   = lulc_full
+BASE_NAME   = burned_full
 QUEUE       = gpu4_std
 GPUS        = 1
 
 TASK        = segmentation
-DATASET     = lulc
+DATASET     = burned
 MODEL       = phisatnet
 DATALOADER  = downstream
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data/

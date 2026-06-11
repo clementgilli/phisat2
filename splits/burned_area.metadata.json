@@ -1,0 +1,14 @@
+{
+  "class_ids": [
+    0,
+    1
+  ],
+  "class_prefix": "class_",
+  "class_totals": {
+    "class_0": 1530396672,
+    "class_1": 510132224
+  },
+  "dataset": "burned",
+  "source_folder": "/lustre/home/u10010021/phisat2/data/burned_area_dataset.zarr/trainval",
+  "split": "train"
+}

@@ -25,8 +25,8 @@ DEFAULT_CLASS_PREFIX = "class_"
 
 
 ZARR_DATASET_NAMES = {
-    "burned": ("burned_area", "burned"),
-    "floods": ("worldfloods", "floods"),
+    "burned": ("burned_area_dataset", "burned"),
+    "floods": ("worldfloods", "floods_dataset"),
     "worldfloods": ("worldfloods", "floods"),
     "lc": ("phileo-bench_lc", "lc", "lulc"),
     "lulc": ("phileo-bench_lc", "lulc"),

@@ -224,3 +224,4 @@ pretrain/weights
 *templates
 AGENTS.md
 logs/
+exported_weights/

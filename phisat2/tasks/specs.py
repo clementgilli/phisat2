@@ -30,26 +30,20 @@ SEGMENTATION_OUTPUTS = {
     #"marine": 9,
     #"marine_area": 9,
     #"anomaly_detection": 9,
-    #"burned": 4,
+    "burned": 4,
     #"burned_area": 4,
     #"clouds": 2,
-    #"floods": 3,
+    "floods": 3,
     #"worldfloods": 3,
-    #"fire": 3,
-}
-
-CLASSIFICATION_OUTPUTS = {
-    "climate": 31,
-}
-
-GLOBAL_REGRESSION_OUTPUTS = {
-    "geoloc": 4,
-    "coords": 4,
 }
 
 PIXEL_REGRESSION_OUTPUTS = {
     "roads": 1,
     "building": 1,
+}
+
+CLASSIFICATION_OUTPUTS = {
+    "fire": 4,
 }
 
 PRETRAIN_RECONSTRUCTION_OUTPUTS = {

@@ -9,6 +9,7 @@ import torch.nn as nn
 from phisat2.models.composite import ComposedModel
 from phisat2.models.encoders.phisatnet_encoder import PhiSatNetEncoder
 from phisat2.models.decoders.phisatnet_decoder import PhiSatNetDecoder
+from phisat2.models.heads import GlobalPoolingHead
 from phisat2.models.encoders.terratorch_backbones import TerraTorchBackboneEncoder
 from phisat2.tasks import TaskSpec
 from phisat2.tasks.specs import resolve_task_spec, guess_task_from_dataset
@@ -116,9 +117,11 @@ def build_model(
         teacher = _build_encoder("phisatnet", pretrained=False, input_bands=input_bands)
         student = _build_encoder("phisatnet", pretrained=False, input_bands=input_bands)
         
-        if weights_path:
-            load_encoder_weights(teacher, weights_path)
-            load_encoder_weights(student, weights_path)
+        if not weights_path:
+            raise ValueError("DA requires weights for the teacher.")
+            
+        load_encoder_weights(teacher, weights_path)
+        load_encoder_weights(student, weights_path)
             
         return teacher, student
 

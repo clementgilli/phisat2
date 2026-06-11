@@ -120,7 +120,7 @@ def run_fit(args: argparse.Namespace) -> None:
         seed_dir = output_root / spec.task / spec.dataset / args.model / subset_name / f"seed_{seed}"
         seed_dir.mkdir(parents=True, exist_ok=True)
         
-        run_name = f"{spec.task}_{args.model}_{subset_name}_s{seed}"
+        run_name = f"{spec.task}_{spec.dataset}_{args.model}_{subset_name}_s{seed}"
 
         datamodule = build_datamodule(
             args.dataloader,

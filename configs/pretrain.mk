@@ -16,7 +16,7 @@ SEEDS      = 42
 DEVICES    = 1
 PRECISION  = bf16-mixed
 BATCH_SIZE = 512
-NUM_WORKERS = 4
+NUM_WORKERS = 8
 
 ifneq ($(filter submit-eval eval,$(MAKECMDGOALS) $(TARGET)),)
 

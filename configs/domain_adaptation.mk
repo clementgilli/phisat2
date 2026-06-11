@@ -29,13 +29,15 @@ TASK       = eval_domain_gap
 
 CKPT_PATH  ?= 
 
-TEACHER_CKPT = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best-v4.ckpt
+TEACHER_CKPT = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
 
-LULC_CKPT    = /lustre/home/u10010021/phisat2/runs/segmentation/lulc/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
-ROADS_CKPT   = /lustre/home/u10010021/phisat2/runs/pixel_regression/roads/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
-#BLDG_CKPT    = /lustre/home/u10010021/phisat2/runs/pixel_regression/building/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+LULC_CKPT    = /lustre/home/u10010021/phisat2/runs/segmentation/lulc/phisatnet/full_dataset/seed_42/checkpoints/best-v1.ckpt
+FLOODS_CKPT  = /lustre/home/u10010021/phisat2/runs/segmentation/floods/phisatnet/full_dataset/seed_42/checkpoints/best-v1.ckpt
+BURNED_CKPT  = /lustre/home/u10010021/phisat2/runs/segmentation/burned/phisatnet/full_dataset/seed_42/checkpoints/best-v1.ckpt
+ROADS_CKPT   = /lustre/home/u10010021/phisat2/runs/pixel_regression/roads/phisatnet/full_dataset/seed_42/checkpoints/best-v1.ckpt
+BLDG_CKPT    = /lustre/home/u10010021/phisat2/runs/pixel_regression/building/phisatnet/full_dataset/seed_42/checkpoints/best-v1.ckpt
 
-DECODERS_LIST = lulc=$(LULC_CKPT) roads=$(ROADS_CKPT)
+DECODERS_LIST = lulc=$(LULC_CKPT) floods=$(FLOODS_CKPT) burned=$(BURNED_CKPT) roads=$(ROADS_CKPT) building=$(BLDG_CKPT)
 
 EXTRA_ARGS := --teacher_ckpt $(TEACHER_CKPT)
 
@@ -53,6 +55,8 @@ CPUS       = 16
 MEM        = 256G
 
 EPOCHS     = 300
-LR         = 0.0001
+LR         = 0.0003
+
+WEIGHTS    = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
 
 endif

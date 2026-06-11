@@ -16,22 +16,36 @@ from phisat2.data_loaders.sensors import PHISAT2_REAL_BANDS, PHISAT2_SIM_BANDS, 
 from phisat2.data_loaders.transforms import apply_spatial_transforms, normalize_tensor
 
 ZARR_DATASET_NAMES = {
-    "burned": ("burned_area", "burned"),
-    "floods": ("worldfloods", "floods"),
+    "burned": ("burned_area_dataset", "burned"),
+    "floods": ("floods_dataset", "floods"),
     "lulc": ("phileo-bench_lc", "lulc"),
     "marine": ("marine_area", "marine"),
     "roads" : ("phileo-bench_roads", "roads"),
     "building" : ("phileo-bench_building", "building"),
+    "fire": ("fire_dataset", "fire"),
 }
 
 # ORDER OF BANDS IN THE ZARR DATASETS (MAY VARY FROM THE ORDER IN THE TIFF FILES)
 ZARR_SOURCE_BANDS = {
     "phileo-bench_lc":   ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
-    "burned": ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
-    "floods": ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+    "burned_area_dataset": ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+    "floods_dataset": ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
     "marine": ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
     "phileo-bench_roads":   ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
     "phileo-bench_building":   ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+    "fire_dataset":   ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+}
+
+# SCALING FACTORS: 
+# 10000.0 if the Zarr contains raw uint16/int values (to convert to [0, 1] reflectance).
+# 1.0 if the Zarr is already normalized.
+ZARR_SCALING_FACTORS = {
+    "floods": 1.0,
+    "lulc": 10000.0,
+    "roads": 10000.0,
+    "building": 10000.0,
+    "fire": 10000.0,
+    "burned": 1.0,
 }
 
 class DownstreamDataset(Dataset):
@@ -69,36 +83,88 @@ class DownstreamDataset(Dataset):
         source_folder = base_path / "trainval" if split in {"train", "val"} else base_path / "test"
         if not source_folder.exists():
             raise FileNotFoundError(f"Expected Zarr split folder at {source_folder}")
-            
-        self.patches = self._list_patches(source_folder, split, seed, val_ratio, max_patches, subset_csv=subset_csv)
         
-        self.mean, self.std = get_norm_tensors("phisat2_sim", PHISAT2_REAL_BANDS) # Using sim stats but real bands order (since we will permute the bands to match the real order)
+        self.scaling_factor = ZARR_SCALING_FACTORS.get(spec.dataset)
+        
+        self.patches = self._list_patches(source_folder, split, seed, val_ratio, max_patches, subset_csv=subset_csv)
+        self.mean, self.std = get_norm_tensors("phisat2_sim", PHISAT2_REAL_BANDS)
+        
+        self.load_size = 256
+        self.samples = []
+        
+        for patch_path in self.patches:
+            patch_path = Path(patch_path)
+            img_zarr = self._open_array(patch_path / "img")
+            
+            H, W = img_zarr.shape[-2:]
+            
+            if H <= self.load_size and W <= self.load_size:
+                self.samples.append((patch_path, None, None))
+                
+            elif self.is_train:
+                self.samples.append((patch_path, H, W))
+                
+            else:
+                for y in range(0, H, self.load_size):
+                    for x in range(0, W, self.load_size):
+                        y_start = min(y, max(0, H - self.load_size))
+                        x_start = min(x, max(0, W - self.load_size))
+                        tile = (patch_path, y_start, x_start)
+                        if tile not in self.samples:
+                            self.samples.append(tile)
 
     def __len__(self) -> int:
-        return len(self.patches)
+        return len(self.samples)
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
-        patch_path = Path(self.patches[index])
+        sample = self.samples[index]
+        patch_path = sample[0]
         
+        if len(sample) == 3 and sample[1] is None:
+            slice_y, slice_x = slice(None), slice(None)
+        elif len(sample) == 3 and sample[1] is not None:
+            H, W = sample[1], sample[2]
+            y_start = int(torch.randint(0, max(1, H - self.load_size + 1), (1,)).item())
+            x_start = int(torch.randint(0, max(1, W - self.load_size + 1), (1,)).item())
+            slice_y = slice(y_start, y_start + self.load_size)
+            slice_x = slice(x_start, x_start + self.load_size)
+        else:
+            _, y_start, x_start = sample
+            slice_y = slice(y_start, y_start + self.load_size)
+            slice_x = slice(x_start, x_start + self.load_size)
+
         image_array = self._open_array(patch_path / "img")
-        image = torch.from_numpy(self._read_array(image_array, slice(None))).float()
+        img_slice = (slice(None), slice_y, slice_x)
+        image = torch.from_numpy(self._read_array(image_array, img_slice)).float()
         
-        image = image[self.permutation] / 10000.
+        image = image[self.permutation] / self.scaling_factor
         image = normalize_tensor(image, self.mean, self.std)
 
         target_array = self._open_array(patch_path / "label")
-        target = torch.from_numpy(self._read_array(target_array, slice(None)))
+        
+        if len(target_array.shape) == 0:
+            target = torch.tensor(target_array[...])
+        else:
+            tgt_slice = (slice_y, slice_x) if target_array.ndim == 2 else (slice(None), slice_y, slice_x)
+            target = torch.from_numpy(self._read_array(target_array, tgt_slice))
 
         task = self.spec.task
-
+        
         if task in ["segmentation", "classification"]:
             target = target.long()
         elif task in ["pixel_regression", "global_regression"]:
             target = target.float()
 
-        if task in ["segmentation", "pixel_regression"]:
+        if task == "segmentation":
+            if target.ndim == 3:
+                if target.shape[0] > 1:
+                    target = target.argmax(dim=0)  # [C, H, W] -> [H, W]
+                elif target.shape[0] == 1:
+                    target = target.squeeze(0)     # [1, H, W] -> [H, W]
+                    
+        elif task == "pixel_regression":
             if target.ndim == 2:
-                target = target.unsqueeze(0)
+                target = target.unsqueeze(0)       # [H, W] -> [1, H, W]
                 
             transformed = apply_spatial_transforms(
                 [image, target], is_train=self.is_train, crop_size=self.crop_size

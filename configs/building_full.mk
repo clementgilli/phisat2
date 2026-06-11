@@ -35,9 +35,9 @@ MEM        = 128G
 BATCH_SIZE = 128
 
 LR         = 0.0003
-EPOCHS     = 50
+EPOCHS     = 100
 
-WEIGHTS    = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best-v4.ckpt
+WEIGHTS    = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
 SUBSET_CSV = 
 
 endif

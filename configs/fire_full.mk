@@ -1,13 +1,13 @@
 # ==========================================
-# CONFIGURATION : LULC Full Dataset
+# CONFIGURATION : Fire Full Dataset
 # ==========================================
 
-BASE_NAME   = lulc_full
+BASE_NAME   = fire_full
 QUEUE       = gpu4_std
 GPUS        = 1
 
-TASK        = segmentation
-DATASET     = lulc
+TASK        = classification
+DATASET     = fire
 MODEL       = phisatnet
 DATALOADER  = downstream
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data/
@@ -32,12 +32,12 @@ WALLTIME   = 12:00:00
 CPUS       = 16
 MEM        = 128G
 
-BATCH_SIZE = 128
+BATCH_SIZE = 16
 
-LR         = 0.0003
-EPOCHS     = 100
+LR         = 0.005
+EPOCHS     = 200
 
-WEIGHTS    = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+WEIGHTS    = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best-v4.ckpt
 SUBSET_CSV = 
 
 endif

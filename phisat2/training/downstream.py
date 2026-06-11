@@ -5,12 +5,13 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import numpy as np
 import os
     
 from phisat2.tasks import TaskSpec
 from phisat2.evaluation.metrics import build_metrics
-
+from phisat2.utils.visualization import mask_to_rgb
 
 class DownstreamModule(L.LightningModule):
     def __init__(self, model: nn.Module, spec: TaskSpec, *, lr: float) -> None:
@@ -120,53 +121,67 @@ class DownstreamModule(L.LightningModule):
         channels = [DownstreamModule._percentile_stretch(t[c]) for c in idx]
         return np.stack(channels, axis=-1)
 
-    def _visualize_and_save_segmentation(
-        self, batch, preds, targets, batch_idx, max_samples=4
-    ) -> None:
-        
+    def _visualize_and_save_segmentation(self, batch, preds, targets, batch_idx, max_samples=10) -> None:
         if batch_idx % 100 != 0:
             return
             
         image = batch["image"]
+        dataset_name = self.spec.dataset
         
         if preds.ndim == 4:
-            preds = torch.argmax(preds, dim=1)
-
+            preds = preds.argmax(dim=1)
+            
+        targets_np = targets.detach().cpu().numpy()
+        preds_np = preds.detach().cpu().numpy()
         n = min(max_samples, image.shape[0])
         
-        fig, axes = plt.subplots(n, 3, figsize=(12, 4 * n), squeeze=False)
-        fig.suptitle(f"Debug Segmentation ({self.spec.dataset}) - Batch {batch_idx}", fontsize=14)
+        fig, axes = plt.subplots(n, 3, figsize=(15, 4 * n), squeeze=False, constrained_layout=True)
+        fig.suptitle(f"Debug Segmentation ({dataset_name}) - Batch {batch_idx}", fontsize=14)
         
         col_titles = ["Original (RGB)", "Ground Truth", "Predictions"]
         for ax, title in zip(axes[0], col_titles):
             ax.set_title(title, fontsize=11)
         
+        current_meta = None 
+        
         for i in range(n):
             orig = image[i].detach().cpu()
-            target_mask = targets[i].detach().cpu().numpy()
-            pred_mask = preds[i].detach().cpu().numpy()
-            
             axes[i, 0].imshow(self._to_falsecolor(orig, rgb_idx=(3, 2, 1)))
+            axes[i, 0].axis("off")
             
-            axes[i, 1].imshow(target_mask, cmap="tab20", interpolation="nearest")
-            axes[i, 2].imshow(pred_mask, cmap="tab20", interpolation="nearest")
+            gt_rgb, current_meta = mask_to_rgb(targets_np[i], dataset_name)
+            pred_rgb, _ = mask_to_rgb(preds_np[i], dataset_name)
             
-            for ax in axes[i]:
-                ax.axis("off")
-                
+            axes[i, 1].imshow(gt_rgb)
+            axes[i, 1].axis("off")
+            
+            axes[i, 2].imshow(pred_rgb)
+            axes[i, 2].axis("off")
+            
+        if current_meta is not None:
+            legend_patches = [
+                mpatches.Patch(color=np.array(color)/255.0, label=name)
+                for class_idx, (name, color) in current_meta.items()
+            ]
+            
+            fig.legend(
+                handles=legend_patches, 
+                loc='lower center', 
+                bbox_to_anchor=(0.5, -0.05), 
+                ncol=len(current_meta), 
+                fontsize=11
+            )
+            
         os.makedirs(self.trainer.default_root_dir, exist_ok=True)
-        save_path = os.path.join(
-            self.trainer.default_root_dir, 
-            f"segmentation_debug_batch_{batch_idx}.png"
-        )
-        plt.tight_layout()
+        save_path = os.path.join(self.trainer.default_root_dir, f"segmentation_debug_batch_{batch_idx}.png")
+        
         plt.savefig(save_path, dpi=120, bbox_inches="tight")
         plt.close(fig)
         print(f"[Viz] saved → {save_path}")
         
         
     def _visualize_and_save_pixel_regression(
-        self, batch, preds, targets, batch_idx, max_samples=4
+        self, batch, preds, targets, batch_idx, max_samples=10
     ) -> None:
         
         if batch_idx % 100 != 0:
