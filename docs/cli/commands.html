@@ -21,11 +21,11 @@
       <h2>CLI usage</h2>
       <pre><code>python -m phisat2.cli.train fit \
   --task segmentation \
-  --dataset clouds \
+  --dataset lulc \
   --model phisat2_geoaware \
-  --dataloader synthetic \
+  --dataloader downstream \
   --seeds 0 1 \
-  --root-dir . \
+  --root-dir data/PhiSatNet \
   --output-dir runs \
   --max-epochs 5 \
   --batch-size 8 \
@@ -55,7 +55,8 @@
         <tr><td>List models</td><td><code>make list-models</code></td></tr>
         <tr><td>List loaders</td><td><code>make list-dataloaders</code></td></tr>
         <tr><td>Smoke run</td><td><code>make smoke</code></td></tr>
-        <tr><td>Train segmentation</td><td><code>make train TASK=segmentation MODEL=terramind_v1_tiny DATASET=lulc DATALOADER=zarr_downstream</code></td></tr>
+        <tr><td>Fast dev run</td><td><code>make fast-dev-run TASK=segmentation DATASET=lulc MODEL=terramind_v1_tiny DATALOADER=downstream</code></td></tr>
+        <tr><td>Full training</td><td><code>make train TASK=segmentation DATASET=lulc DATALOADER=downstream EPOCHS=50 SEEDS="0 42"</code></td></tr>
       </table>
     </section>
   </main>

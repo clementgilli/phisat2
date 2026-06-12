@@ -20,12 +20,71 @@
     <section>
       <h2>Tasks and outputs</h2>
       <table>
-        <tr><th>Task</th><th>Output</th><th>Target key</th><th>Loader</th><th>Head</th></tr>
-        <tr><td>segmentation</td><td>task-dependent classes</td><td>mask</td><td>zarr_downstream, synthetic</td><td>SharedUNetDecoder or Myriad2 full U-Net</td></tr>
-        <tr><td>classification</td><td>31</td><td>label</td><td>h5_pairs, synthetic</td><td>GlobalPoolingHead</td></tr>
-        <tr><td>global_regression</td><td>4</td><td>target</td><td>h5_pairs, synthetic</td><td>GlobalPoolingHead</td></tr>
-        <tr><td>pixel_regression</td><td>bands (8)</td><td>target</td><td>h5_pairs, synthetic</td><td>SharedUNetDecoder</td></tr>
+        <tr>
+          <th>Task</th>
+          <th>Dataloader</th>
+          <th>Target Key</th>
+          <th>Output Size</th>
+          <th>Head Type</th>
+        </tr>
+        <tr>
+          <td><code>segmentation</code></td>
+          <td><code>downstream</code>, <code>synthetic</code></td>
+          <td><code>mask</code></td>
+          <td>Task-dependent (e.g., 11 for LULC)</td>
+          <td>SharedUNetDecoder</td>
+        </tr>
+        <tr>
+          <td><code>pixel_regression</code></td>
+          <td><code>downstream</code>, <code>synthetic</code></td>
+          <td><code>target</code></td>
+          <td>1 (continuous)</td>
+          <td>SharedUNetDecoder</td>
+        </tr>
+        <tr>
+          <td><code>classification</code></td>
+          <td><code>downstream</code>, <code>synthetic</code></td>
+          <td><code>label</code></td>
+          <td>Task-dependent (e.g., 4 for fire)</td>
+          <td>GlobalPoolingHead</td>
+        </tr>
+        <tr>
+          <td><code>global_regression</code></td>
+          <td><code>downstream</code>, <code>synthetic</code></td>
+          <td><code>target</code></td>
+          <td>1 (continuous)</td>
+          <td>GlobalPoolingHead</td>
+        </tr>
+        <tr>
+          <td><code>pretrain_reconstruction</code></td>
+          <td><code>triplets</code></td>
+          <td><code>simulated</code></td>
+          <td>8 bands</td>
+          <td>SharedUNetDecoder</td>
+        </tr>
+        <tr>
+          <td><code>distillation_kd</code></td>
+          <td><code>triplets</code></td>
+          <td>none</td>
+          <td>—</td>
+          <td>Task head (custom)</td>
+        </tr>
+        <tr>
+          <td><code>domain_adaptation</code></td>
+          <td><code>triplets</code></td>
+          <td>none</td>
+          <td>—</td>
+          <td>Task head (custom)</td>
+        </tr>
+        <tr>
+          <td><code>eval_domain_gap</code></td>
+          <td><code>triplets</code></td>
+          <td>none</td>
+          <td>—</td>
+          <td>Task head (custom)</td>
+        </tr>
       </table>
+      <p class="muted">Paired tasks (pretrain, distillation, domain adaptation) automatically use <code>triplets</code> dataloader and don't require <code>--dataset</code> or <code>--dataloader</code> flags.</p>
     </section>
   </main>
 </body>

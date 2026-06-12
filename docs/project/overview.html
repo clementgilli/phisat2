@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codebase Overview | PhiSat-2 Docs</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>Codebase Overview</h1>
+    <p>Architecture and design of the PhiSat-2 training framework.</p>
+  </div>
+
+  <main>
+    <nav>
+      <a href="../index.html">Docs</a><a href="overview.html">Overview</a>
+    </nav>
+
+    <section>
+      <h2>Package Structure</h2>
+      <pre><code>phisat2/
+ cli/
+ cli.py               # Main CLI entry point for training   
+ models/
+ registry.py          # Model registry with encoders and decoders   
+ composite.py         # Composite model classes   
+ blocks.py            # Building blocks (adapters, heads)   
+ heads.py             # Task-specific heads   
+ data_loaders/
+ registry.py          # Dataloader registry   
+ downstream.py        # Downstream task datasets   
+ triplets.py          # Triplet datasets for SSL/KD/DA   
+ synthetic.py         # Synthetic data generator   
+ sensors.py           # Sensor specifications   
+ transforms.py        # Data augmentations   
+ training/
+ downstream.py        # Supervised training   
+ pretrain_ssl.py      # Self-supervised learning   
+ distillation_kd.py   # Knowledge distillation   
+ domain_adaptation.py # Domain adaptation   
+ pretrain_ssl.py      # SSL pre-training   
+ tasks/
+ specs.py             # Task specifications and registry   
+ evaluation/
+ metrics.py           # Evaluation metrics   
+ utils/
+ seed.py              # Reproducibility utilities    
+ weights.py           # Weight loading utilities    
+ visualization.py     # Visualization helpers</code></pre>    
+    </section>
+
+    <section>
+      <h2>Key Concepts</h2>
+      
+      <h3>Tasks</h3>
+      <p>Defined in <code>phisat2/tasks/specs.py</code>. Each task specifies:</p>
+      <ul>
+        <li>Output size (number of classes or regression targets)</li>
+        <li>Target key in batch dict (mask, label, target, etc.)</li>
+        <li>Loss function (cross-entropy, MSE, KD loss, etc.)</li>
+      </ul>
+      <p>Task types:</p>
+      <ul>
+        <li><code>segmentation</ pixel-level classification</li>code> 
+        <li><code>classification</ image-level classification</li>code> 
+        <li><code>pixel_regression</ pixel-level regression</li>code> 
+        <li><code>global_regression</ image-level regression</li>code> 
+        <li><code>pretrain_reconstruction</ self-supervised pre-training</li>code> 
+        <li><code>distillation_kd</ knowledge distillation</li>code> 
+        <li><code>domain_adaptation</ unsupervised domain adaptation</li>code> 
+        <li><code>eval_domain_gap</ domain gap evaluation</li>code> 
+      </ul>
+    </section>
+
+    <section>
+      <h2>Models</h2>
+      <p>Defined in <code>phisat2/models/registry.py</code>. Two patterns:</p>
+      
+      <h3>Shared Decoder Models</h3>
+      <p>Most models use this pattern:</p>
+      <ol>
+        <li>Encoder (e.g., <code>phisat2_geoaware</code>, <code>terramind_*</code>, <code>prithvi_*</code>)</li>
+        <li>FeaturePyramidAdapter normalizes outputs to 4-level spatial pyramid</li>
+        <li>Task head (SharedUNetDecoder for spatial tasks, GlobalPoolingHead for global tasks)</li>
+      </ol>
+      <p>This allows different encoders to share the same decoder contract.</p>
+
+      <h3>Full-Structure Models</h3>
+      <p><code>myriad2_full_unet</code> is a complete U-Net with embedded decoder.</p>
+    </section>
+
+    <section>
+      <h2>Data Loaders</h2>
+      <p>Defined in <code>phisat2/data_loaders/registry.py</code>. Three types:</p>
+      <ul>
+        <li><code>downstream</ Segmentation/regression datasets with image/target pairs</li>code> 
+        <li><code>triplets</ Triplet datasets (img1, img2, img3) for SSL/KD/DA</li>code> 
+        <li><code>synthetic</ Random synthetic data for testing</li>code> 
+      </ul>
+      <p>All produce batches with <code>batch["image"]</code> and <code>batch[spec.target_key]</code>.</p>
+    </section>
+
+    <section>
+      <h2>Training Module</h2>
+      <p>The <code>phisat2/training/</code> directory contains Lightning modules for different training paradigms:</p>
+      <ul>
+        <li><code>downstream.py</ Standard supervised training</li>code> 
+        <li><code>pretrain_ssl.py</ Self-supervised learning (MAE, SparK, etc.)</li>code> 
+        <li><code>distillation_kd.py</ Knowledge distillation with teacher-student</li>code> 
+        <li><code>domain_adaptation.py</ Domain adaptation with statistical alignment</li>code> 
+      </ul>
+      <p>Each module is a Lightning <code>LightningModule</code> with standard PyTorch training loops.</p>
+    </section>
+
+    <section>
+      <h2>CLI Orchestration</h2>
+      <p>The CLI in <code>phisat2/cli/cli.py</code> handles:</p>
+      <ol>
+        <li>Parse command-line arguments (task, model, dataset, dataloader, etc.)</li>
+        <li>Resolve task specifications from task/dataset pair</li>
+        <li>Build model, datamodule, and Lightning module</li>
+        <li>Run Lightning Trainer with callbacks, logger, and hardware config</li>
+      </ol>
+      <p>For paired tasks (SSL, KD, DA), the dataloader is auto-detected from the task type.</p>
+    </section>
+
+    <section>
+      <h2>Hardware Configuration</h2>
+      <p>The <code>AUTO_DDP</code> flag automatically detects available GPUs:</p>
+      <ul>
+        <li>Multiple GPUs: Lightning DDP with automatic device setup</li>
+        <li>Single GPU: Single-GPU training</li>
+        <li>CPU: Fallback to CPU training</li>
+      </ul>
+      <p>Override with <code>ACCELERATOR</code>, <code>DEVICES</code>, and <code>STRATEGY</code> variables.</p>
+    </section>
+
+    <section>
+      <h2>Reproducibility</h2>
+      <p>All randomness is controlled by <code>phisat2/utils/seed.py</code>:</p>
+      <ul>
+        <li>Python, NumPy, PyTorch, CUDA deterministic modes</li>
+        <li>Lightning worker seeding</li>
+        <li>Per-seed checkpoint separation</li>
+      </ul>
+      <p>Seeds are specified via <code>SEEDS</code> Make variable (e.g., <code>SEEDS="0 42 100"</code>).</p>
+    </section>
+
+    <section>
+      <h2>Output Structure</h2>
+      <p>Training outputs are written to:</p>
+      <pre><code>OUTPUT_DIR/TASK/DATASET/MODEL/seed_N/
+ checkpoints/
+ best.ckpt        # Checkpoint with min val_loss   
+ last.ckpt        # Final checkpoint   
+ logs/
+ metrics.csv      # Training/validation metrics per epoch</code></pre>    
+    </section>
+  </main>
+</body>
+</html>

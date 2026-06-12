@@ -14,84 +14,112 @@
 
   <main>
     <section>
-      <h2>Start here</h2>
+      <h2>Welcome to PhiSat-2</h2>
+      <p>Train machine learning models for satellite imagery processing with support for multiple training paradigms: supervised learning, self-supervised learning, knowledge distillation, and domain adaptation.</p>
+    </section>
+
+    <section>
+      <h2>Getting Started</h2>
       <div class="grid">
         <div class="card">
           <h4>Quickstart</h4>
-          <p>Install, smoke test, then list registered options.</p>
-          <a href="getting-started/quickstart.html">Open</a>
-        </div>
-        <div class="card">
-          <h4>Model architecture</h4>
-          <p>Encoders, shared decoder path, and adapter behavior.</p>
-          <a href="model/architecture.html">Open</a>
+          <p>Install, verify, and run your first experiment.</p>
+          <a href="getting-started/quickstart.html">Read</a>
         </div>
         <div class="card">
           <h4>Training pipeline</h4>
-          <p>CLI/Make orchestration and loss/optimizer behavior.</p>
-          <a href="training/pipeline.html">Open</a>
-        </div>
-        <div class="card">
-          <h4>Data loaders</h4>
-          <p>Task constraints, dataset assumptions, and batch format.</p>
-          <a href="data/dataloaders.html">Open</a>
+          <p>How Make targets and CLI execute training.</p>
+          <a href="training/pipeline.html">Read</a>
         </div>
         <div class="card">
           <h4>CLI commands</h4>
           <p>Make aliases and direct trainer invocation.</p>
-          <a href="cli/commands.html">Open</a>
-        </div>
-        <div class="card">
-          <h4>Hyperparameters</h4>
-          <p>Practical defaults and tuning order.</p>
-          <a href="training/hyperparameters.html">Open</a>
-        </div>
-        <div class="card">
-          <h4>Troubleshooting</h4>
-          <p>Common failures and quick checks.</p>
-          <a href="troubleshooting/index.html">Open</a>
-        </div>
-        <div class="card">
-          <h4>Ops notes</h4>
-          <p>Checkpoints, logs, and resource tips.</p>
-          <a href="ops/checkpoints-logs.html">Open</a>
-        </div>
-        <div class="card">
-          <h4>More</h4>
-          <p>Task mapping, inference, reproducibility, and legacy workflows.</p>
-          <a href="model/task-mapping.html">Open</a>
+          <a href="cli/commands.html">Read</a>
         </div>
       </div>
     </section>
 
     <section>
-      <h2>Repository map (short)</h2>
+      <h2>Core Concepts</h2>
+      <div class="grid">
+        <div class="card">
+          <h4>Model architecture</h4>
+          <p>Encoders, decoders, and shared decoder patterns.</p>
+          <a href="model/architecture.html">Read</a>
+        </div>
+        <div class="card">
+          <h4>Data loaders</h4>
+          <p>Batch format, supported datasets, and usage.</p>
+          <a href="data/dataloaders.html">Read</a>
+        </div>
+        <div class="card">
+          <h4>Task mapping</h4>
+          <p>Which tasks, models, and dataloaders work together.</p>
+          <a href="model/task-mapping.html">Read</a>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Training & Tuning</h2>
+      <div class="grid">
+        <div class="card">
+          <h4>Hyperparameters</h4>
+          <p>Practical defaults and tuning guidance.</p>
+          <a href="training/hyperparameters.html">Read</a>
+        </div>
+        <div class="card">
+          <h4>Resource notes</h4>
+          <p>Memory and speed optimization tips.</p>
+          <a href="ops/resource-notes.html">Read</a>
+        </div>
+        <div class="card">
+          <h4>Checkpoints & logs</h4>
+          <p>Where outputs are written and how to find them.</p>
+          <a href="ops/checkpoints-logs.html">Read</a>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Debugging & Reference</h2>
+      <div class="grid">
+        <div class="card">
+          <h4>Troubleshooting</h4>
+          <p>Common errors and quick fixes.</p>
+          <a href="troubleshooting/index.html">Read</a>
+        </div>
+        <div class="card">
+          <h4>Reproducibility</h4>
+          <p>What is deterministic and where randomness can vary.</p>
+          <a href="reproducibility/index.html">Read</a>
+        </div>
+        <div class="card">
+          <h4>Inference</h4>
+          <p>Running a trained model on new inputs.</p>
+          <a href="evaluation/inference.html">Read</a>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Repository Structure</h2>
       <ul>
-        <li><code>phisat2/</code>: active package for training + CLI.</li>
-        <li><code>src/</code>: legacy/adaptation scripts and alternate training paths.</li>
-        <li><code>tests/</code>: registry and model shape checks.</li>
+        <li><code>phisat2/</code>: Main package with training, models, data loading, and CLI.</li>
+        <li><code>tests/</code>: Unit tests for model registry and shapes.</li>
+        <li><code>src/</code>: Legacy scripts and alternate workflows.</li>
+        <li><code>docs/</code>: This documentation.</li>
       </ul>
     </section>
 
     <section>
-      <h2>Quick run order</h2>
-      <ol>
-        <li><code>make install</code></li>
-        <li><code>make list-models</code> and <code>make list-dataloaders</code></li>
-        <li><code>make smoke</code></li>
-      </ol>
-      <p class="muted">For detailed commands and behavior, use the linked pages.</p>
-    </section>
-
-    <section>
-      <h2>Extra pages</h2>
-      <ul>
-        <li><a href="model/task-mapping.html">Task mapping</a></li>
-        <li><a href="evaluation/inference.html">Inference</a></li>
-        <li><a href="reproducibility/index.html">Reproducibility</a></li>
-        <li><a href="adaptation/legacy-workflows.html">Legacy adaptation workflows</a></li>
-        <li><a href="contributing/index.html">Contributing</a></li>
-      </ul>
+      <h2>Quick Commands</h2>
+      <pre><code>make install                          # Install all dependencies
+make check                            # Verify installation
+make smoke                            # Run smoke test with synthetic data
+make list-models                      # See all available models
+make list-dataloaders                 # See all available dataloaders
+make train TASK=segmentation ...      # Run training with parameters</code></pre>
     </section>
   </main>
 </body>

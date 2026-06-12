@@ -51,9 +51,10 @@
 
     <section>
       <h2>Common Make entry points</h2>
-      <pre><code>make fast-dev-run DATASET=clouds MODEL=phisat2_geoaware DATALOADER=synthetic SEEDS=0
-make train TASK=classification MODEL=terramind_v1_tiny DATASET=climate DATALOADER=h5_pairs SEEDS="13 42" EPOCHS=10
-make smoke</code></pre>
+      <pre><code>make smoke
+make fast-dev-run TASK=segmentation DATASET=lulc MODEL=phisat2_geoaware DATALOADER=downstream SEEDS=0
+make train TASK=classification DATASET=fire MODEL=terramind_v1_tiny DATALOADER=downstream SEEDS="13 42" EPOCHS=10</code></pre>
+      <p class="muted">Available dataloaders: <code>downstream</code>, <code>triplets</code>, <code>synthetic</code>. Use <code>make list-dataloaders</code> to list all.</p>
     </section>
 
     <section>
