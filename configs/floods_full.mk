@@ -1,13 +1,13 @@
 # ==========================================
-# CONFIGURATION : LULC — 50 shot
+# CONFIGURATION : Floods — Full Dataset
 # ==========================================
 
-BASE_NAME   = lulc_full
+BASE_NAME   = floods_full
 QUEUE       = gpu4_std
 GPUS        = 1
 
 TASK        = segmentation
-DATASET     = lulc
+DATASET     = floods
 MODEL       = phisatnet
 DATALOADER  = downstream
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data
@@ -42,6 +42,6 @@ LR         = 0.0003
 EPOCHS     = 100
 
 WEIGHTS    = $(_PRETRAIN)
-SUBSET_CSV = /lustre/home/u10010021/phisat2/splits/lulc/lulc_train_50_global.csv
+SUBSET_CSV =
 
 endif

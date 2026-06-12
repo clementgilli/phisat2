@@ -25,8 +25,8 @@ DEFAULT_CLASS_PREFIX = "class_"
 
 
 ZARR_DATASET_NAMES = {
-    "burned": ("burned_area", "burned"),
-    "floods": ("worldfloods", "floods"),
+    "burned": ("burned_area_dataset", "burned"),
+    "floods": ("worldfloods", "floods_dataset"),
     "worldfloods": ("worldfloods", "floods"),
     "lc": ("phileo-bench_lc", "lc", "lulc"),
     "lulc": ("phileo-bench_lc", "lulc"),
@@ -81,8 +81,11 @@ def _read_mask(mask_path: Path) -> np.ndarray:
     if array is None:
         raise OSError(f"Could not open mask array at {mask_path}")
     data = np.asarray(array)
-    if data.ndim == 3 and data.shape[0] == 1:
-        data = np.squeeze(data, axis=0)
+    if data.ndim == 3:
+        if data.shape[0] == 1:
+            data = np.squeeze(data, axis=0)
+        elif data.shape[0] > 1:
+            data = np.argmax(data, axis=0)            
     return data
 
 

@@ -1,0 +1,38 @@
+{
+  "hist_csv": "/lustre/home/u10010021/phisat2/splits/floods/floods_train_sample_hist.csv",
+  "requested_size": "50",
+  "seed": 42,
+  "selected_size": 50,
+  "strategy": "global",
+  "summary": {
+    "full_counts": {
+      "class_0": 3230426396,
+      "class_1": 10921419113,
+      "class_2": 2002254203
+    },
+    "full_fractions": {
+      "class_0": 0.19997563798620682,
+      "class_1": 0.676077237834992,
+      "class_2": 0.12394712417880116
+    },
+    "full_total_pixels": 16154099712.0,
+    "l1_distance": 0.03435855925958514,
+    "subset_counts": {
+      "class_0": 2595150,
+      "class_1": 8662278,
+      "class_2": 1849772
+    },
+    "subset_fractions": {
+      "class_0": 0.19799423217773438,
+      "class_1": 0.6608793640136719,
+      "class_2": 0.14112640380859376
+    },
+    "subset_size": 50,
+    "subset_total_pixels": 13107200.0,
+    "target_fractions": {
+      "class_0": 0.19997563798620682,
+      "class_1": 0.676077237834992,
+      "class_2": 0.12394712417880116
+    }
+  }
+}

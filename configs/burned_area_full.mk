@@ -1,13 +1,13 @@
 # ==========================================
-# CONFIGURATION : LULC — 50 shot
+# CONFIGURATION : Burned Area — Full Dataset
 # ==========================================
 
-BASE_NAME   = lulc_full
+BASE_NAME   = burned_full
 QUEUE       = gpu4_std
 GPUS        = 1
 
 TASK        = segmentation
-DATASET     = lulc
+DATASET     = burned
 MODEL       = phisatnet
 DATALOADER  = downstream
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data
@@ -39,9 +39,9 @@ MEM        = 128G
 
 BATCH_SIZE = 128
 LR         = 0.0003
-EPOCHS     = 100
+EPOCHS     = 200
 
 WEIGHTS    = $(_PRETRAIN)
-SUBSET_CSV = /lustre/home/u10010021/phisat2/splits/lulc/lulc_train_50_global.csv
+SUBSET_CSV =
 
 endif

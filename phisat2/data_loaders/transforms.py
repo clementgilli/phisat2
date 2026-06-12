@@ -2,25 +2,43 @@ from __future__ import annotations
 
 import torch
 
-def crop_pair(
-    image: torch.Tensor,
-    target: torch.Tensor,
-    crop_size: int,
-    *,
-    train: bool,
-    generator: torch.Generator | None = None,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    height, width = image.shape[-2:]
-    crop_h = min(crop_size, height)
-    crop_w = min(crop_size, width)
-    if train and height > crop_h:
-        top = int(torch.randint(0, height - crop_h + 1, (1,), generator=generator).item())
+def apply_spatial_transforms(
+    tensors: list[torch.Tensor], 
+    is_train: bool, 
+    crop_size: int = 224
+) -> list[torch.Tensor]:
+    
+    if not tensors or tensors[0].numel() == 0:
+        return tensors
+        
+    _, H, W = tensors[0].shape
+    
+    if is_train:
+        top = int(torch.randint(0, H - crop_size + 1, (1,)).item()) if H > crop_size else 0
+        left = int(torch.randint(0, W - crop_size + 1, (1,)).item()) if W > crop_size else 0
+        flip_h = torch.rand(1).item() > 0.5
+        flip_v = torch.rand(1).item() > 0.5
     else:
-        top = max(0, (height - crop_h) // 2)
-    if train and width > crop_w:
-        left = int(torch.randint(0, width - crop_w + 1, (1,), generator=generator).item())
-    else:
-        left = max(0, (width - crop_w) // 2)
-    image = image[..., top : top + crop_h, left : left + crop_w]
-    target = target[..., top : top + crop_h, left : left + crop_w] if target.ndim >= 2 else target
-    return image, target
+        # Center crop
+        top = max(0, (H - crop_size) // 2)
+        left = max(0, (W - crop_size) // 2)
+        flip_h = False
+        flip_v = False
+
+    transformed = []
+    for t in tensors:
+        # Crop
+        t = t[..., top : top + crop_size, left : left + crop_size]
+        # Flips
+        if flip_h:
+            t = torch.flip(t, dims=[-1])
+        if flip_v:
+            t = torch.flip(t, dims=[-2])
+        transformed.append(t)
+        
+    return transformed
+
+def normalize_tensor(tensor: torch.Tensor, mean: torch.Tensor, std: torch.Tensor) -> torch.Tensor:
+    if tensor.numel() > 0:
+        return (tensor - mean) / std
+    return tensor

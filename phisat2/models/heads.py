@@ -3,14 +3,25 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-
 class GlobalPoolingHead(nn.Module):
     def __init__(self, in_channels: int, out_features: int) -> None:
         super().__init__()
-        self.pool = nn.AdaptiveAvgPool2d(1)
-        self.flatten = nn.Flatten(1)
+        
+        self.pool = nn.AdaptiveMaxPool2d(1)
+        
+        self.bn = nn.BatchNorm1d(in_channels)
+        
+        self.dropout = nn.Dropout(p=0.5)
+        
         self.head = nn.Linear(in_channels, out_features)
 
-    def forward(self, features: list[torch.Tensor]) -> torch.Tensor:
-        x = features[-1]
-        return self.head(self.flatten(self.pool(x)))
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.pool(x)
+        
+        x = x.view(x.size(0), -1)
+        
+        x = self.bn(x)
+        
+        x = self.dropout(x)
+        
+        return self.head(x)

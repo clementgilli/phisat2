@@ -6,8 +6,7 @@ import torch.nn as nn
 from phisat2.models.blocks import ConvBlock
 
 
-class PhiSat2GeoAwareEncoder(nn.Module):
-    """Compact local PhiSat-2 CNN encoder baseline."""
+class PhiSatNetEncoder(nn.Module):
 
     def __init__(
         self,

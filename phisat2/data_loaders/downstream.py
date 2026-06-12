@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import os
 import time
 from functools import lru_cache
@@ -7,29 +8,47 @@ from pathlib import Path
 
 import lightning as L
 import numpy as np
-import csv
 import torch
 from torch.utils.data import DataLoader, Dataset
 
 from phisat2.tasks import TaskSpec
+from phisat2.data_loaders.sensors import PHISAT2_REAL_BANDS, PHISAT2_SIM_BANDS, get_norm_tensors
+from phisat2.data_loaders.transforms import apply_spatial_transforms, normalize_tensor
 
 ZARR_DATASET_NAMES = {
-    "burned": ("burned_area", "burned"),
-    "floods": ("worldfloods", "floods"),
-    "lc": ("phileo-bench_lc", "lc", "lulc"),
+    "burned": ("burned_area_dataset", "burned"),
+    "floods": ("floods_dataset", "floods"),
     "lulc": ("phileo-bench_lc", "lulc"),
     "marine": ("marine_area", "marine"),
+    "roads" : ("phileo-bench_roads", "roads"),
+    "building" : ("phileo-bench_building", "building"),
+    "fire": ("fire_dataset", "fire"),
 }
 
-BAND_PERMUTATIONS = {
-    "lulc": [0, 1, 2, 3, 4, 5, 6, 7],
+# ORDER OF BANDS IN THE ZARR DATASETS (MAY VARY FROM THE ORDER IN THE TIFF FILES)
+ZARR_SOURCE_BANDS = {
+    "phileo-bench_lc":   ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+    "burned_area_dataset": ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+    "floods_dataset": ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+    "marine": ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+    "phileo-bench_roads":   ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+    "phileo-bench_building":   ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+    "fire_dataset":   ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
 }
 
-DATASET_BANDS = {
-    "lulc":        ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+# SCALING FACTORS: 
+# 10000.0 if the Zarr contains raw uint16/int values (to convert to [0, 1] reflectance).
+# 1.0 if the Zarr is already normalized.
+ZARR_SCALING_FACTORS = {
+    "floods": 1.0,
+    "lulc": 10000.0,
+    "roads": 10000.0,
+    "building": 10000.0,
+    "fire": 10000.0,
+    "burned": 1.0,
 }
 
-class ZarrDownstreamDataset(Dataset):
+class DownstreamDataset(Dataset):
     def __init__(
         self,
         root_dir: str | Path,
@@ -43,43 +62,131 @@ class ZarrDownstreamDataset(Dataset):
         random_crop: bool = True,
         subset_csv: str | None = None,
     ) -> None:
-        if spec.task != "segmentation":
-            raise ValueError("zarr_downstream currently supports segmentation datasets.")
 
         self.spec = spec        
         self.split = split
         self.seed = seed
         self.crop_size = crop_size
-        self.random_crop = random_crop
+        self.is_train = (split == "train" and random_crop)
+        
         dataset_names = ZARR_DATASET_NAMES.get(spec.dataset, (spec.dataset,))
-        self.permutation = BAND_PERMUTATIONS.get(dataset_names[0], list(range(8)))
+        base_name = dataset_names[0]
+        source_bands = ZARR_SOURCE_BANDS.get(base_name)
+        if source_bands is None:
+            raise ValueError(f"Source bands for dataset '{base_name}' are not defined in ZARR_SOURCE_BANDS.")
+        try:
+            self.permutation = [source_bands.index(band) for band in PHISAT2_REAL_BANDS]
+        except ValueError as e:
+            raise ValueError(f"Cannot map {source_bands} to {PHISAT2_REAL_BANDS}.") from e
 
         base_path = self._resolve_base_path(Path(root_dir), dataset_names)
         source_folder = base_path / "trainval" if split in {"train", "val"} else base_path / "test"
         if not source_folder.exists():
             raise FileNotFoundError(f"Expected Zarr split folder at {source_folder}")
+        
+        self.scaling_factor = ZARR_SCALING_FACTORS.get(spec.dataset)
+        
         self.patches = self._list_patches(source_folder, split, seed, val_ratio, max_patches, subset_csv=subset_csv)
+        self.mean, self.std = get_norm_tensors("phisat2_sim", PHISAT2_REAL_BANDS)
+        
+        self.load_size = 256
+        self.samples = []
+        
+        for patch_path in self.patches:
+            patch_path = Path(patch_path)
+            img_zarr = self._open_array(patch_path / "img")
+            
+            H, W = img_zarr.shape[-2:]
+            
+            if H <= self.load_size and W <= self.load_size:
+                self.samples.append((patch_path, None, None))
+                
+            elif self.is_train:
+                self.samples.append((patch_path, H, W))
+                
+            else:
+                for y in range(0, H, self.load_size):
+                    for x in range(0, W, self.load_size):
+                        y_start = min(y, max(0, H - self.load_size))
+                        x_start = min(x, max(0, W - self.load_size))
+                        tile = (patch_path, y_start, x_start)
+                        if tile not in self.samples:
+                            self.samples.append(tile)
 
     def __len__(self) -> int:
-        return len(self.patches)
+        return len(self.samples)
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
-        patch_path = Path(self.patches[index])
+        sample = self.samples[index]
+        patch_path = sample[0]
+        
+        if len(sample) == 3 and sample[1] is None:
+            slice_y, slice_x = slice(None), slice(None)
+        elif len(sample) == 3 and sample[1] is not None:
+            H, W = sample[1], sample[2]
+            y_start = int(torch.randint(0, max(1, H - self.load_size + 1), (1,)).item())
+            x_start = int(torch.randint(0, max(1, W - self.load_size + 1), (1,)).item())
+            slice_y = slice(y_start, y_start + self.load_size)
+            slice_x = slice(x_start, x_start + self.load_size)
+        else:
+            _, y_start, x_start = sample
+            slice_y = slice(y_start, y_start + self.load_size)
+            slice_x = slice(x_start, x_start + self.load_size)
+
         image_array = self._open_array(patch_path / "img")
-        mask_array = self._open_array(patch_path / "label")
-        top, left, crop_h, crop_w = self._crop_window(
-            image_array.shape[-2:],
-            self.crop_size,
-            train=self.split == "train" and self.random_crop,
-        )
-        image_selection = (slice(None), slice(top, top + crop_h), slice(left, left + crop_w))
-        mask_selection = (..., slice(top, top + crop_h), slice(left, left + crop_w))
-        image = torch.from_numpy(self._read_array(image_array, image_selection)).float()
-        mask = torch.from_numpy(self._read_array(mask_array, mask_selection)).long()
-        if mask.ndim == 3 and mask.shape[0] == 1:
-            mask = mask.squeeze(0)
-        image = image[self.permutation]
-        return {"image": image, "mask": mask}
+        img_slice = (slice(None), slice_y, slice_x)
+        image = torch.from_numpy(self._read_array(image_array, img_slice)).float()
+        
+        image = image[self.permutation] / self.scaling_factor
+        image = normalize_tensor(image, self.mean, self.std)
+
+        target_array = self._open_array(patch_path / "label")
+        
+        if len(target_array.shape) == 0:
+            target = torch.tensor(target_array[...])
+        else:
+            tgt_slice = (slice_y, slice_x) if target_array.ndim == 2 else (slice(None), slice_y, slice_x)
+            target = torch.from_numpy(self._read_array(target_array, tgt_slice))
+
+        task = self.spec.task
+        
+        if task in ["segmentation", "classification"]:
+            target = target.long()
+        elif task in ["pixel_regression", "global_regression"]:
+            target = target.float()
+
+        if task == "segmentation":
+            if target.ndim == 3:
+                if target.shape[0] > 1:
+                    target = target.argmax(dim=0)  # [C, H, W] -> [H, W]
+                elif target.shape[0] == 1:
+                    target = target.squeeze(0)     # [1, H, W] -> [H, W]
+                    
+        elif task == "pixel_regression":
+            if target.ndim == 2:
+                target = target.unsqueeze(0)       # [H, W] -> [1, H, W]
+                
+            transformed = apply_spatial_transforms(
+                [image, target], is_train=self.is_train, crop_size=self.crop_size
+            )
+            image, target = transformed[0], transformed[1]
+            
+            if target.ndim == 3 and target.shape[0] == 1 and task == "segmentation":
+                target = target.squeeze(0)
+                
+        else:
+            transformed = apply_spatial_transforms(
+                [image], is_train=self.is_train, crop_size=self.crop_size
+            )
+            image = transformed[0]
+            
+            if target.ndim > 1:
+                target = target.squeeze()
+
+        return {
+            "image": image, 
+            self.spec.target_key: target
+        }
 
     @staticmethod
     def _resolve_base_path(root_dir: Path, dataset_names: tuple[str, ...]) -> Path:
@@ -111,21 +218,6 @@ class ZarrDownstreamDataset(Dataset):
                 time.sleep(0.5 * (attempt + 1))
         assert last_error is not None
         raise last_error
-
-    @staticmethod
-    def _crop_window(shape: tuple[int, int], crop_size: int, *, train: bool) -> tuple[int, int, int, int]:
-        height, width = shape
-        crop_h = min(crop_size, height)
-        crop_w = min(crop_size, width)
-        if train and height > crop_h:
-            top = int(torch.randint(0, height - crop_h + 1, (1,)).item())
-        else:
-            top = max(0, (height - crop_h) // 2)
-        if train and width > crop_w:
-            left = int(torch.randint(0, width - crop_w + 1, (1,)).item())
-        else:
-            left = max(0, (width - crop_w) // 2)
-        return top, left, crop_h, crop_w
 
     @staticmethod
     def _list_patches(
@@ -180,7 +272,7 @@ def _list_patch_dirs(source_folder: str) -> tuple[str, ...]:
         return tuple(sorted(entry.path for entry in entries if entry.is_dir()))
 
 
-class ZarrDownstreamDataModule(L.LightningDataModule):
+class DownstreamDataModule(L.LightningDataModule):
     def __init__(
         self,
         root_dir: str | Path,
@@ -202,15 +294,12 @@ class ZarrDownstreamDataModule(L.LightningDataModule):
         self.crop_size = crop_size
         self.fast_dev_run = fast_dev_run
         self.subset_csv = subset_csv
-        
-        if self.spec.dataset not in DATASET_BANDS:
-            raise ValueError(f"Dataset '{self.spec.dataset}' has no defined bands order in zarr_downstream.")
-        self.input_bands = DATASET_BANDS[self.spec.dataset]
+        self.input_bands = PHISAT2_REAL_BANDS
         
     def setup(self, stage: str | None = None) -> None:
         max_patches = self.batch_size if self.fast_dev_run else None
         if stage in {None, "fit", "validate"}:
-            self.train_dataset = ZarrDownstreamDataset(
+            self.train_dataset = DownstreamDataset(
                 self.root_dir,
                 self.spec,
                 split="train",
@@ -220,7 +309,7 @@ class ZarrDownstreamDataModule(L.LightningDataModule):
                 random_crop=not self.fast_dev_run,
                 subset_csv=self.subset_csv,
             )
-            self.val_dataset = ZarrDownstreamDataset(
+            self.val_dataset = DownstreamDataset(
                 self.root_dir,
                 self.spec,
                 split="val",
@@ -231,7 +320,7 @@ class ZarrDownstreamDataModule(L.LightningDataModule):
                 subset_csv=self.subset_csv,
             )
         if stage in {None, "test"}:
-            self.test_dataset = ZarrDownstreamDataset(
+            self.test_dataset = DownstreamDataset(
                 self.root_dir,
                 self.spec,
                 split="test",
