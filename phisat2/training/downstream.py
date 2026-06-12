@@ -12,6 +12,7 @@ import os
 from phisat2.tasks import TaskSpec
 from phisat2.evaluation.metrics import build_metrics
 from phisat2.utils.visualization import mask_to_rgb
+from phisat2.utils.weights import _strip_compile_prefix
 
 class DownstreamModule(L.LightningModule):
     def __init__(self, model: nn.Module, spec: TaskSpec, *, lr: float) -> None:
@@ -73,6 +74,11 @@ class DownstreamModule(L.LightningModule):
         )
         
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
+    
+    def on_load_checkpoint(self, checkpoint: dict) -> None:
+        checkpoint["state_dict"] = _strip_compile_prefix(
+            checkpoint.get("state_dict", {})
+        )
 
     def _freeze_encoder(self) -> None:
         encoder = getattr(self.model, "encoder", None)
@@ -127,6 +133,7 @@ class DownstreamModule(L.LightningModule):
             
         image = batch["image"]
         dataset_name = self.spec.dataset
+        is_lulc = (dataset_name == "lulc")
         
         if preds.ndim == 4:
             preds = preds.argmax(dim=1)
@@ -135,42 +142,63 @@ class DownstreamModule(L.LightningModule):
         preds_np = preds.detach().cpu().numpy()
         n = min(max_samples, image.shape[0])
         
-        fig, axes = plt.subplots(n, 3, figsize=(15, 4 * n), squeeze=False, constrained_layout=True)
-        fig.suptitle(f"Debug Segmentation ({dataset_name}) - Batch {batch_idx}", fontsize=14)
+        num_cols = 5 if is_lulc else 3
+        fig, axes = plt.subplots(n, num_cols, figsize=(5 * num_cols, 4 * n), squeeze=False, constrained_layout=True)
+        fig.suptitle(f"Debug Segmentation ({dataset_name}) - Batch {batch_idx}", fontsize=14, fontweight='bold')
         
-        col_titles = ["Original (RGB)", "Ground Truth", "Predictions"]
+        if is_lulc:
+            col_titles = ["Original (RGB)", "Micro GT", "Micro Pred", "Macro GT", "Macro Pred"]
+        else:
+            col_titles = ["Original (RGB)", "Ground Truth", "Predictions"]
+            
         for ax, title in zip(axes[0], col_titles):
-            ax.set_title(title, fontsize=11)
+            ax.set_title(title, fontsize=12)
         
-        current_meta = None 
+        current_meta_micro = None 
+        current_meta_macro = None
         
         for i in range(n):
             orig = image[i].detach().cpu()
             axes[i, 0].imshow(self._to_falsecolor(orig, rgb_idx=(3, 2, 1)))
             axes[i, 0].axis("off")
             
-            gt_rgb, current_meta = mask_to_rgb(targets_np[i], dataset_name)
-            pred_rgb, _ = mask_to_rgb(preds_np[i], dataset_name)
+            gt_micro_rgb, current_meta_micro = mask_to_rgb(targets_np[i], dataset_name)
+            pred_micro_rgb, _ = mask_to_rgb(preds_np[i], dataset_name)
             
-            axes[i, 1].imshow(gt_rgb)
+            axes[i, 1].imshow(gt_micro_rgb)
             axes[i, 1].axis("off")
             
-            axes[i, 2].imshow(pred_rgb)
+            axes[i, 2].imshow(pred_micro_rgb)
             axes[i, 2].axis("off")
             
-        if current_meta is not None:
-            legend_patches = [
+            if is_lulc:
+                gt_macro_rgb, current_meta_macro = mask_to_rgb(targets_np[i], "lulc_macro")
+                pred_macro_rgb, _ = mask_to_rgb(preds_np[i], "lulc_macro")
+                
+                axes[i, 3].imshow(gt_macro_rgb)
+                axes[i, 3].axis("off")
+                
+                axes[i, 4].imshow(pred_macro_rgb)
+                axes[i, 4].axis("off")
+            
+        if current_meta_micro is not None:
+            patches_micro = [
                 mpatches.Patch(color=np.array(color)/255.0, label=name)
-                for class_idx, (name, color) in current_meta.items()
+                for class_idx, (name, color) in current_meta_micro.items()
             ]
             
-            fig.legend(
-                handles=legend_patches, 
-                loc='lower center', 
-                bbox_to_anchor=(0.5, -0.05), 
-                ncol=len(current_meta), 
-                fontsize=11
-            )
+            if is_lulc:
+                fig.legend(handles=patches_micro, loc='upper center', bbox_to_anchor=(0.35, 0), ncol=6, title="Micro Classes", fontsize=10)
+                
+                if current_meta_macro is not None:
+                    unique_macro = {name: color for name, color in current_meta_macro.values()}
+                    patches_macro = [
+                        mpatches.Patch(color=np.array(color)/255.0, label=name)
+                        for name, color in unique_macro.items()
+                    ]
+                    fig.legend(handles=patches_macro, loc='upper center', bbox_to_anchor=(0.8, 0), ncol=4, title="Macro Classes", fontsize=10)
+            else:
+                fig.legend(handles=patches_micro, loc='upper center', bbox_to_anchor=(0.5, 0), ncol=len(current_meta_micro), fontsize=11)
             
         os.makedirs(self.trainer.default_root_dir, exist_ok=True)
         save_path = os.path.join(self.trainer.default_root_dir, f"segmentation_debug_batch_{batch_idx}.png")

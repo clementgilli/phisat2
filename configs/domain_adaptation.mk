@@ -2,61 +2,59 @@
 # CONFIGURATION : Domain Adaptation & Gap Eval
 # ==========================================
 
-BASE_NAME  = da_phisatnet
-QUEUE      = gpu4_std
-GPUS       = 1
+BASE_NAME   = da_phisatnet
+QUEUE       = gpu4_std
+GPUS        = 1
 
-TASK       = domain_adaptation
-DATASET    = triplets
-MODEL      = phisatnet
-DATALOADER = triplets
-ROOT_DIR   = /lustre/home/u10010021/phisat2/data/triplets
+MODEL       = phisatnet
+ROOT_DIR    = /lustre/home/u10010021/phisat2/data/triplets
 
-SEEDS      = 42
-DEVICES    = 1
-PRECISION  = bf16-mixed
-BATCH_SIZE = 16
-NUM_WORKERS = 4
+SEEDS       = 42 7 6
+DEVICES     = 1
+PRECISION   = bf16-mixed
+BATCH_SIZE  = 128
+NUM_WORKERS = 14
 
-ifneq ($(filter submit-eval eval,$(MAKECMDGOALS) $(TARGET)),)
+# ── Paths ────────────────────────────
+_BASE        = /lustre/home/u10010021/phisat2/runs
+_PRETRAIN    = $(_BASE)/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+_LULC        = $(_BASE)/segmentation/lulc/phisatnet/full_dataset/seed_42/checkpoints/best-v2.ckpt
+_FLOODS      = $(_BASE)/segmentation/floods/phisatnet/full_dataset/seed_42/checkpoints/best-v3.ckpt
+_BURNED      = $(_BASE)/segmentation/burned/phisatnet/full_dataset/seed_42/checkpoints/best-v3.ckpt
+_ROADS       = $(_BASE)/pixel_regression/roads/phisatnet/full_dataset/seed_42/checkpoints/best-v2.ckpt
+_BLDG        = $(_BASE)/pixel_regression/building/phisatnet/full_dataset/seed_42/checkpoints/best-v2.ckpt
 
-JOB_NAME   = $(BASE_NAME)_eval
-WALLTIME   = 03:00:00
-CPUS       = 8
-MEM        = 64G
+# ─── eval-domain-gap / submit-eval-domain-gap ────────────────────────────────
+ifneq ($(filter eval-domain-gap submit-eval-domain-gap, $(MAKECMDGOALS) $(TARGET)),)
 
-TASK       = eval_domain_gap
+JOB_NAME  = $(BASE_NAME)_eval
+WALLTIME  = 03:00:00
+CPUS      = 8
+MEM       = 64G
 
-CKPT_PATH  ?= 
+# Teacher = checkpoint SSL (always the same, frozen)
+TEACHER_CKPT = $(_PRETRAIN)
 
-TEACHER_CKPT = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+# Student = checkpoint after DA if CKPT_PATH,
+# else build_model on TEACHER_CKPT (eval baseline pre-DA).
+STUDENT_CKPT = $(CKPT_PATH)
 
-LULC_CKPT    = /lustre/home/u10010021/phisat2/runs/segmentation/lulc/phisatnet/full_dataset/seed_42/checkpoints/best-v1.ckpt
-FLOODS_CKPT  = /lustre/home/u10010021/phisat2/runs/segmentation/floods/phisatnet/full_dataset/seed_42/checkpoints/best-v1.ckpt
-BURNED_CKPT  = /lustre/home/u10010021/phisat2/runs/segmentation/burned/phisatnet/full_dataset/seed_42/checkpoints/best-v1.ckpt
-ROADS_CKPT   = /lustre/home/u10010021/phisat2/runs/pixel_regression/roads/phisatnet/full_dataset/seed_42/checkpoints/best-v1.ckpt
-BLDG_CKPT    = /lustre/home/u10010021/phisat2/runs/pixel_regression/building/phisatnet/full_dataset/seed_42/checkpoints/best-v1.ckpt
+DECODERS = lulc=$(_LULC) floods=$(_FLOODS) burned=$(_BURNED) roads=$(_ROADS) building=$(_BLDG)
 
-DECODERS_LIST = lulc=$(LULC_CKPT) floods=$(FLOODS_CKPT) burned=$(BURNED_CKPT) roads=$(ROADS_CKPT) building=$(BLDG_CKPT)
-
-EXTRA_ARGS := --teacher_ckpt $(TEACHER_CKPT)
-
-ifneq ($(strip $(CKPT_PATH)),)
-    EXTRA_ARGS += --student_ckpt $(CKPT_PATH)
-endif
-
-EXTRA_ARGS += --decoders $(DECODERS_LIST)
-
+# ─── domain-adaptation / submit-domain-adaptation ────────────────────────────
 else
 
-JOB_NAME   = $(BASE_NAME)_train
-WALLTIME   = 24:00:00
-CPUS       = 16
-MEM        = 256G
+JOB_NAME  = $(BASE_NAME)_train
+WALLTIME  = 24:00:00
+CPUS      = 16
+MEM       = 256G
 
-EPOCHS     = 300
-LR         = 0.0003
+TASK    = domain_adaptation
+EPOCHS  = 1000
+PATIENCE = 50
+LR      = 0.001
 
-WEIGHTS    = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+# Initialisation weights (teacher and student)
+WEIGHTS = $(_PRETRAIN)
 
 endif

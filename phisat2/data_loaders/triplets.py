@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import csv
 import warnings
 from pathlib import Path
 from typing import Any
@@ -19,7 +20,7 @@ class TripletsDataset(Dataset):
     def __init__(
         self, 
         root_dir: str | Path, 
-        split_pairs: list[str] | None = None,
+        split_csv: Path | None = None,
         max_patches: int | None = None,
         is_train: bool = True,
         crop_size: int = 224
@@ -27,7 +28,7 @@ class TripletsDataset(Dataset):
         super().__init__()
         self.root_dir = Path(root_dir)
         self.pairs_dir = self.root_dir / "pairs"
-        self.samples = self._index_files(split_pairs)
+        self.samples = self._load_from_csv(split_csv)
         self.is_train = is_train
         self.crop_size = crop_size
         
@@ -39,53 +40,38 @@ class TripletsDataset(Dataset):
         self.s2_mean, self.s2_std = get_norm_tensors("s2", S2_BANDS)
         self.sim_to_real_idx = [PHISAT2_SIM_BANDS.index(b) for b in PHISAT2_REAL_BANDS]
 
-    def _index_files(self, split_pairs: list[str] | None) -> list[dict[str, Path]]:
+    def _load_from_csv(self, split_csv: Path | None) -> list[dict[str, Path | str]]:
         samples = []
-        if not self.pairs_dir.exists():
-            warnings.warn(f"Folder {self.pairs_dir} does not exist.")
+        if split_csv is None or not split_csv.exists():
+            warnings.warn(f"CSV {split_csv} does not exist.")
             return samples
 
-        all_pair_paths = sorted([p for p in self.pairs_dir.iterdir() if p.is_dir() and p.name.startswith("pair_")])
-
-        for pair_path in all_pair_paths:
-            if split_pairs is not None and pair_path.name not in split_pairs:
-                continue
-
-            base_tiles = pair_path / "lightglue_coregistration"
-            sim_dir = base_tiles / "tiles" / "simulated_phisat2"
-            real_dir = base_tiles / "tiles" / "phisat2"
-            s2_dir = base_tiles / "tiles" / "sentinel2"
-            cloud_dir = base_tiles / "masks" / "phisat2_cloud"
-            wc_dir = base_tiles / "masks" / "worldcover"
-
-            if not sim_dir.exists():
-                continue
-
-            for sim_tile in sim_dir.glob("*.tif"):
-                tile_name = sim_tile.name
+        with split_csv.open("r", newline="", encoding="utf-8") as handle:
+            reader = csv.DictReader(handle)
+            for row in reader:
+                tile_id = row["tile_id"]
                 
-                real_tile = real_dir / tile_name
-                s2_tile = s2_dir / tile_name
-                cloud_mask = cloud_dir / tile_name
-                wc_mask = wc_dir / tile_name
-
-                if real_tile.exists() and s2_tile.exists():
-                    samples.append({
-                        "simulated": sim_tile,
-                        "real": real_tile,
-                        "sentinel2": s2_tile,
-                        "cloud": cloud_mask if cloud_mask.exists() else None,
-                        "worldcover": wc_mask if wc_mask.exists() else None,
-                        "tile_id": f"{pair_path.name}_{tile_name}"
-                    })
-
+                parts = tile_id.split("_")
+                tile_name = f"{parts[-2]}_{parts[-1]}"
+                pair_id = "_".join(parts[:-2])
+                
+                base_tiles = self.pairs_dir / pair_id / "lightglue_coregistration"
+                
+                samples.append({
+                    "simulated": base_tiles / "tiles" / "simulated_phisat2" / tile_name,
+                    "real": base_tiles / "tiles" / "phisat2" / tile_name,
+                    "sentinel2": base_tiles / "tiles" / "sentinel2" / tile_name,
+                    "cloud": base_tiles / "masks" / "phisat2_cloud" / tile_name,
+                    "worldcover": base_tiles / "masks" / "worldcover" / tile_name,
+                    "tile_id": tile_id
+                })
         return samples
 
     def __len__(self) -> int:
         return len(self.samples)
 
     def _read_tif(self, path: Path | None, is_mask: bool = False, ref_shape: tuple[int, int] = (256, 256)) -> torch.Tensor:
-        if path is None:
+        if path is None or not path.exists():
             shape = (1, *ref_shape) if is_mask else ref_shape
             return torch.zeros(shape, dtype=torch.int64 if is_mask else torch.float32)
             
@@ -142,73 +128,43 @@ class TripletsDataModule(L.LightningDataModule):
     def __init__(
         self,
         root_dir: str | Path,
-        spec: TaskSpec,
+        spec: TaskSpec,             
+        csv_dir: str | Path | None = None,
         *,
         batch_size: int,
         num_workers: int = 4,
-        seed: int = 42,
-        val_ratio: float = 0.1,
-        test_ratio: float = 0.1,
         fast_dev_run: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__()
         self.root_dir = Path(root_dir)
         self.spec = spec
+        self.csv_dir = Path(csv_dir) if csv_dir else self.root_dir
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.seed = seed
-        self.val_ratio = val_ratio
-        self.test_ratio = test_ratio
         self.fast_dev_run = fast_dev_run
         
         self.input_bands = PHISAT2_REAL_BANDS
         self.s2_bands = S2_BANDS
 
-    def _get_pair_splits(self) -> tuple[list[str], list[str], list[str]]:
-        pairs_dir = self.root_dir / "pairs"
-        if not pairs_dir.exists():
-            return [], [], []
-            
-        all_pairs = sorted([p.name for p in pairs_dir.iterdir() if p.is_dir() and p.name.startswith("pair_")])
-        
-        if not all_pairs:
-            return [], [], []
-
-        rng = np.random.default_rng(self.seed)
-        shuffled_indices = rng.permutation(len(all_pairs))
-        
-        test_count = max(1, int(len(all_pairs) * self.test_ratio))
-        val_count = max(1, int(len(all_pairs) * self.val_ratio))
-        
-        test_indices = set(shuffled_indices[:test_count])
-        val_indices = set(shuffled_indices[test_count : test_count + val_count])
-        
-        train_pairs = [p for i, p in enumerate(all_pairs) if i not in test_indices and i not in val_indices]
-        val_pairs = [p for i, p in enumerate(all_pairs) if i in val_indices]
-        test_pairs = [p for i, p in enumerate(all_pairs) if i in test_indices]
-        
-        return train_pairs, val_pairs, test_pairs
-
     def setup(self, stage: str | None = None) -> None:
         max_patches = self.batch_size if self.fast_dev_run else None
         
-        train_pairs, val_pairs, test_pairs = self._get_pair_splits()
-        
-        if not val_pairs or not test_pairs:
-            train_pairs = val_pairs = test_pairs = [p.name for p in (self.root_dir / "pairs").iterdir() if p.is_dir()]
+        train_csv = self.csv_dir / "train.csv"
+        val_csv = self.csv_dir / "val.csv"
+        test_csv = self.csv_dir / "test.csv"
         
         if stage == "fit" or stage is None:
             self.train_dataset = TripletsDataset(
                 self.root_dir, 
-                split_pairs=train_pairs, 
+                split_csv=train_csv, 
                 max_patches=max_patches,
                 is_train=True,
                 crop_size=224
             )
             self.val_dataset = TripletsDataset(
                 self.root_dir, 
-                split_pairs=val_pairs, 
+                split_csv=val_csv, 
                 max_patches=max_patches,
                 is_train=False,
                 crop_size=224
@@ -217,7 +173,7 @@ class TripletsDataModule(L.LightningDataModule):
         if stage == "test" or stage is None:
             self.test_dataset = TripletsDataset(
                 self.root_dir, 
-                split_pairs=test_pairs, 
+                split_csv=test_csv, 
                 max_patches=max_patches,
                 is_train=False,
                 crop_size=224

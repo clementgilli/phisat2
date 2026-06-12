@@ -13,7 +13,6 @@ from phisat2.tasks import TaskSpec
 
 DataModuleBuilder = Callable[..., L.LightningDataModule]
 
-
 @dataclass(frozen=True)
 class DataLoaderEntry:
     name: str
@@ -62,8 +61,10 @@ def build_datamodule(
     except KeyError as exc:
         valid = ", ".join(sorted(REGISTRY))
         raise ValueError(f"Unknown dataloader '{name}'. Expected one of: {valid}.") from exc
+        
     if name == "synthetic":
         return entry.builder(spec=spec, batch_size=batch_size, num_workers=num_workers, seed=seed)
+        
     if name == "downstream":
         return entry.builder(
             root_dir=root_dir,
@@ -75,11 +76,13 @@ def build_datamodule(
             fast_dev_run=fast_dev_run,
             subset_csv=subset_csv,
         )
+        
     return entry.builder(
         root_dir=root_dir,
         spec=spec,
+        csv_dir=Path(root_dir) / "splits",
         batch_size=batch_size,
         num_workers=num_workers,
-        seed=seed,
+        fast_dev_run=fast_dev_run,
         crop_size=crop_size,
     )

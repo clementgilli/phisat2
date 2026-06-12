@@ -42,6 +42,9 @@ PIXEL_REGRESSION_OUTPUTS = {
     "building": 1,
 }
 
+GLOBAL_REGRESSION_OUTPUTS = {
+}
+
 CLASSIFICATION_OUTPUTS = {
     "fire": 4,
 }

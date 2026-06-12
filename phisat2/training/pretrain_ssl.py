@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from phisat2.tasks import TaskSpec
+from phisat2.utils.weights import _strip_compile_prefix
 
 
 class SSLPretrainModule(L.LightningModule):
@@ -178,6 +179,12 @@ class SSLPretrainModule(L.LightningModule):
             batch_size=B,
         )
         return loss
+    
+    def on_load_checkpoint(self, checkpoint: dict) -> None:
+        checkpoint["state_dict"] = _strip_compile_prefix(
+            checkpoint.get("state_dict", {})
+        )
+
 
     # ------------------------------------------------------------------ #
     #  Visualisation helpers                                               #
