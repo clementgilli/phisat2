@@ -32,7 +32,7 @@ SEGMENTATION_OUTPUTS = {
     #"anomaly_detection": 9,
     "burned": 4,
     #"burned_area": 4,
-    #"clouds": 2,
+    "clouds": 4,
     "floods": 3,
     #"worldfloods": 3,
 }

@@ -18,11 +18,11 @@ NUM_WORKERS = 14
 # ── Paths ────────────────────────────
 _BASE        = /lustre/home/u10010021/phisat2/runs
 _PRETRAIN    = $(_BASE)/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
-_LULC        = $(_BASE)/segmentation/lulc/phisatnet/full_dataset/seed_42/checkpoints/best-v2.ckpt
-_FLOODS      = $(_BASE)/segmentation/floods/phisatnet/full_dataset/seed_42/checkpoints/best-v3.ckpt
-_BURNED      = $(_BASE)/segmentation/burned/phisatnet/full_dataset/seed_42/checkpoints/best-v3.ckpt
-_ROADS       = $(_BASE)/pixel_regression/roads/phisatnet/full_dataset/seed_42/checkpoints/best-v2.ckpt
-_BLDG        = $(_BASE)/pixel_regression/building/phisatnet/full_dataset/seed_42/checkpoints/best-v2.ckpt
+_LULC        = $(_BASE)/segmentation/lulc/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+_FLOODS      = $(_BASE)/segmentation/floods/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+_BURNED      = $(_BASE)/segmentation/burned/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+_ROADS       = $(_BASE)/pixel_regression/roads/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+_BLDG        = $(_BASE)/pixel_regression/building/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
 
 # ─── eval-domain-gap / submit-eval-domain-gap ────────────────────────────────
 ifneq ($(filter eval-domain-gap submit-eval-domain-gap, $(MAKECMDGOALS) $(TARGET)),)
@@ -50,7 +50,7 @@ CPUS      = 16
 MEM       = 256G
 
 TASK    = domain_adaptation
-EPOCHS  = 1000
+EPOCHS  = 300
 PATIENCE = 50
 LR      = 0.001
 

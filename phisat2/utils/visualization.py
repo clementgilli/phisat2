@@ -40,6 +40,12 @@ SEGMENTATION_METADATA = {
         2: ("Clouds",      (211, 211, 211)),
         3: ("Waterbodies",      (30, 144, 255)),      
     },
+    "clouds": {
+        0: ("Background",      (0, 0, 0)), 
+        1: ("Burned Area", (255, 0, 0)),
+        2: ("Clouds",      (211, 211, 211)),
+        3: ("Waterbodies",      (30, 144, 255)),      
+    },
 }
 
 def mask_to_rgb(mask_2d: np.ndarray, dataset_name: str):
