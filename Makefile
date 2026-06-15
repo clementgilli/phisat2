@@ -127,10 +127,10 @@ endif
 .PHONY: help install sync mount check test smoke fast-dev-run \
         train pretrain distillation domain-adaptation \
         train-segmentation train-classification train-regression \
-        eval eval-domain-gap sweep-seeds \
+        eval eval-domain-gap eval-encoder sweep-seeds \
         list-models list-dataloaders clean \
         submit-train submit-eval submit-pretrain \
-        submit-distillation submit-domain-adaptation submit-eval-domain-gap \
+        submit-distillation submit-domain-adaptation submit-eval-domain-gap submit-eval-encoder \
         _submit
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -312,6 +312,23 @@ eval-domain-gap: ## Domain gap evaluation (TEACHER_CKPT= STUDENT_CKPT= DECODERS=
 		$(DECODERS_FLAG) \
 		$(EXTRA_ARGS)
 
+eval-encoder: ## Run t-SNE latent space evaluation on LULC (WEIGHTS=...).
+	$(CLI) test \
+		--task eval_encoder \
+		--model $(MODEL) \
+		--dataset lulc \
+		--dataloader downstream \
+		--root-dir $(ROOT_DIR) \
+		--output-dir $(OUTPUT_DIR) \
+		--batch-size $(BATCH_SIZE) \
+		--num-workers $(NUM_WORKERS) \
+		--accelerator $(ACCELERATOR) \
+		--devices $(DEVICES) \
+		--strategy $(STRATEGY) \
+		--precision $(PRECISION) \
+		$(AUTO_DDP_FLAG) \
+		$(WEIGHTS_FLAG) \
+		$(EXTRA_ARGS)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Cluster submission  (requires EXPERIMENT=configs/my_run.mk)
@@ -334,6 +351,9 @@ submit-domain-adaptation:
 
 submit-eval-domain-gap:
 	@$(MAKE) _submit TARGET=eval-domain-gap
+
+submit-eval-encoder:
+	@$(MAKE) _submit TARGET=eval-encoder
 
 _submit:
 	@if [ -z "$(EXPERIMENT)" ]; then \

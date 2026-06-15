@@ -18,6 +18,8 @@ from phisat2.training.pretrain_ssl import SSLPretrainModule
 from phisat2.training.domain_adaptation import DomainAdaptationModule
 from phisat2.training.downstream import DownstreamModule
 from phisat2.evaluation.domain_eval import DomainEvalModule
+from phisat2.evaluation.encoder_eval import PretrainEvalModule
+
 from phisat2.utils.seed import seed_everything
 
 
@@ -184,6 +186,9 @@ def _build_module(bundle: ModelBundle, spec, lr: float) -> L.LightningModule:
             student_encoder=bundle.student,
             decoders=bundle.decoders,
         )
+    
+    elif task == "eval_encoder":
+        module = PretrainEvalModule(full_model=bundle.model)
 
     else:
         # All downstream tasks: segmentation, classification, regression
@@ -363,7 +368,7 @@ def run_test(args: argparse.Namespace) -> None:
     # For eval_domain_gap, encoder weights are already baked in by build_model
     # (loaded from --teacher-ckpt / --student-ckpt). No Lightning ckpt to reload.
     # For all other tasks, --weights is the full Lightning .ckpt to restore.
-    ckpt_path = None if args.task == "eval_domain_gap" else args.weights
+    ckpt_path = None if args.task in {"eval_domain_gap", "eval_encoder"} else args.weights
 
     results = trainer.test(module, datamodule=datamodule, ckpt_path=ckpt_path)
 

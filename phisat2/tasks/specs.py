@@ -8,6 +8,8 @@ TASK_CLASSIFICATION = "classification"
 TASK_GLOBAL_REGRESSION = "global_regression"
 
 TASK_PRETRAIN_RECONSTRUCTION = "pretrain_reconstruction"
+TASK_EVAL_ENCODER = "eval_encoder"
+
 TASK_DISTILLATION_KD = "distillation_kd"
 
 TASK_DOMAIN_ADAPTATION = "domain_adaptation"
@@ -22,6 +24,7 @@ TASKS = {
     TASK_DISTILLATION_KD,
     TASK_DOMAIN_ADAPTATION,
     TASK_EVAL_DOMAIN_GAP,
+    TASK_EVAL_ENCODER,
 }
 
 SEGMENTATION_OUTPUTS = {
@@ -65,6 +68,10 @@ EVAL_DOMAIN_GAP_OUTPUTS = {
     "triplets": 0,
 }
 
+EVAL_ENCODER_OUTPUTS = {
+    "lulc": 0,
+}
+
 @dataclass(frozen=True)
 class TaskSpec:
     task: str
@@ -100,6 +107,9 @@ def resolve_task_spec(task: str, dataset: str) -> TaskSpec:
         
     if task == TASK_EVAL_DOMAIN_GAP:
         return TaskSpec(task, dataset, _lookup(dataset, EVAL_DOMAIN_GAP_OUTPUTS), "none", "none")
+    
+    if task == TASK_EVAL_ENCODER:
+        return TaskSpec(task, dataset, _lookup(dataset, EVAL_ENCODER_OUTPUTS), "mask", "none")
 
 def _lookup(dataset: str, outputs: dict[str, int]) -> int:
     try:
