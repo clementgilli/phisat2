@@ -146,7 +146,7 @@ class DomainEvalModule(L.LightningModule):
         logits_after: torch.Tensor,
         task_name: str,
         batch_idx: int,
-        max_samples: int = 10,
+        max_samples: int = 5,
     ) -> None:
         
         def argmax(t: torch.Tensor) -> np.ndarray:
@@ -202,7 +202,7 @@ class DomainEvalModule(L.LightningModule):
         preds_after: torch.Tensor,
         task_name: str,
         batch_idx: int,
-        max_samples: int = 10,
+        max_samples: int = 5,
     ) -> None:
         def squeeze(t: torch.Tensor) -> np.ndarray:
             t = t if t.ndim == 3 else (t.squeeze(1) if t.shape[1] == 1 else t[:, 0])

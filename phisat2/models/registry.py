@@ -7,7 +7,7 @@ import torch.nn as nn
 from phisat2.models.composite import ComposedModel
 from phisat2.models.encoders.phisatnet_encoder import PhiSatNetEncoder
 from phisat2.models.decoders.phisatnet_decoder import PhiSatNetDecoder
-from phisat2.models.heads import GlobalPoolingHead
+from phisat2.models.heads import MultiScaleClassificationHead
 from phisat2.models.encoders.terratorch_backbones import TerraTorchBackboneEncoder
 from phisat2.tasks import TaskSpec
 from phisat2.tasks.specs import resolve_task_spec, guess_task_from_dataset
@@ -131,7 +131,8 @@ def _build_encoder(name: str, pretrained: bool, input_bands: list[str]) -> nn.Mo
 def _build_decoder(spec: TaskSpec, feature_channels: tuple[int, ...]) -> nn.Module:
     if spec.task in {"segmentation", "pixel_regression", "pretrain_reconstruction"}:
         return PhiSatNetDecoder(feature_channels, spec.num_outputs)
-    return GlobalPoolingHead(feature_channels[-1], spec.num_outputs)
+    return MultiScaleClassificationHead(feature_channels, spec.num_outputs)
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────

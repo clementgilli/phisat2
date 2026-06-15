@@ -228,7 +228,7 @@ class SSLPretrainModule(L.LightningModule):
         masked_image: torch.Tensor,
         reconstruction: torch.Tensor,
         batch_idx: int,
-        max_samples: int = 3,
+        max_samples: int = 5,
     ) -> None:
         
         if batch_idx % 1 != 0:

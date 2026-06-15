@@ -41,10 +41,10 @@ SEGMENTATION_METADATA = {
         3: ("Waterbodies",      (30, 144, 255)),      
     },
     "clouds": {
-        0: ("Background",      (0, 0, 0)), 
-        1: ("Burned Area", (255, 0, 0)),
-        2: ("Clouds",      (211, 211, 211)),
-        3: ("Waterbodies",      (30, 144, 255)),      
+        0: ("Clear sky",    (0, 0, 0)),
+        1: ("Thick clouds", (245, 245, 245)), 
+        2: ("Thin clouds",  (173, 216, 230)),
+        3: ("Shadows",      (75, 0, 130)),
     },
 }
 

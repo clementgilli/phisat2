@@ -127,7 +127,7 @@ class DownstreamModule(L.LightningModule):
         channels = [DownstreamModule._percentile_stretch(t[c]) for c in idx]
         return np.stack(channels, axis=-1)
 
-    def _visualize_and_save_segmentation(self, batch, preds, targets, batch_idx, max_samples=10) -> None:
+    def _visualize_and_save_segmentation(self, batch, preds, targets, batch_idx, max_samples=5) -> None:
         if batch_idx % 100 != 0:
             return
             
@@ -209,7 +209,7 @@ class DownstreamModule(L.LightningModule):
         
         
     def _visualize_and_save_pixel_regression(
-        self, batch, preds, targets, batch_idx, max_samples=10
+        self, batch, preds, targets, batch_idx, max_samples=5
     ) -> None:
         
         if batch_idx % 100 != 0:

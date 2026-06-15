@@ -19,7 +19,8 @@ NUM_WORKERS = 14
 _BASE        = /lustre/home/u10010021/phisat2/runs
 _PRETRAIN    = $(_BASE)/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
 _LULC        = $(_BASE)/segmentation/lulc/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
-_FLOODS      = $(_BASE)/segmentation/floods/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+_FLOODS      = $(_BASE)/segmentation/floods/phisatnet/full_dataset/seed_42/checkpoints/best-v1.ckpt
+_CLOUDS      = $(_BASE)/segmentation/clouds/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
 _BURNED      = $(_BASE)/segmentation/burned/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
 _ROADS       = $(_BASE)/pixel_regression/roads/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
 _BLDG        = $(_BASE)/pixel_regression/building/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
@@ -39,7 +40,7 @@ TEACHER_CKPT = $(_PRETRAIN)
 # else build_model on TEACHER_CKPT (eval baseline pre-DA).
 STUDENT_CKPT = $(CKPT_PATH)
 
-DECODERS = lulc=$(_LULC) floods=$(_FLOODS) burned=$(_BURNED) roads=$(_ROADS) building=$(_BLDG)
+DECODERS = lulc=$(_LULC) floods=$(_FLOODS) clouds=$(_CLOUDS) burned=$(_BURNED) roads=$(_ROADS) building=$(_BLDG)
 
 # ─── domain-adaptation / submit-domain-adaptation ────────────────────────────
 else
