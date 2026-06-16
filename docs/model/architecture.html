@@ -9,7 +9,7 @@
 <body>
   <div class="topbar">
     <h1>Model architecture</h1>
-    <p>How model names are bound to encoders/decoders.</p>
+    <p>How model names are bound to encoders, decoders, and task heads.</p>
   </div>
 
   <main>
@@ -19,52 +19,39 @@
 
     <section>
       <h2>Model registry</h2>
-      <p><code>phisat2/models/registry.py</code> is the source of truth:</p>
+      <p><code>phisat2/models/registry.py</code> is the source of truth.</p>
       <ul>
-        <li><code>phisat2_geoaware</code> → shared decoder</li>
-        <li><code>terramind_*</code> → shared decoder</li>
-        <li><code>prithvi_*</code> → shared decoder</li>
-        <li><code>dofa_*</code> → shared decoder</li>
-        <li><code>seco_*</code> → shared decoder</li>
-        <li><code>ssl4eos12_*</code> → shared decoder</li>
-        <li><code>satlas_*</code> → shared decoder</li>
-        <li><code>myriad2_full_unet</code> → full-structure decoder</li>
+        <li><code>phisatnet</code>: student PhiSatNet CNN encoder.</li>
+        <li><code>terramind_v1_tiny</code>, <code>terramind_v1_small</code>, <code>terramind_v1_base</code>, <code>terramind_v1_large</code>: TerraTorch teacher backbones.</li>
       </ul>
+      <p class="muted">No <code>phisat2_geoaware</code>, Prithvi, DOFA, SECO, SSL4EO, Satlas, or Myriad models are registered in the active package.</p>
     </section>
 
     <section>
-      <h2>Shared-decoder models</h2>
-      <ul>
-        <li>Dispatcher: <code>build_model(name, spec, pretrained)</code> wraps encoder with <code>SharedDecoderModel</code>.</li>
-        <li><code>phisat2_geoaware</code> uses <code>PhiSat2GeoAwareEncoder</code>.</li>
-        <li>TerraTorch-backed names use <code>TerraTorchBackboneEncoder</code>.</li>
-      </ul>
-      <p><code>SharedDecoderModel</code> flow: encoder output → adapter → task head.</p>
-      <ul>
-        <li>Spatial tasks (<code>segmentation</code>, <code>pixel_regression</code>): <code>SharedUNetDecoder</code>.</li>
-        <li>Global tasks (<code>classification</code>, <code>global_regression</code>): <code>GlobalPoolingHead</code>.</li>
-      </ul>
+      <h2>Build model contract</h2>
+      <p><code>build_model()</code> returns a <code>ModelBundle</code>. Which fields are populated depends on the task.</p>
+      <table>
+        <tr><th>Task</th><th>Bundle fields</th><th>Notes</th></tr>
+        <tr><td><code>pretrain_reconstruction</code></td><td><code>model</code></td><td>PhiSatNet encoder plus reconstruction decoder.</td></tr>
+        <tr><td><code>domain_adaptation</code></td><td><code>teacher</code>, <code>student</code></td><td>Both PhiSatNet encoders initialized from <code>--weights</code>.</td></tr>
+        <tr><td><code>eval_domain_gap</code></td><td><code>teacher</code>, <code>student</code>, <code>decoders</code></td><td>Loads encoder and decoder checkpoints.</td></tr>
+        <tr><td>Downstream tasks</td><td><code>model</code></td><td><code>ComposedModel</code> with a frozen encoder during downstream training.</td></tr>
+      </table>
     </section>
 
     <section>
-      <h2>Feature adaptation</h2>
-      <p><code>FeaturePyramidAdapter</code> makes heterogeneous encoder outputs compatible:</p>
-      <ol>
-        <li>select 4 feature maps from encoder output</li>
-        <li>project each to channels <code>(32, 64, 128, 256)</code> via <code>LazyConv2d</code></li>
-        <li>resize spatial scales to expected pyramid levels</li>
-      </ol>
-      <p class="muted">So raw feature maps can differ by encoder, but decoder input contract stays identical.</p>
+      <h2>Task heads</h2>
+      <ul>
+        <li>Spatial tasks (<code>segmentation</code>, <code>pixel_regression</code>, <code>pretrain_reconstruction</code>) use <code>PhiSatNetDecoder</code>.</li>
+        <li>Classification and other non-spatial outputs use <code>MultiScaleClassificationHead</code>.</li>
+      </ul>
+      <p>The PhiSatNet encoder emits four feature maps. The decoder upsamples those maps through skip connections and emits task-specific channels.</p>
     </section>
 
     <section>
-      <h2>Exception model</h2>
-      <p><code>myriad2_full_unet</code> is not wrapped.</p>
-      <ul>
-        <li>Built as a complete U-Net with encoder + decoder.</li>
-        <li>Supports only segmentation and pixel regression.</li>
-        <li>Uses 3 down/upsampling stages with skip concatenation.</li>
-      </ul>
+      <h2>TerraTorch backbones</h2>
+      <p>TerraMind model names are wrapped by <code>TerraTorchBackboneEncoder</code>, which maps the active input bands onto the backbone's registered pretraining bands.</p>
+      <p class="muted">For downstream tasks, passing a teacher model name currently falls back to the <code>phisatnet</code> architecture and prints an informational message.</p>
     </section>
   </main>
 </body>

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Data loaders | PhiSat-2 Docs</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1>Data loaders</h1>
+    <p>Registered datamodules, batch keys, and expected dataset layout.</p>
+  </div>
+
+  <main>
+    <nav>
+      <a href="../index.html">Docs</a><a href="index.html">Data loaders</a>
+    </nav>
+
+    <section>
+      <h2>Registry</h2>
+      <table>
+        <tr><th>Name</th><th>Use</th><th>Batch keys</th></tr>
+        <tr>
+          <td><code>downstream</code></td>
+          <td>Real Zarr downstream datasets for segmentation, classification, and pixel regression.</td>
+          <td><code>image</code> plus <code>mask</code>, <code>label</code>, or <code>target</code></td>
+        </tr>
+        <tr>
+          <td><code>triplets</code></td>
+          <td>PhiSat-2 simulated/real/Sentinel-2 triplets for pretraining, domain adaptation, and domain-gap evaluation.</td>
+          <td><code>simulated</code>, <code>real</code>, <code>sentinel2</code>, masks, <code>tile_id</code></td>
+        </tr>
+        <tr>
+          <td><code>synthetic</code></td>
+          <td>Small random tensors for smoke tests and fast code-path checks.</td>
+          <td><code>image</code> plus the selected task target key</td>
+        </tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Downstream layout</h2>
+      <p><code>ROOT_DIR</code> can point directly at a dataset <code>.zarr</code> or at a directory containing the expected Zarr store.</p>
+      <ul>
+        <li><code>lulc</code> / <code>lc</code>: <code>phileo-bench_lc.zarr</code></li>
+        <li><code>burned</code>: <code>burned_area_dataset.zarr</code></li>
+        <li><code>clouds</code>: <code>clouds_dataset.zarr</code></li>
+        <li><code>floods</code>: <code>floods_dataset.zarr</code></li>
+        <li><code>roads</code>: <code>phileo-bench_roads.zarr</code></li>
+        <li><code>building</code>: <code>phileo-bench_building.zarr</code></li>
+        <li><code>fire</code>: <code>fire_dataset.zarr</code></li>
+      </ul>
+      <p>The loader reads <code>trainval/</code> for train and validation splits, <code>test/</code> for testing, and samples <code>val</code> from <code>trainval</code> using the run seed.</p>
+    </section>
+
+    <section>
+      <h2>Triplets layout</h2>
+      <p>The triplets dataloader expects <code>ROOT_DIR/pairs/</code> plus split CSVs under <code>ROOT_DIR/splits/</code> when used through the CLI registry.</p>
+      <pre><code>ROOT_DIR/
+  pairs/
+  splits/
+    train.csv
+    val.csv
+    test.csv</code></pre>
+      <p class="muted">The CLI automatically selects <code>triplets</code> for paired tasks, so those tasks do not need explicit <code>DATASET</code> or <code>DATALOADER</code> values.</p>
+    </section>
+  </main>
+</body>
+</html>

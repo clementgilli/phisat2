@@ -20,142 +20,109 @@
     <section>
       <h2>Package Structure</h2>
       <pre><code>phisat2/
- cli/
- cli.py               # Main CLI entry point for training   
- models/
- registry.py          # Model registry with encoders and decoders   
- composite.py         # Composite model classes   
- blocks.py            # Building blocks (adapters, heads)   
- heads.py             # Task-specific heads   
- data_loaders/
- registry.py          # Dataloader registry   
- downstream.py        # Downstream task datasets   
- triplets.py          # Triplet datasets for SSL/KD/DA   
- synthetic.py         # Synthetic data generator   
- sensors.py           # Sensor specifications   
- transforms.py        # Data augmentations   
- training/
- downstream.py        # Supervised training   
- pretrain_ssl.py      # Self-supervised learning   
- distillation_kd.py   # Knowledge distillation   
- domain_adaptation.py # Domain adaptation   
- pretrain_ssl.py      # SSL pre-training   
- tasks/
- specs.py             # Task specifications and registry   
- evaluation/
- metrics.py           # Evaluation metrics   
- utils/
- seed.py              # Reproducibility utilities    
- weights.py           # Weight loading utilities    
- visualization.py     # Visualization helpers</code></pre>    
+  cli/
+    cli.py               # Main CLI entry point
+  models/
+    registry.py          # Model registry and build_model()
+    composite.py         # Encoder + task-head wrapper
+    decoders/
+      phisatnet_decoder.py
+    encoders/
+      phisatnet_encoder.py
+      terratorch_backbones.py
+    heads.py             # Classification/global heads
+  data_loaders/
+    registry.py          # Dataloader registry
+    downstream.py        # Zarr downstream datasets
+    triplets.py          # Triplet datasets for SSL/DA/eval
+    synthetic.py         # Synthetic smoke-test data
+  training/
+    downstream.py        # Supervised downstream training
+    pretrain_ssl.py      # Self-supervised reconstruction
+    domain_adaptation.py # Sim-to-real feature alignment
+    distillation_kd.py   # KD module code, not wired by CLI
+  evaluation/
+    domain_eval.py       # Domain-gap evaluation
+    encoder_eval.py      # Encoder t-SNE evaluation
+    metrics.py           # Task metrics
+  tasks/
+    specs.py             # Task and dataset registry
+  utils/
+    seed.py              # Reproducibility utilities
+    weights.py           # Weight loading utilities
+    visualization.py     # Visualization helpers</code></pre>
     </section>
 
     <section>
       <h2>Key Concepts</h2>
-      
       <h3>Tasks</h3>
-      <p>Defined in <code>phisat2/tasks/specs.py</code>. Each task specifies:</p>
+      <p>Tasks are defined in <code>phisat2/tasks/specs.py</code>. Each task specifies output size, target key, and loss family.</p>
       <ul>
-        <li>Output size (number of classes or regression targets)</li>
-        <li>Target key in batch dict (mask, label, target, etc.)</li>
-        <li>Loss function (cross-entropy, MSE, KD loss, etc.)</li>
-      </ul>
-      <p>Task types:</p>
-      <ul>
-        <li><code>segmentation</ pixel-level classification</li>code> 
-        <li><code>classification</ image-level classification</li>code> 
-        <li><code>pixel_regression</ pixel-level regression</li>code> 
-        <li><code>global_regression</ image-level regression</li>code> 
-        <li><code>pretrain_reconstruction</ self-supervised pre-training</li>code> 
-        <li><code>distillation_kd</ knowledge distillation</li>code> 
-        <li><code>domain_adaptation</ unsupervised domain adaptation</li>code> 
-        <li><code>eval_domain_gap</ domain gap evaluation</li>code> 
+        <li><code>segmentation</code>: pixel-level classification for <code>lulc</code>, <code>lc</code>, <code>burned</code>, <code>clouds</code>, and <code>floods</code>.</li>
+        <li><code>classification</code>: image-level classification for <code>fire</code>.</li>
+        <li><code>pixel_regression</code>: dense regression for <code>roads</code> and <code>building</code>.</li>
+        <li><code>global_regression</code>: task type exists, but no datasets are registered yet.</li>
+        <li><code>pretrain_reconstruction</code>: self-supervised reconstruction on <code>triplets</code>.</li>
+        <li><code>domain_adaptation</code>: simulated-to-real feature alignment on <code>triplets</code>.</li>
+        <li><code>eval_domain_gap</code>: compares teacher/student encoders with downstream decoders.</li>
+        <li><code>eval_encoder</code>: latent-space evaluation on <code>lulc</code>.</li>
       </ul>
     </section>
 
     <section>
       <h2>Models</h2>
-      <p>Defined in <code>phisat2/models/registry.py</code>. Two patterns:</p>
-      
-      <h3>Shared Decoder Models</h3>
-      <p>Most models use this pattern:</p>
-      <ol>
-        <li>Encoder (e.g., <code>phisat2_geoaware</code>, <code>terramind_*</code>, <code>prithvi_*</code>)</li>
-        <li>FeaturePyramidAdapter normalizes outputs to 4-level spatial pyramid</li>
-        <li>Task head (SharedUNetDecoder for spatial tasks, GlobalPoolingHead for global tasks)</li>
-      </ol>
-      <p>This allows different encoders to share the same decoder contract.</p>
-
-      <h3>Full-Structure Models</h3>
-      <p><code>myriad2_full_unet</code> is a complete U-Net with embedded decoder.</p>
+      <p>Models are defined in <code>phisat2/models/registry.py</code>.</p>
+      <ul>
+        <li><code>phisatnet</code>: student CNN encoder for pretraining, domain adaptation, and downstream tasks.</li>
+        <li><code>terramind_v1_tiny</code>, <code>terramind_v1_small</code>, <code>terramind_v1_base</code>, <code>terramind_v1_large</code>: TerraTorch teacher backbones.</li>
+      </ul>
+      <p>Downstream and pretraining builds use <code>ComposedModel</code>: encoder output goes directly to <code>PhiSatNetDecoder</code> for spatial tasks or <code>MultiScaleClassificationHead</code> for classification-like tasks.</p>
     </section>
 
     <section>
       <h2>Data Loaders</h2>
-      <p>Defined in <code>phisat2/data_loaders/registry.py</code>. Three types:</p>
+      <p>Data loaders are defined in <code>phisat2/data_loaders/registry.py</code>.</p>
       <ul>
-        <li><code>downstream</ Segmentation/regression datasets with image/target pairs</li>code> 
-        <li><code>triplets</ Triplet datasets (img1, img2, img3) for SSL/KD/DA</li>code> 
-        <li><code>synthetic</ Random synthetic data for testing</li>code> 
+        <li><code>downstream</code>: Zarr downstream datasets with <code>image</code> and task-specific target keys.</li>
+        <li><code>triplets</code>: simulated PhiSat-2, real PhiSat-2, Sentinel-2, masks, and tile IDs.</li>
+        <li><code>synthetic</code>: random tensors for smoke tests and CI-style checks.</li>
       </ul>
-      <p>All produce batches with <code>batch["image"]</code> and <code>batch[spec.target_key]</code>.</p>
-    </section>
-
-    <section>
-      <h2>Training Module</h2>
-      <p>The <code>phisat2/training/</code> directory contains Lightning modules for different training paradigms:</p>
-      <ul>
-        <li><code>downstream.py</ Standard supervised training</li>code> 
-        <li><code>pretrain_ssl.py</ Self-supervised learning (MAE, SparK, etc.)</li>code> 
-        <li><code>distillation_kd.py</ Knowledge distillation with teacher-student</li>code> 
-        <li><code>domain_adaptation.py</ Domain adaptation with statistical alignment</li>code> 
-      </ul>
-      <p>Each module is a Lightning <code>LightningModule</code> with standard PyTorch training loops.</p>
     </section>
 
     <section>
       <h2>CLI Orchestration</h2>
       <p>The CLI in <code>phisat2/cli/cli.py</code> handles:</p>
       <ol>
-        <li>Parse command-line arguments (task, model, dataset, dataloader, etc.)</li>
-        <li>Resolve task specifications from task/dataset pair</li>
-        <li>Build model, datamodule, and Lightning module</li>
-        <li>Run Lightning Trainer with callbacks, logger, and hardware config</li>
+        <li>Parse command-line arguments for <code>fit</code>, <code>test</code>, and registry listing commands.</li>
+        <li>Auto-select <code>triplets</code> for paired tasks.</li>
+        <li>Resolve task specifications from task and dataset.</li>
+        <li>Build datamodule, model bundle, and Lightning module.</li>
+        <li>Run Lightning Trainer with callbacks, logger, and hardware config.</li>
       </ol>
-      <p>For paired tasks (SSL, KD, DA), the dataloader is auto-detected from the task type.</p>
+      <p class="muted"><code>distillation_kd</code> is registered, but <code>_build_module</code> raises <code>NotImplementedError</code> for it.</p>
     </section>
 
     <section>
       <h2>Hardware Configuration</h2>
-      <p>The <code>AUTO_DDP</code> flag automatically detects available GPUs:</p>
+      <p>The <code>AUTO_DDP</code> flag asks the CLI to select DDP when multiple CUDA devices are available and accelerator/devices/strategy are still <code>auto</code>.</p>
       <ul>
-        <li>Multiple GPUs: Lightning DDP with automatic device setup</li>
-        <li>Single GPU: Single-GPU training</li>
-        <li>CPU: Fallback to CPU training</li>
+        <li>Multiple CUDA GPUs: <code>accelerator=gpu</code>, <code>devices=&lt;count&gt;</code>, <code>strategy=ddp</code>.</li>
+        <li>Single CUDA GPU: <code>accelerator=gpu</code>, <code>devices=1</code>.</li>
+        <li>Otherwise: the explicit or default Lightning hardware settings are used.</li>
       </ul>
-      <p>Override with <code>ACCELERATOR</code>, <code>DEVICES</code>, and <code>STRATEGY</code> variables.</p>
-    </section>
-
-    <section>
-      <h2>Reproducibility</h2>
-      <p>All randomness is controlled by <code>phisat2/utils/seed.py</code>:</p>
-      <ul>
-        <li>Python, NumPy, PyTorch, CUDA deterministic modes</li>
-        <li>Lightning worker seeding</li>
-        <li>Per-seed checkpoint separation</li>
-      </ul>
-      <p>Seeds are specified via <code>SEEDS</code> Make variable (e.g., <code>SEEDS="0 42 100"</code>).</p>
     </section>
 
     <section>
       <h2>Output Structure</h2>
       <p>Training outputs are written to:</p>
-      <pre><code>OUTPUT_DIR/TASK/DATASET/MODEL/seed_N/
- checkpoints/
- best.ckpt        # Checkpoint with min val_loss   
- last.ckpt        # Final checkpoint   
- logs/
- metrics.csv      # Training/validation metrics per epoch</code></pre>    
+      <pre><code>OUTPUT_DIR/TASK/DATASET/MODEL/SUBSET/seed_N/
+  checkpoints/
+    best.ckpt
+    last.ckpt
+  wandb/</code></pre>
+      <p>Evaluation writes to:</p>
+      <pre><code>OUTPUT_DIR/TASK/DATASET/MODEL/SUBSET/eval_seed_N/
+  test_metrics.json</code></pre>
     </section>
   </main>
 </body>

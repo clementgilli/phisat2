@@ -9,7 +9,7 @@
 <body>
   <div class="topbar">
     <h1>Task-to-model mapping</h1>
-    <p>Compact compatibility matrix for tasks, loaders, and model heads.</p>
+    <p>Compatibility matrix for tasks, datasets, loaders, and heads.</p>
   </div>
 
   <main>
@@ -22,69 +22,79 @@
       <table>
         <tr>
           <th>Task</th>
+          <th>Datasets</th>
           <th>Dataloader</th>
           <th>Target Key</th>
           <th>Output Size</th>
-          <th>Head Type</th>
+          <th>Head or Module</th>
         </tr>
         <tr>
           <td><code>segmentation</code></td>
-          <td><code>downstream</code>, <code>synthetic</code></td>
+          <td><code>lulc</code>, <code>lc</code>, <code>burned</code>, <code>clouds</code>, <code>floods</code></td>
+          <td><code>downstream</code> or <code>synthetic</code></td>
           <td><code>mask</code></td>
-          <td>Task-dependent (e.g., 11 for LULC)</td>
-          <td>SharedUNetDecoder</td>
+          <td>11, 4, 4, or 3 classes</td>
+          <td><code>PhiSatNetDecoder</code></td>
         </tr>
         <tr>
           <td><code>pixel_regression</code></td>
-          <td><code>downstream</code>, <code>synthetic</code></td>
+          <td><code>roads</code>, <code>building</code></td>
+          <td><code>downstream</code> or <code>synthetic</code></td>
           <td><code>target</code></td>
-          <td>1 (continuous)</td>
-          <td>SharedUNetDecoder</td>
+          <td>1 channel</td>
+          <td><code>PhiSatNetDecoder</code></td>
         </tr>
         <tr>
           <td><code>classification</code></td>
-          <td><code>downstream</code>, <code>synthetic</code></td>
+          <td><code>fire</code></td>
+          <td><code>downstream</code> or <code>synthetic</code></td>
           <td><code>label</code></td>
-          <td>Task-dependent (e.g., 4 for fire)</td>
-          <td>GlobalPoolingHead</td>
-        </tr>
-        <tr>
-          <td><code>global_regression</code></td>
-          <td><code>downstream</code>, <code>synthetic</code></td>
-          <td><code>target</code></td>
-          <td>1 (continuous)</td>
-          <td>GlobalPoolingHead</td>
+          <td>4 classes</td>
+          <td><code>MultiScaleClassificationHead</code></td>
         </tr>
         <tr>
           <td><code>pretrain_reconstruction</code></td>
           <td><code>triplets</code></td>
+          <td><code>triplets</code></td>
           <td><code>simulated</code></td>
           <td>8 bands</td>
-          <td>SharedUNetDecoder</td>
-        </tr>
-        <tr>
-          <td><code>distillation_kd</code></td>
-          <td><code>triplets</code></td>
-          <td>none</td>
-          <td>—</td>
-          <td>Task head (custom)</td>
+          <td><code>SSLPretrainModule</code></td>
         </tr>
         <tr>
           <td><code>domain_adaptation</code></td>
           <td><code>triplets</code></td>
+          <td><code>triplets</code></td>
           <td>none</td>
-          <td>—</td>
-          <td>Task head (custom)</td>
+          <td>feature loss</td>
+          <td><code>DomainAdaptationModule</code></td>
         </tr>
         <tr>
           <td><code>eval_domain_gap</code></td>
           <td><code>triplets</code></td>
+          <td><code>triplets</code></td>
           <td>none</td>
-          <td>—</td>
-          <td>Task head (custom)</td>
+          <td>metrics per decoder</td>
+          <td><code>DomainEvalModule</code></td>
+        </tr>
+        <tr>
+          <td><code>eval_encoder</code></td>
+          <td><code>lulc</code></td>
+          <td><code>downstream</code></td>
+          <td><code>mask</code></td>
+          <td>latent visualization</td>
+          <td><code>PretrainEvalModule</code></td>
         </tr>
       </table>
-      <p class="muted">Paired tasks (pretrain, distillation, domain adaptation) automatically use <code>triplets</code> dataloader and don't require <code>--dataset</code> or <code>--dataloader</code> flags.</p>
+      <p class="muted"><code>global_regression</code> is registered as a task type, but no datasets are registered for it. <code>distillation_kd</code> is registered, but the CLI module is not implemented yet.</p>
+    </section>
+
+    <section>
+      <h2>Model compatibility</h2>
+      <ul>
+        <li>Use <code>phisatnet</code> for active downstream training, pretraining, domain adaptation, and evaluation flows.</li>
+        <li>Use <code>terramind_v1_*</code> names as teacher backbones for knowledge-distillation work once the CLI path is wired.</li>
+      </ul>
+      <p>Paired tasks automatically use <code>triplets</code> and do not need explicit <code>--dataset</code> or <code>--dataloader</code> flags.</p>
     </section>
   </main>
 </body>

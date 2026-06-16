@@ -19,18 +19,19 @@
 
     <section>
       <h2>Determinism</h2>
-      <p><code>phisat2/utils/seed.py</code> sets Python, NumPy, Torch, and CUDA deterministic flags.</p>
+      <p><code>phisat2/utils/seed.py</code> seeds Python, NumPy, PyTorch, and CUDA settings. The CLI also calls Lightning's worker seeding for each run seed.</p>
       <ul>
-        <li>Per-run seeds come from <code>SEEDS</code> in the trainer.</li>
-        <li>Lightning workers are seeded through the same path.</li>
+        <li>Training seeds come from <code>SEEDS</code>; one output directory is created per seed.</li>
+        <li>Evaluation uses the CLI <code>--seed</code> argument, which defaults to <code>42</code>; the current <code>make eval</code> target leaves that default in place.</li>
+        <li>Downstream train/validation splitting is seed-dependent.</li>
       </ul>
     </section>
 
     <section>
       <h2>Remaining variance</h2>
       <ul>
-        <li>External dataset preprocessing.</li>
-        <li>Hardware/backend differences.</li>
+        <li>External dataset preprocessing and Zarr content.</li>
+        <li>Hardware and backend differences.</li>
         <li>Distributed training order effects.</li>
       </ul>
     </section>

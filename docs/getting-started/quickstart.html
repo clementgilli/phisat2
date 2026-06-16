@@ -22,7 +22,7 @@
       <pre><code>git clone https://github.com/clementgilli/phisat2
 cd phisat2
 make install</code></pre>
-      <p class="muted">Requirements: Python 3.13 + uv + make.</p>
+      <p class="muted">Requirements: Python 3.13, <code>uv</code>, and <code>make</code>.</p>
     </section>
 
     <section>
@@ -34,16 +34,16 @@ make list-dataloaders</code></pre>
 
     <section>
       <h2>3) Smoke test</h2>
-      <p>Runs one fast synthetic batch with no local Earth data.</p>
+      <p>Runs one fast synthetic CPU batch with no local Earth-observation data.</p>
       <pre><code>make smoke</code></pre>
     </section>
 
     <section>
-      <h2>4) First training command</h2>
+      <h2>4) First development run</h2>
       <pre><code>make fast-dev-run \
   TASK=segmentation \
   DATASET=clouds \
-  MODEL=phisat2_geoaware \
+  MODEL=phisatnet \
   DATALOADER=synthetic \
   SEEDS=0 \
   ROOT_DIR=. \
@@ -55,7 +55,7 @@ make list-dataloaders</code></pre>
   DEVICES=1 \
   PRETRAINED=false \
   LR=0.0001</code></pre>
-      <p class="muted">Equivalent command exists under <code>README.md</code> via <code>uv run ... -m phisat2.cli.train fit ...</code>.</p>
+      <p class="muted">The direct equivalent starts with <code>uv run --python 3.13 python -m phisat2.cli.cli fit ...</code>.</p>
     </section>
   </main>
 </body>

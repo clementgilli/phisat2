@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Legacy adaptation workflows | PhiSat-2 Docs</title>
+  <title>Legacy workflows | PhiSat-2 Docs</title>
   <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
   <div class="topbar">
-    <h1>Legacy adaptation workflows</h1>
-    <p>Scripts in <code>src/adaptation/</code> and when to use them.</p>
+    <h1>Legacy workflows</h1>
+    <p>Research scripts outside the active Make/CLI package path.</p>
   </div>
 
   <main>
@@ -20,16 +20,17 @@
     <section>
       <h2>Scripts</h2>
       <ul>
-        <li><code>train_distillation_student.py</code>: SIM to REAL encoder distillation.</li>
-        <li><code>train_distillation_teacher.py</code>: teacher/student feature matching.</li>
-        <li><code>train_downstream.py</code>: frozen encoder plus task decoder training.</li>
-        <li><code>train_pretext.py</code>: climate, geoloc, and reconstruction probes.</li>
+        <li><code>src/adaptation/train_distillation_student.py</code>: SIM-to-REAL encoder distillation.</li>
+        <li><code>src/adaptation/train_distillation_teacher.py</code>: teacher/student feature matching.</li>
+        <li><code>src/downstreams/train_downstream.py</code>: older frozen-encoder downstream training.</li>
+        <li><code>src/downstreams/train_pretext.py</code>: older climate, geolocation, and reconstruction probes.</li>
+        <li><code>src/dataset/triplets_dataset_pipeline/</code>: raw triplet dataset preparation pipeline.</li>
       </ul>
     </section>
 
     <section>
       <h2>Boundary</h2>
-      <p>These scripts are separate from the public CLI and are mainly for research-style experiments.</p>
+      <p>These scripts are separate from the supported <code>phisat2/cli/cli.py</code> and Makefile workflow. Prefer the package CLI for new runs unless you are reproducing old research experiments.</p>
     </section>
   </main>
 </body>
