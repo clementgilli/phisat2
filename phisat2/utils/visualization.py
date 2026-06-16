@@ -42,9 +42,9 @@ SEGMENTATION_METADATA = {
     },
     "clouds": {
         0: ("Clear sky",    (0, 0, 0)),
-        1: ("Thick clouds", (245, 245, 245)), 
+        1: ("Shadows",      (75, 0, 130)),
         2: ("Thin clouds",  (173, 216, 230)),
-        3: ("Shadows",      (75, 0, 130)),
+        3: ("Thick clouds", (245, 245, 245)),
     },
 }
 

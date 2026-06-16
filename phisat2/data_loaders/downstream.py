@@ -40,14 +40,21 @@ ZARR_SCALING_FACTORS = {
     "lulc":     10000.0,
     "roads":    10000.0,
     "building": 10000.0,
-    "fire":     10000.0,
+    "fire":     1.0,
     "burned":   1.0,
     "clouds":   10000.0,
+}
+
+# Clouds: original patches were 512×512, stored as 4096×4096 (factor 8).
+#         A 2048×2048 window → downsample ×8 → true 256×256 patch.
+ZARR_DOWNSAMPLE_FACTORS: dict[str, int] = {
+    "clouds": 8,
 }
 
 
 class DownstreamDataset(Dataset):
     
+    # Zarr is read in load_size × load_size windows.
     # crop_size ≤ load_size; apply_spatial_transforms handles the final crop.
     load_size: int = 256
 
@@ -91,19 +98,21 @@ class DownstreamDataset(Dataset):
             raise FileNotFoundError(f"Expected Zarr split folder at {source_folder}")
 
         self.scaling_factor = ZARR_SCALING_FACTORS.get(spec.dataset, 1.0)
+        self.downsample     = ZARR_DOWNSAMPLE_FACTORS.get(spec.dataset, 1)
         self.patches        = self._list_patches(
             source_folder, split, seed, val_ratio, max_patches, subset_csv=subset_csv
         )
         self.mean, self.std = get_norm_tensors("phisat2_sim", PHISAT2_REAL_BANDS)
 
         self.samples: list[tuple] = []
+        read_size = self.load_size * self.downsample   # e.g. 256*8=2048 for clouds
 
         for patch_path in self.patches:
             patch_path = Path(patch_path)
             img_arr    = self._open_array(patch_path / "img")
             H, W       = img_arr.shape[-2:]
 
-            if H <= self.load_size and W <= self.load_size:
+            if H <= read_size and W <= read_size:
                 self.samples.append((patch_path, 0, 0))
 
             elif self.is_train:
@@ -111,10 +120,10 @@ class DownstreamDataset(Dataset):
 
             else:
                 seen: set[tuple[int, int]] = set()
-                for y in range(0, H, self.load_size):
-                    for x in range(0, W, self.load_size):
-                        y_s = min(y, H - self.load_size)
-                        x_s = min(x, W - self.load_size)
+                for y in range(0, H, read_size):
+                    for x in range(0, W, read_size):
+                        y_s = min(y, H - read_size)
+                        x_s = min(x, W - read_size)
                         if (y_s, x_s) not in seen:
                             seen.add((y_s, x_s))
                             self.samples.append((patch_path, y_s, x_s))
@@ -131,15 +140,17 @@ class DownstreamDataset(Dataset):
         patch_path = sample[0]
 
         # ── Determine crop window ─────────────────────────────────────────────
+        read_size = self.load_size * self.downsample  # e.g. 2048 for clouds
+
         if len(sample) == 4:
             _, _, H, W = sample
-            y_start = int(torch.randint(0, max(1, H - self.load_size + 1), (1,)).item())
-            x_start = int(torch.randint(0, max(1, W - self.load_size + 1), (1,)).item())
+            y_start = int(torch.randint(0, max(1, H - read_size + 1), (1,)).item())
+            x_start = int(torch.randint(0, max(1, W - read_size + 1), (1,)).item())
         else:
             _, y_start, x_start = sample
 
-        slice_y = slice(y_start, y_start + self.load_size)
-        slice_x = slice(x_start, x_start + self.load_size)
+        slice_y = slice(y_start, y_start + read_size)
+        slice_x = slice(x_start, x_start + read_size)
 
         # ── Read image ────────────────────────────────────────────────────────
         image_array = self._open_array(patch_path / "img")
@@ -147,6 +158,15 @@ class DownstreamDataset(Dataset):
             self._read_array(image_array, (slice(None), slice_y, slice_x))
         ).float()
         image = image[self.permutation] / self.scaling_factor
+
+        if self.downsample > 1:
+            image = torch.nn.functional.interpolate(
+                image.unsqueeze(0),
+                size=(self.load_size, self.load_size),
+                mode="bilinear",
+                align_corners=False,
+            ).squeeze(0)
+
         image = normalize_tensor(image, self.mean, self.std)
 
         # ── Read label ────────────────────────────────────────────────────────
@@ -163,11 +183,19 @@ class DownstreamDataset(Dataset):
             )
             target = torch.from_numpy(self._read_array(target_array, tgt_slice))
 
+            if self.downsample > 1 and not target_is_scalar and target.ndim >= 2:
+                t = target.unsqueeze(0) if target.ndim == 2 else target   # (1,H,W) or (C,H,W)
+                t = torch.nn.functional.interpolate(
+                    t.unsqueeze(0).float(),
+                    size=(self.load_size, self.load_size),
+                    mode="nearest",
+                ).squeeze(0)
+                target = (t.squeeze(0) if target.ndim == 2 else t).to(target.dtype)
+
         # ── Task-specific preprocessing ───────────────────────────────────────
         task = self.spec.task
 
         if task == "segmentation":
-            # Collapse one-hot or multi-channel label → (H, W) long
             if target.ndim == 3:
                 target = (
                     target.argmax(0) if target.shape[0] > 1 else target.squeeze(0)
@@ -193,6 +221,7 @@ class DownstreamDataset(Dataset):
             image, target = out[0], out[1]
 
         else:
+            
             target = (
                 target.long() if task == "classification" else target.float()
             )
@@ -234,7 +263,7 @@ class DownstreamDataset(Dataset):
             except OSError as exc:
                 last_err = exc
                 time.sleep(0.5 * (attempt + 1))
-        raise last_err
+        raise last_err  # type: ignore[misc]
 
     @staticmethod
     def _list_patches(
@@ -341,7 +370,7 @@ class DownstreamDataModule(L.LightningDataModule):
                 self.root_dir, self.spec,
                 split="test", seed=self.seed, crop_size=self.crop_size,
                 max_patches=max_p, random_crop=False,
-                subset_csv=None,
+                subset_csv=None,    # always evaluate on the full test set
             )
 
     def train_dataloader(self) -> DataLoader:
