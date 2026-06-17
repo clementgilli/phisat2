@@ -9,7 +9,7 @@
 <body>
   <div class="topbar">
     <h1>Training pipeline</h1>
-    <p>End-to-end flow used by Make targets and CLI.</p>
+    <p>End-to-end flow used by Make targets and the CLI.</p>
   </div>
 
   <main>
@@ -20,46 +20,52 @@
     <section>
       <h2>Execution path</h2>
       <ol>
-        <li>Make target calls <code>python -m phisat2.cli.train fit ...</code>.</li>
-        <li>CLI parses command and validates <code>task</code> / <code>dataset</code> / <code>model</code> / <code>dataloader</code>.</li>
-        <li><code>resolve_task_spec</code> sets task metadata including output size and target key.</li>
-        <li>For each seed: set RNG seeds, build datamodule, build model, wrap with LightningModule.</li>
-        <li>Lightning Trainer runs fit with callbacks + logger + hardware config.</li>
+        <li>Make target calls <code>uv run --python 3.13 python -m phisat2.cli.cli fit ...</code> or <code>test ...</code>.</li>
+        <li>CLI parses command and validates <code>task</code>, <code>dataset</code>, <code>model</code>, and <code>dataloader</code>.</li>
+        <li>Paired tasks auto-select <code>triplets</code>; downstream tasks require explicit dataset and dataloader.</li>
+        <li><code>resolve_task_spec</code> sets output size, target key, and loss family.</li>
+        <li>For each seed: set RNG seeds, build datamodule, build model bundle, wrap with a Lightning module.</li>
+        <li>Lightning Trainer runs fit or test with callbacks, logger, and hardware config.</li>
       </ol>
     </section>
 
     <section>
-      <h2>Training step</h2>
+      <h2>Training modules</h2>
       <ul>
-        <li>Image is passed to the model from batch key <code>image</code>.</li>
-        <li>Target is batch[<code>spec.target_key</code>] (mask/label/target).</li>
-        <li>Loss: cross-entropy for segmentation/classification, MSE for regression-like outputs.</li>
-        <li>Spatial losses interpolate prediction to target resolution if needed.</li>
+        <li><code>DownstreamModule</code>: freezes the encoder and trains task heads with AdamW and cosine LR scheduling.</li>
+        <li><code>SSLPretrainModule</code>: masks simulated PhiSat-2 imagery and reconstructs visible/masked bands.</li>
+        <li><code>DomainAdaptationModule</code>: freezes the teacher encoder and aligns student real-image features to simulated teacher features.</li>
       </ul>
+      <p class="muted"><code>distillation_kd</code> reaches <code>NotImplementedError</code> in <code>phisat2/cli/cli.py</code>; treat it as unfinished CLI work.</p>
     </section>
 
     <section>
       <h2>Defaults and hardware</h2>
       <ul>
-        <li>Model + optimizer: frozen <code>model.encoder</code>, trainable non-encoder layers, AdamW + weight decay 1e-4.</li>
+        <li>Optimizer: AdamW.</li>
         <li>Optimizer LR source: Make <code>LR</code> or CLI <code>--lr</code>.</li>
-        <li>Checkpointing saves <code>best</code> (monitor <code>val_loss</code>) and <code>last</code>.</li>
-        <li>Fast-dev mode disables checkpointing and uses one-cycle validation behavior.</li>
+        <li>Checkpointing saves <code>best.ckpt</code> by minimum <code>val_loss</code> and <code>last.ckpt</code>.</li>
+        <li>Fast-dev mode disables checkpoint callbacks through the CLI path.</li>
       </ul>
-      <p>Auto-DDP helper converts to DDP only when <code>--auto-ddp</code> and multiple CUDA devices are available.</p>
+      <p>Auto-DDP converts to DDP only when <code>--auto-ddp</code> is set, multiple CUDA devices are available, and accelerator/devices/strategy are still <code>auto</code>.</p>
     </section>
 
     <section>
       <h2>Common Make entry points</h2>
       <pre><code>make smoke
-make fast-dev-run TASK=segmentation DATASET=lulc MODEL=phisat2_geoaware DATALOADER=downstream SEEDS=0
-make train TASK=classification DATASET=fire MODEL=terramind_v1_tiny DATALOADER=downstream SEEDS="13 42" EPOCHS=10</code></pre>
-      <p class="muted">Available dataloaders: <code>downstream</code>, <code>triplets</code>, <code>synthetic</code>. Use <code>make list-dataloaders</code> to list all.</p>
+make fast-dev-run TASK=segmentation DATASET=clouds MODEL=phisatnet DATALOADER=synthetic PRETRAINED=false ACCELERATOR=cpu DEVICES=1 NUM_WORKERS=0
+make train-segmentation DATASET=lulc MODEL=phisatnet DATALOADER=downstream ROOT_DIR=/path/to/data SEEDS="42 7 6" EPOCHS=100
+make pretrain MODEL=phisatnet ROOT_DIR=/path/to/triplets SEEDS="42"
+make domain-adaptation MODEL=phisatnet ROOT_DIR=/path/to/triplets WEIGHTS=/path/to/pretrained_sim.pth</code></pre>
+      <p class="muted">Available dataloaders: <code>downstream</code>, <code>triplets</code>, <code>synthetic</code>.</p>
     </section>
 
     <section>
-      <h2>Legacy adaptation workflows</h2>
-      <p>Extra scripts are in <code>src/adaptation/</code> and target encoder/probe/distillation experiments. They are separate from the CLI/Make workflow above.</p>
+      <h2>Config files and cluster submission</h2>
+      <p>Reusable experiment settings live under <code>configs/*.mk</code>. Pass one with <code>EXPERIMENT=configs/name.mk</code>.</p>
+      <pre><code>make train EXPERIMENT=configs/lulc_full.mk
+make submit-train EXPERIMENT=configs/lulc_full.mk</code></pre>
+      <p>Submit targets render <code>scripts/runner_template.pbs</code> and call <code>qsub</code>.</p>
     </section>
   </main>
 </body>

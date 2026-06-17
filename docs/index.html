@@ -15,7 +15,8 @@
   <main>
     <section>
       <h2>Welcome to PhiSat-2</h2>
-      <p>Train machine learning models for satellite imagery processing with support for multiple training paradigms: supervised learning, self-supervised learning, knowledge distillation, and domain adaptation.</p>
+      <p>Train PhiSat-2 satellite-imagery models with the active <code>phisat2</code> package, Makefile workflow, and static documentation.</p>
+      <p class="muted">Knowledge distillation metadata exists, but <code>distillation_kd</code> is not wired in the CLI yet.</p>
     </section>
 
     <section>
@@ -23,17 +24,17 @@
       <div class="grid">
         <div class="card">
           <h4>Quickstart</h4>
-          <p>Install, verify, and run your first experiment.</p>
+          <p>Install, verify, and run a synthetic smoke test.</p>
           <a href="getting-started/quickstart.html">Read</a>
         </div>
         <div class="card">
           <h4>Training pipeline</h4>
-          <p>How Make targets and CLI execute training.</p>
+          <p>How Make targets and the CLI execute training.</p>
           <a href="training/pipeline.html">Read</a>
         </div>
         <div class="card">
           <h4>CLI commands</h4>
-          <p>Make aliases and direct trainer invocation.</p>
+          <p>Make aliases and direct module invocation.</p>
           <a href="cli/commands.html">Read</a>
         </div>
       </div>
@@ -44,17 +45,17 @@
       <div class="grid">
         <div class="card">
           <h4>Model architecture</h4>
-          <p>Encoders, decoders, and shared decoder patterns.</p>
+          <p>Registered models, bundles, decoders, and heads.</p>
           <a href="model/architecture.html">Read</a>
         </div>
         <div class="card">
           <h4>Data loaders</h4>
-          <p>Batch format, supported datasets, and usage.</p>
-          <a href="data/dataloaders.html">Read</a>
+          <p>Batch format, supported datasets, and root-directory layout.</p>
+          <a href="dataloaders/index.html">Read</a>
         </div>
         <div class="card">
           <h4>Task mapping</h4>
-          <p>Which tasks, models, and dataloaders work together.</p>
+          <p>Which tasks, datasets, dataloaders, and heads work together.</p>
           <a href="model/task-mapping.html">Read</a>
         </div>
       </div>
@@ -95,8 +96,8 @@
           <a href="reproducibility/index.html">Read</a>
         </div>
         <div class="card">
-          <h4>Inference</h4>
-          <p>Running a trained model on new inputs.</p>
+          <h4>Evaluation</h4>
+          <p>Running checkpoints on the test split and saving metrics.</p>
           <a href="evaluation/inference.html">Read</a>
         </div>
       </div>
@@ -105,21 +106,22 @@
     <section>
       <h2>Repository Structure</h2>
       <ul>
-        <li><code>phisat2/</code>: Main package with training, models, data loading, and CLI.</li>
-        <li><code>tests/</code>: Unit tests for model registry and shapes.</li>
-        <li><code>src/</code>: Legacy scripts and alternate workflows.</li>
+        <li><code>phisat2/</code>: Main package with training, models, data loading, evaluation, and CLI.</li>
+        <li><code>configs/</code>: Make experiment configs for local or cluster runs.</li>
+        <li><code>tests/</code>: Unit tests.</li>
+        <li><code>src/</code>: Legacy research and dataset scripts.</li>
         <li><code>docs/</code>: This documentation.</li>
       </ul>
     </section>
 
     <section>
       <h2>Quick Commands</h2>
-      <pre><code>make install                          # Install all dependencies
-make check                            # Verify installation
-make smoke                            # Run smoke test with synthetic data
-make list-models                      # See all available models
-make list-dataloaders                 # See all available dataloaders
-make train TASK=segmentation ...      # Run training with parameters</code></pre>
+      <pre><code>make install                          # Install dependencies with uv
+make check                            # Byte-compile the phisat2 package
+make smoke                            # Run a synthetic one-batch smoke test
+make list-models                      # See registered models
+make list-dataloaders                 # See registered dataloaders
+make train-segmentation DATASET=lulc MODEL=phisatnet DATALOADER=downstream ROOT_DIR=/path/to/data</code></pre>
     </section>
   </main>
 </body>

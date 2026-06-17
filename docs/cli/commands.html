@@ -19,13 +19,13 @@
 
     <section>
       <h2>CLI usage</h2>
-      <pre><code>python -m phisat2.cli.train fit \
+      <pre><code>uv run --python 3.13 python -m phisat2.cli.cli fit \
   --task segmentation \
   --dataset lulc \
-  --model phisat2_geoaware \
+  --model phisatnet \
   --dataloader downstream \
   --seeds 0 1 \
-  --root-dir data/PhiSatNet \
+  --root-dir /path/to/data \
   --output-dir runs \
   --max-epochs 5 \
   --batch-size 8 \
@@ -36,6 +36,7 @@
   --devices 1 \
   --precision 32-true \
   --no-pretrained</code></pre>
+      <p class="muted">Use <code>python -m phisat2.cli.cli list-models</code> and <code>list-dataloaders</code> to inspect registries.</p>
     </section>
 
     <section>
@@ -45,19 +46,26 @@
       <pre><code>make smoke</code></pre>
       <pre><code>make fast-dev-run</code></pre>
       <pre><code>make train</code></pre>
+      <pre><code>make eval</code></pre>
     </section>
 
     <section>
       <h2>One-liner quick map</h2>
       <table>
         <tr><th>Goal</th><th>Command</th></tr>
-        <tr><td>Verify install</td><td><code>make check</code></td></tr>
+        <tr><td>Verify package</td><td><code>make check</code></td></tr>
         <tr><td>List models</td><td><code>make list-models</code></td></tr>
         <tr><td>List loaders</td><td><code>make list-dataloaders</code></td></tr>
         <tr><td>Smoke run</td><td><code>make smoke</code></td></tr>
-        <tr><td>Fast dev run</td><td><code>make fast-dev-run TASK=segmentation DATASET=lulc MODEL=terramind_v1_tiny DATALOADER=downstream</code></td></tr>
-        <tr><td>Full training</td><td><code>make train TASK=segmentation DATASET=lulc DATALOADER=downstream EPOCHS=50 SEEDS="0 42"</code></td></tr>
+        <tr><td>Synthetic fast dev run</td><td><code>make fast-dev-run TASK=segmentation DATASET=clouds MODEL=phisatnet DATALOADER=synthetic PRETRAINED=false ACCELERATOR=cpu DEVICES=1 NUM_WORKERS=0</code></td></tr>
+        <tr><td>Real downstream run</td><td><code>make train-segmentation DATASET=lulc MODEL=phisatnet DATALOADER=downstream ROOT_DIR=/path/to/data</code></td></tr>
+        <tr><td>Evaluate checkpoint</td><td><code>make eval TASK=segmentation DATASET=lulc MODEL=phisatnet DATALOADER=downstream ROOT_DIR=/path/to/data CKPT_PATH=/path/to/best.ckpt</code></td></tr>
       </table>
+    </section>
+
+    <section>
+      <h2>Auto-detected paired tasks</h2>
+      <p><code>pretrain_reconstruction</code>, <code>domain_adaptation</code>, <code>distillation_kd</code>, and <code>eval_domain_gap</code> set <code>DATASET=triplets</code> and <code>DATALOADER=triplets</code> inside the CLI. Knowledge distillation is registered but not implemented by the CLI module yet.</p>
     </section>
   </main>
 </body>

@@ -9,7 +9,7 @@
 <body>
   <div class="topbar">
     <h1>Checkpoints & logs</h1>
-    <p>Where outputs are written during training.</p>
+    <p>Where outputs are written during training and evaluation.</p>
   </div>
 
   <main>
@@ -18,20 +18,28 @@
     </nav>
 
     <section>
-      <h2>Run output path</h2>
-      <p><code>OUTPUT_DIR/TASK/DATASET/MODEL/seed_N/</code></p>
+      <h2>Training output path</h2>
+      <p><code>OUTPUT_DIR/TASK/DATASET/MODEL/SUBSET/seed_N/</code></p>
       <ul>
-        <li><code>checkpoints/</code>: best and last checkpoints</li>
-        <li><code>logs/</code>: CSV training logs</li>
+        <li><code>checkpoints/best.ckpt</code>: checkpoint with minimum <code>val_loss</code>.</li>
+        <li><code>checkpoints/last.ckpt</code>: last saved training state.</li>
+        <li><code>wandb/</code>: Weights & Biases run files when the logger is active.</li>
+      </ul>
+      <p><code>SUBSET</code> is <code>full_dataset</code> unless <code>SUBSET_CSV</code> is set, in which case the CSV stem is used.</p>
+    </section>
+
+    <section>
+      <h2>Evaluation output path</h2>
+      <p><code>OUTPUT_DIR/TASK/DATASET/MODEL/SUBSET/eval_seed_N/</code></p>
+      <ul>
+        <li><code>test_metrics.json</code>: first Lightning test metrics dictionary.</li>
+        <li>Segmentation and pixel-regression evaluation can also write debug images under the evaluation directory.</li>
       </ul>
     </section>
 
     <section>
-      <h2>Names</h2>
-      <ul>
-        <li><code>best.ckpt</code>: checkpoint with min <code>val_loss</code> (when callbacks enabled).</li>
-        <li><code>last.ckpt</code>: final train state.</li>
-      </ul>
+      <h2>Resume</h2>
+      <p>Set <code>RESUME=true</code> to resume from <code>checkpoints/last.ckpt</code> when it exists for the selected seed output directory.</p>
     </section>
   </main>
 </body>

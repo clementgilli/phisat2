@@ -3,41 +3,52 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Inference | PhiSat-2 Docs</title>
+  <title>Evaluation | PhiSat-2 Docs</title>
   <link rel="stylesheet" href="../styles.css">
 </head>
 <body>
   <div class="topbar">
-    <h1>Inference notes</h1>
-    <p>How to run a model on new inputs.</p>
+    <h1>Evaluation notes</h1>
+    <p>How to run trained checkpoints on test data.</p>
   </div>
 
   <main>
     <nav>
-      <a href="../index.html">Docs</a><a href="inference.html">Inference</a>
+      <a href="../index.html">Docs</a><a href="inference.html">Evaluation</a>
     </nav>
 
     <section>
       <h2>Checkpoint workflow</h2>
-      <ol>
-        <li>Instantiate the model with <code>build_model(name, spec, pretrained=False)</code>.</li>
-        <li>Load checkpoint weights from <code>runs/.../checkpoints/</code>.</li>
-        <li>Keep inputs shaped as <code>[B, 8, H, W]</code> and normalized like training.</li>
-      </ol>
+      <pre><code>make eval \
+  TASK=segmentation \
+  DATASET=lulc \
+  MODEL=phisatnet \
+  DATALOADER=downstream \
+  ROOT_DIR=/path/to/data \
+  CKPT_PATH=/path/to/best.ckpt</code></pre>
+      <p><code>CKPT_PATH</code> maps to the CLI <code>--weights</code> argument for normal downstream evaluation.</p>
+    </section>
+
+    <section>
+      <h2>Direct CLI workflow</h2>
+      <pre><code>uv run --python 3.13 python -m phisat2.cli.cli test \
+  --task segmentation \
+  --dataset lulc \
+  --model phisatnet \
+  --dataloader downstream \
+  --root-dir /path/to/data \
+  --weights /path/to/best.ckpt</code></pre>
+      <p>Metrics are written to <code>OUTPUT_DIR/TASK/DATASET/MODEL/SUBSET/eval_seed_N/test_metrics.json</code>.</p>
     </section>
 
     <section>
       <h2>Output shape</h2>
       <ul>
-        <li>Segmentation and pixel regression: <code>[B, C, H, W]</code>.</li>
-        <li>Classification: <code>[B, 31]</code>.</li>
-        <li>Global regression: <code>[B, 4]</code>.</li>
+        <li>Segmentation: <code>[B, classes, H, W]</code>.</li>
+        <li>Pixel regression: <code>[B, 1, H, W]</code>.</li>
+        <li>Classification: <code>[B, classes]</code>; currently <code>fire</code> has 4 classes.</li>
       </ul>
-    </section>
-
-    <section>
-      <h2>Note</h2>
-      <p>There is no dedicated inference CLI yet. Use a short Python script with the same model construction path as training.</p>
+      <p class="muted">There is no separate single-image inference CLI. Use the same model and datamodule path as training, or write a short script around <code>build_model()</code> with explicit <code>input_bands</code>.</p>
     </section>
   </main>
 </body>

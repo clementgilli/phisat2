@@ -9,7 +9,7 @@
 <body>
   <div class="topbar">
     <h1>Hyperparameters</h1>
-    <p>Small practical settings that usually matter first.</p>
+    <p>Practical Make variables that usually matter first.</p>
   </div>
 
   <main>
@@ -20,22 +20,26 @@
     <section>
       <h2>Most used knobs</h2>
       <table>
-        <tr><th>Variable</th><th>Effect</th><th>Typical start</th></tr>
-        <tr><td><code>LR</code></td><td>Optimizer step size</td><td><code>1e-4</code></td></tr>
-        <tr><td><code>BATCH_SIZE</code></td><td>Memory + stability</td><td><code>8</code> to <code>32</code> (GPU)</td></tr>
-        <tr><td><code>CROP_SIZE</code></td><td>Patch spatial size</td><td><code>224</code></td></tr>
-        <tr><td><code>EPOCHS</code></td><td>Training length</td><td><code>10</code> to <code>100</code></td></tr>
-        <tr><td><code>NUM_WORKERS</code></td><td>Input throughput</td><td><code>4</code> (local), tune for CPU/GPU node</td></tr>
-        <tr><td><code>PRETRAINED</code></td><td>Backbone init</td><td>Default true except smoke</td></tr>
+        <tr><th>Variable</th><th>Effect</th><th>Default or starting point</th></tr>
+        <tr><td><code>LR</code></td><td>Optimizer step size</td><td><code>0.0001</code></td></tr>
+        <tr><td><code>BATCH_SIZE</code></td><td>Memory and stability</td><td><code>16</code>, tune per GPU</td></tr>
+        <tr><td><code>CROP_SIZE</code></td><td>Spatial crop size for real loaders</td><td><code>224</code></td></tr>
+        <tr><td><code>EPOCHS</code></td><td>Maximum training epochs</td><td><code>50</code></td></tr>
+        <tr><td><code>NUM_WORKERS</code></td><td>Input pipeline workers</td><td><code>4</code></td></tr>
+        <tr><td><code>PRETRAINED</code></td><td>Teacher backbone pretrained flag</td><td><code>true</code>; set <code>false</code> for smoke runs</td></tr>
+        <tr><td><code>WEIGHTS</code></td><td>Encoder or checkpoint path passed as <code>--weights</code></td><td>Task-specific</td></tr>
+        <tr><td><code>CKPT_PATH</code></td><td>Full Lightning checkpoint for <code>make eval</code></td><td>Required for normal evaluation</td></tr>
+        <tr><td><code>SUBSET_CSV</code></td><td>N-shot subset filter for downstream train/val</td><td>Optional</td></tr>
       </table>
     </section>
 
     <section>
       <h2>Task-sensitive defaults</h2>
       <ul>
-        <li>Start with `make fast-dev-run` + synthetic before scaling.</li>
-        <li>Reduce <code>NUM_WORKERS</code> or <code>BATCH_SIZE</code> before reducing model complexity.</li>
-        <li>For spatial tasks, verify output size by inspecting one batch log before long runs.</li>
+        <li>Start with <code>make smoke</code> or <code>make fast-dev-run</code> before scaling to real data.</li>
+        <li>Reduce <code>BATCH_SIZE</code> first for memory pressure, then reduce <code>CROP_SIZE</code>.</li>
+        <li>Use <code>NUM_WORKERS=0</code> when debugging loader failures locally.</li>
+        <li>Use <code>WEIGHTS</code> for encoder initialization during downstream, pretraining-derived, or domain-adaptation flows.</li>
       </ul>
     </section>
   </main>
