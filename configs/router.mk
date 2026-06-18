@@ -1,13 +1,13 @@
 # ==========================================
-# CONFIGURATION : Fire — Full Dataset
+# CONFIGURATION : Router
 # ==========================================
 
-BASE_NAME   = fire_full
+BASE_NAME   = router
 QUEUE       = gpu4_std
 GPUS        = 1
 
 TASK        = classification
-DATASET     = fire
+DATASET     = router
 MODEL       = phisatnet
 DATALOADER  = downstream
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data

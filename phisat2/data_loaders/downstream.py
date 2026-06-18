@@ -22,7 +22,7 @@ ZARR_DATASET_NAMES = {
     "clouds":   ("clouds_dataset",      "clouds"),
     "roads":    ("phileo-bench_roads",  "roads"),
     "building": ("phileo-bench_building", "building"),
-    "fire":     ("fire_dataset",        "fire"),
+    "router":     ("router_dataset",        "router"),
 }
 
 ZARR_SOURCE_BANDS = {
@@ -32,7 +32,7 @@ ZARR_SOURCE_BANDS = {
     "clouds_dataset":         ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
     "phileo-bench_roads":     ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
     "phileo-bench_building":  ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
-    "fire_dataset":           ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
+    "router_dataset":         ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"],
 }
 
 ZARR_SCALING_FACTORS = {
@@ -40,7 +40,7 @@ ZARR_SCALING_FACTORS = {
     "lulc":     10000.0,
     "roads":    10000.0,
     "building": 10000.0,
-    "fire":     1.0,
+    "router":   1.0,
     "burned":   1.0,
     "clouds":   10000.0,
 }
@@ -119,14 +119,13 @@ class DownstreamDataset(Dataset):
                 self.samples.append((patch_path, None, H, W))
 
             else:
-                seen: set[tuple[int, int]] = set()
-                for y in range(0, H, read_size):
-                    for x in range(0, W, read_size):
-                        y_s = min(y, H - read_size)
-                        x_s = min(x, W - read_size)
-                        if (y_s, x_s) not in seen:
-                            seen.add((y_s, x_s))
-                            self.samples.append((patch_path, y_s, x_s))
+                n_h = H // read_size
+                n_w = W // read_size
+                for ty in range(n_h):
+                    for tx in range(n_w):
+                        self.samples.append(
+                            (patch_path, ty * read_size, tx * read_size)
+                        )
 
     # ── Length ────────────────────────────────────────────────────────────────
 

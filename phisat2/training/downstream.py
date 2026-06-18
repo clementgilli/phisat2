@@ -62,6 +62,9 @@ class DownstreamModule(L.LightningModule):
             
         if self.spec.task == "pixel_regression":
             self._visualize_and_save_pixel_regression(batch, preds, targets, batch_idx)
+            
+        if self.spec.task == "classification":
+            self._visualize_and_save_classification(batch, preds, targets, batch_idx)
 
     def configure_optimizers(self):
         trainable_params = [param for param in self.parameters() if param.requires_grad]
@@ -128,7 +131,7 @@ class DownstreamModule(L.LightningModule):
         return np.stack(channels, axis=-1)
 
     def _visualize_and_save_segmentation(self, batch, preds, targets, batch_idx, max_samples=5) -> None:
-        if batch_idx % 100 != 0:
+        if batch_idx % 50 != 0:
             return
             
         image = batch["image"]
@@ -212,7 +215,7 @@ class DownstreamModule(L.LightningModule):
         self, batch, preds, targets, batch_idx, max_samples=5
     ) -> None:
         
-        if batch_idx % 100 != 0:
+        if batch_idx % 50 != 0:
             return
             
         image = batch["image"]
@@ -262,6 +265,71 @@ class DownstreamModule(L.LightningModule):
             self.trainer.default_root_dir, 
             f"pixel_regression_debug_batch_{batch_idx}.png"
         )
+        
+        plt.savefig(save_path, dpi=120, bbox_inches="tight")
+        plt.close(fig)
+        print(f"[Viz] saved → {save_path}")
+        
+    def _visualize_and_save_classification(self, batch, preds, targets, batch_idx, max_samples=5) -> None:
+        if batch_idx % 10 != 0:
+            return
+        
+        image = batch["image"]
+        dataset_name = self.spec.dataset
+                
+        if preds.ndim == 2:
+            preds = preds.argmax(dim=1)
+            
+        targets_np = targets.detach().cpu().numpy().astype(int)
+        preds_np = preds.detach().cpu().numpy().astype(int)
+        n = min(max_samples, image.shape[0])
+        
+        fig, axes = plt.subplots(n, 3, figsize=(12, 4 * n), squeeze=False, constrained_layout=True)
+        fig.suptitle(f"Debug Classification ({dataset_name}) - Batch {batch_idx}", fontsize=14, fontweight='bold')
+        
+        col_titles = ["Original (RGB)", "Ground Truth", "Prediction"]
+        for ax, title in zip(axes[0], col_titles):
+            ax.set_title(title, fontsize=12)
+            
+        current_meta = None
+            
+        for i in range(n):
+            # 1. Image Originale
+            orig = image[i].detach().cpu()
+            axes[i, 0].imshow(self._to_falsecolor(orig, rgb_idx=(3, 2, 1)))
+            axes[i, 0].axis("off")
+            
+            gt_idx = targets_np[i]
+            gt_mask_2d = np.full((128, 128), gt_idx, dtype=np.uint8)
+            gt_img, current_meta = mask_to_rgb(gt_mask_2d, dataset_name)
+            
+            axes[i, 1].imshow(gt_img)
+            axes[i, 1].axis("off")
+            
+            gt_name = current_meta.get(gt_idx, ("Unknown", None))[0]
+            text_color = "black" if gt_idx == 4 else "white"
+            axes[i, 1].text(64, 64, gt_name, ha="center", va="center", color=text_color, fontsize=14, fontweight="bold")
+            
+            pred_idx = preds_np[i]
+            pred_mask_2d = np.full((128, 128), pred_idx, dtype=np.uint8)
+            pred_img, _ = mask_to_rgb(pred_mask_2d, dataset_name)
+            
+            axes[i, 2].imshow(pred_img)
+            axes[i, 2].axis("off")
+            
+            pred_name = current_meta.get(pred_idx, ("Unknown", None))[0]
+            text_color = "black" if pred_idx == 4 else "white"
+            axes[i, 2].text(64, 64, pred_name, ha="center", va="center", color=text_color, fontsize=14, fontweight="bold")
+            
+        if current_meta is not None:
+            patches = [
+                mpatches.Patch(color=np.array(color)/255.0, label=name)
+                for class_idx, (name, color) in current_meta.items()
+            ]
+            fig.legend(handles=patches, loc='upper center', bbox_to_anchor=(0.5, 0), ncol=len(current_meta), fontsize=12)
+            
+        os.makedirs(self.trainer.default_root_dir, exist_ok=True)
+        save_path = os.path.join(self.trainer.default_root_dir, f"classification_debug_batch_{batch_idx}.png")
         
         plt.savefig(save_path, dpi=120, bbox_inches="tight")
         plt.close(fig)

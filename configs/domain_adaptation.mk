@@ -24,6 +24,7 @@ _CLOUDS      = $(_BASE)/segmentation/clouds/phisatnet/full_dataset/seed_42/check
 _BURNED      = $(_BASE)/segmentation/burned/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
 _ROADS       = $(_BASE)/pixel_regression/roads/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
 _BLDG        = $(_BASE)/pixel_regression/building/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+_ROUTER      = $(_BASE)/classification/router/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
 
 # ─── eval-domain-gap / submit-eval-domain-gap ────────────────────────────────
 ifneq ($(filter eval-domain-gap submit-eval-domain-gap, $(MAKECMDGOALS) $(TARGET)),)
@@ -40,7 +41,7 @@ TEACHER_CKPT = $(_PRETRAIN)
 # else build_model on TEACHER_CKPT (eval baseline pre-DA).
 STUDENT_CKPT = $(CKPT_PATH)
 
-DECODERS = lulc=$(_LULC) floods=$(_FLOODS) clouds=$(_CLOUDS) burned=$(_BURNED) roads=$(_ROADS) building=$(_BLDG)
+DECODERS = lulc=$(_LULC) floods=$(_FLOODS) clouds=$(_CLOUDS) burned=$(_BURNED) roads=$(_ROADS) building=$(_BLDG) router=$(_ROUTER)
 
 # ─── domain-adaptation / submit-domain-adaptation ────────────────────────────
 else

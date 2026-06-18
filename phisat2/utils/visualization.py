@@ -46,6 +46,13 @@ SEGMENTATION_METADATA = {
         2: ("Thin clouds",  (173, 216, 230)),
         3: ("Thick clouds", (245, 245, 245)),
     },
+    "router": {
+        0: ("Safe",   (34, 139, 34)),
+        1: ("Fire",   (255, 69, 0)),     
+        2: ("Burnt",  (105, 105, 105)), 
+        3: ("Water",  (30, 144, 255)), 
+        4: ("Clouds", (220, 220, 220)),
+    }
 }
 
 def mask_to_rgb(mask_2d: np.ndarray, dataset_name: str):

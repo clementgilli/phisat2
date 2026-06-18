@@ -244,6 +244,77 @@ class DomainEvalModule(L.LightningModule):
             dpi=120, bbox_inches="tight",
         )
         plt.close(fig)
+        
+    def _visualize_cls(
+        self,
+        img_sim: torch.Tensor,
+        img_real: torch.Tensor,
+        logits_sim: torch.Tensor,
+        logits_before: torch.Tensor,
+        logits_after: torch.Tensor,
+        task_name: str,
+        batch_idx: int,
+        max_samples: int = 5,
+    ) -> None:
+        
+        def argmax(t: torch.Tensor) -> np.ndarray:
+            return t.argmax(dim=1).detach().cpu().numpy() if t.ndim == 2 else t.detach().cpu().numpy()
+
+        preds_sim    = argmax(logits_sim).astype(int)
+        preds_before = argmax(logits_before).astype(int)
+        preds_after  = argmax(logits_after).astype(int)
+        
+        n = min(max_samples, img_sim.shape[0])
+        
+        sampled_indices = np.random.choice(img_sim.shape[0], n, replace=False)
+
+        fig, axes = plt.subplots(n, 5, figsize=(25, 4 * n), squeeze=False, constrained_layout=True)
+        fig.suptitle(f"Consistency Classification — {task_name} — Batch {batch_idx}", fontsize=16, fontweight='bold')
+        
+        col_titles = ["Image SIM", "Pred SIM", "Image REAL", "Pred REAL (before DA)", "Pred REAL (after DA)"]
+        for ax, title in zip(axes[0], col_titles):
+            ax.set_title(title, fontsize=14)
+
+        current_meta = None
+        
+        for row, idx in enumerate(sampled_indices):
+            axes[row, 0].imshow(self._to_falsecolor(img_sim[idx].cpu()))            
+            axes[row, 2].imshow(self._to_falsecolor(img_real[idx].cpu()))
+            
+            for ax_col, pred_array in [(1, preds_sim), (3, preds_before), (4, preds_after)]:
+                pred_idx = pred_array[idx]
+                
+                dummy_mask = np.full((128, 128), pred_idx, dtype=np.uint8)
+                rgb_img, current_meta = mask_to_rgb(dummy_mask, task_name)
+                
+                axes[row, ax_col].imshow(rgb_img)
+                
+                pred_name, pred_rgb = current_meta.get(pred_idx, ("Unknown", (0, 0, 0)))
+                
+                luminance = 0.299 * pred_rgb[0] + 0.587 * pred_rgb[1] + 0.114 * pred_rgb[2]
+                text_color = "black" if luminance > 150 else "white"
+                
+                axes[row, ax_col].text(64, 64, pred_name, ha="center", va="center", 
+                                       color=text_color, fontsize=18, fontweight="bold")
+                
+            for ax in axes[row]:
+                ax.axis("off")
+
+        if current_meta:
+            patches = [
+                mpatches.Patch(color=np.array(color) / 255.0, label=name)
+                for _, (name, color) in current_meta.items()
+            ]
+            fig.legend(handles=patches, loc="lower center", bbox_to_anchor=(0.5, -0.04),
+                       ncol=len(current_meta), fontsize=14)
+
+        save_dir = self._viz_dir(f"cls_{task_name}")
+        os.makedirs(save_dir, exist_ok=True)
+        save_path = os.path.join(save_dir, f"batch_{batch_idx}.png")
+        
+        plt.savefig(save_path, dpi=120, bbox_inches="tight")
+        plt.close(fig)
+        print(f"[Viz] saved → {save_path}")
 
     # ─────────────────────────────────────────────────────────────────────────
     # Test step
@@ -323,6 +394,13 @@ class DomainEvalModule(L.LightningModule):
                     ).mean()
                     self.log(f"{prefix}/consistency_{task_name}_acc", acc, on_step=False, on_epoch=True)
                     self.log(f"{prefix}/consistency_{task_name}_kl",  kl,  on_step=False, on_epoch=True)
+                
+                if do_plot:
+                    self._visualize_cls(
+                        img_sim, img_real,
+                        logits_sim, logits_before, logits_after,
+                        task_name, batch_idx,
+                    )
 
             else:
                 # ── Regression ────────────────────────────────────────────────
