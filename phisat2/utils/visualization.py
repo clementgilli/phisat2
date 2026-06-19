@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 from sklearn.manifold import TSNE
 
 SEGMENTATION_METADATA = {
@@ -81,3 +82,118 @@ def plot_tsne(X_sim, X_real, figsize=(10, 8), save_path=None):
     if save_path is not None:
         plt.savefig(save_path)
     plt.show()
+    
+def get_text_color(rgb_tuple):
+    lum = 0.299 * rgb_tuple[0] + 0.587 * rgb_tuple[1] + 0.114 * rgb_tuple[2]
+    return "black" if lum > 150 else "white"
+
+def _extract_rgb(image_array, rgb_idx=(3, 2, 1)):
+    rgb = image_array[list(rgb_idx), :, :].transpose(1, 2, 0)
+    p2, p98 = np.percentile(rgb, (2, 98))
+    if p98 > p2:
+        rgb = np.clip((rgb - p2) / (p98 - p2), 0, 1)
+    else:
+        rgb = (rgb - rgb.min()) / (rgb.max() - rgb.min() + 1e-8)
+    return rgb
+
+def visualize_downstream_demo(images, targets, preds, task_type, dataset_name, max_samples=5, rgb_idx=(3, 2, 1)):
+    
+    n = min(max_samples, images.shape[0])
+    has_gt = targets is not None
+    
+    if task_type == "segmentation":
+        is_lulc = (dataset_name == "lulc")
+        
+        if is_lulc:
+            num_cols = 5 if has_gt else 3
+            col_titles = ["Original (RGB)", "Micro GT", "Micro Pred", "Macro GT", "Macro Pred"] if has_gt else ["Original (RGB)", "Micro Pred", "Macro Pred"]
+        else:
+            num_cols = 3 if has_gt else 2
+            col_titles = ["Original (RGB)", "Ground Truth", "Prediction"] if has_gt else ["Original (RGB)", "Prediction"]
+            
+        fig, axes = plt.subplots(n, num_cols, figsize=(5 * num_cols, 4 * n), squeeze=False, constrained_layout=True)
+        
+        current_meta_micro, current_meta_macro = None, None
+        
+        for i in range(n):
+            axes[i, 0].imshow(_extract_rgb(images[i], rgb_idx))
+            
+            pr_rgb, current_meta_micro = mask_to_rgb(preds[i], dataset_name)
+            
+            if has_gt:
+                gt_rgb, _ = mask_to_rgb(targets[i], dataset_name)
+                axes[i, 1].imshow(gt_rgb)
+                axes[i, 2].imshow(pr_rgb)
+                
+                if is_lulc:
+                    gt_ma, current_meta_macro = mask_to_rgb(targets[i], "lulc_macro")
+                    pr_ma, _ = mask_to_rgb(preds[i], "lulc_macro")
+                    axes[i, 3].imshow(gt_ma)
+                    axes[i, 4].imshow(pr_ma)
+            else:
+                axes[i, 1].imshow(pr_rgb)
+                if is_lulc:
+                    pr_ma, current_meta_macro = mask_to_rgb(preds[i], "lulc_macro")
+                    axes[i, 2].imshow(pr_ma)
+        
+        if current_meta_micro:
+            p_micro = [mpatches.Patch(color=np.array(c)/255.0, label=n_) for _, (n_, c) in current_meta_micro.items()]
+            fig.legend(handles=p_micro, loc='lower center', bbox_to_anchor=(0.3 if is_lulc else 0.5, -0.05), ncol=5, title="Micro Classes")
+            if is_lulc and current_meta_macro:
+                unique_ma = {n_: c for n_, c in current_meta_macro.values()}
+                p_macro = [mpatches.Patch(color=np.array(c)/255.0, label=n_) for n_, c in unique_ma.items()]
+                fig.legend(handles=p_macro, loc='lower center', bbox_to_anchor=(0.75, -0.05), ncol=4, title="Macro Classes")
+
+    elif task_type == "pixel_regression":
+        num_cols = 3 if has_gt else 2
+        col_titles = ["Original (RGB)", "Ground Truth", "Prediction"] if has_gt else ["Original (RGB)", "Prediction"]
+        
+        if has_gt:
+            vmin = min(np.percentile(targets, 2), np.percentile(preds, 2))
+            vmax = max(np.percentile(targets, 98), np.percentile(preds, 98))
+        else:
+            vmin, vmax = np.percentile(preds, 2), np.percentile(preds, 98)
+            
+        fig, axes = plt.subplots(n, num_cols, figsize=(5 * num_cols, 4 * n), squeeze=False, constrained_layout=True)
+        
+        for i in range(n):
+            axes[i, 0].imshow(_extract_rgb(images[i], rgb_idx))
+            if has_gt:
+                axes[i, 1].imshow(targets[i], vmin=vmin, vmax=vmax, cmap="viridis")
+                im = axes[i, 2].imshow(preds[i], vmin=vmin, vmax=vmax, cmap="viridis")
+            else:
+                im = axes[i, 1].imshow(preds[i], vmin=vmin, vmax=vmax, cmap="viridis")
+                
+        fig.colorbar(im, ax=axes[:, num_cols - 1], shrink=0.7)
+
+    elif task_type == "classification":
+        num_cols = 3 if has_gt else 2
+        col_titles = ["Original (RGB)", "Ground Truth", "Prediction"] if has_gt else ["Original (RGB)", "Prediction"]
+        
+        fig, axes = plt.subplots(n, num_cols, figsize=(4 * num_cols, 4 * n), squeeze=False, constrained_layout=True)
+        
+        meta = None
+        for i in range(n):
+            axes[i, 0].imshow(_extract_rgb(images[i], rgb_idx))
+            
+            cols_to_plot = [(1, int(targets[i])), (2, int(preds[i]))] if has_gt else [(1, int(preds[i]))]
+            
+            for col, val in cols_to_plot:
+                img, meta = mask_to_rgb(np.full((128,128), val), dataset_name)
+                axes[i, col].imshow(img)
+                name, color = meta.get(val, ("?", (0,0,0)))
+                axes[i, col].text(64, 64, name, ha="center", va="center", fontweight="bold", color=get_text_color(color))
+        
+        if meta:
+            p = [mpatches.Patch(color=np.array(c)/255.0, label=n_) for _, (n_, c) in meta.items()]
+            fig.legend(handles=p, loc='lower center', bbox_to_anchor=(0.5, -0.05), ncol=len(meta))
+
+    for ax_row in axes:
+        for ax, title in zip(ax_row, col_titles):
+            ax.set_axis_off()
+            if ax_row is axes[0]: ax.set_title(title, fontweight="bold", fontsize=14)
+            
+    suffix = "" if has_gt else "(Inference Only)"
+    fig.suptitle(f"Client Demo: {dataset_name.upper()} {suffix}", fontsize=16, fontweight="bold")
+    
+    return fig
