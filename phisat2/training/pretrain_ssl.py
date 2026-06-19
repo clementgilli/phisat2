@@ -22,6 +22,7 @@ class SSLPretrainModule(L.LightningModule):
         spec: TaskSpec,
         *,
         lr: float,
+        weight_decay: float,
         patch_size: int = 16,
         mask_ratio: float = 0.6,
         masking_strategy: str = "block",   # "random" | "block"
@@ -30,6 +31,7 @@ class SSLPretrainModule(L.LightningModule):
         self.model = model
         self.spec = spec
         self.lr = lr
+        self.weight_decay = weight_decay
         self.patch_size = patch_size
         self.mask_ratio = mask_ratio
         self.masking_strategy = masking_strategy
@@ -46,6 +48,7 @@ class SSLPretrainModule(L.LightningModule):
                 "task": spec.task,
                 "dataset": spec.dataset,
                 "lr": lr,
+                "weight_decay": weight_decay,
                 "masking_strategy": masking_strategy,
             }
         )
@@ -151,7 +154,7 @@ class SSLPretrainModule(L.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(
-            self.parameters(), lr=self.lr, weight_decay=0.05
+            self.parameters(), lr=self.lr, weight_decay=self.weight_decay
         )
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=self.trainer.max_epochs

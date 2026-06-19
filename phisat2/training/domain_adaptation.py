@@ -16,6 +16,7 @@ class DomainAdaptationModule(L.LightningModule):
         spec: TaskSpec,
         *,
         lr: float,
+        weight_decay: float,
         loss_weights: dict[str, float] | None = None,
     ) -> None:
         super().__init__()
@@ -23,6 +24,7 @@ class DomainAdaptationModule(L.LightningModule):
         self.teacher = teacher_model
         self.spec = spec
         self.lr = lr
+        self.weight_decay = weight_decay
 
         self.loss_weights = loss_weights or {
             "enc_0": 1.0,
@@ -106,7 +108,7 @@ class DomainAdaptationModule(L.LightningModule):
         optimizer = torch.optim.AdamW(
             self.student.parameters(), 
             lr=self.lr, 
-            weight_decay=1e-4
+            weight_decay=self.weight_decay
         )
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, 

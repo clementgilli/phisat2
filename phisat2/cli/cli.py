@@ -84,6 +84,7 @@ def build_parser() -> argparse.ArgumentParser:
                      help="One or more random seeds. One training run per seed.")
     fit.add_argument("--max-epochs", type=int,   default=50)
     fit.add_argument("--lr",         type=float, default=1e-4)
+    fit.add_argument("--weight-decay", type=float, default=1e-4)
     fit.add_argument("--patience",   type=int,   default=None,
                      help="Early stopping patience in epochs. Disabled if not provided.")
     fit.add_argument("--fast-dev-run", action="store_true",
@@ -154,7 +155,7 @@ def _auto_detect_dataloader(args: argparse.Namespace) -> None:
             )
 
 
-def _build_module(bundle: ModelBundle, spec, lr: float) -> L.LightningModule:
+def _build_module(bundle: ModelBundle, spec, lr: float, weight_decay: float) -> L.LightningModule:
     """
     Instantiate the correct Lightning module from a ModelBundle.
 
@@ -165,7 +166,7 @@ def _build_module(bundle: ModelBundle, spec, lr: float) -> L.LightningModule:
     task = bundle.task
 
     if task == "pretrain_reconstruction":
-        module = SSLPretrainModule(bundle.model, spec, lr=lr)
+        module = SSLPretrainModule(bundle.model, spec, lr=lr, weight_decay=weight_decay)
 
     elif task == "domain_adaptation":
         module = DomainAdaptationModule(
@@ -173,6 +174,7 @@ def _build_module(bundle: ModelBundle, spec, lr: float) -> L.LightningModule:
             teacher_model=bundle.teacher,
             spec=spec,
             lr=lr,
+            weight_decay=weight_decay,
         )
 
     elif task == "distillation_kd":
@@ -192,7 +194,7 @@ def _build_module(bundle: ModelBundle, spec, lr: float) -> L.LightningModule:
 
     else:
         # All downstream tasks: segmentation, classification, regression
-        module = DownstreamModule(bundle.model, spec, lr=lr)
+        module = DownstreamModule(bundle.model, spec, lr=lr, weight_decay=weight_decay)
 
     # Compile only the trainable student — skip frozen teacher and eval-only modules
     if (
@@ -252,7 +254,7 @@ def run_fit(args: argparse.Namespace) -> None:
         )
 
         # ── Lightning module ──────────────────────────────────────────────
-        module = _build_module(bundle, spec, lr=args.lr)
+        module = _build_module(bundle, spec, lr=args.lr, weight_decay=args.weight_decay)
 
         # ── Callbacks ─────────────────────────────────────────────────────
         callbacks = []
@@ -347,7 +349,7 @@ def run_test(args: argparse.Namespace) -> None:
     )
 
     # lr=0.0 — not used at test time but required by module constructors
-    module = _build_module(bundle, spec, lr=0.0)
+    module = _build_module(bundle, spec, lr=0.0, weight_decay=0.0)
 
     # ── Trainer ───────────────────────────────────────────────────────────
     run_name = f"test_{spec.task}_{spec.dataset}_{args.model}"

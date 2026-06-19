@@ -15,12 +15,13 @@ from phisat2.utils.visualization import mask_to_rgb
 from phisat2.utils.weights import _strip_compile_prefix
 
 class DownstreamModule(L.LightningModule):
-    def __init__(self, model: nn.Module, spec: TaskSpec, *, lr: float) -> None:
+    def __init__(self, model: nn.Module, spec: TaskSpec, *, lr: float, weight_decay: float) -> None:
         super().__init__()
         self.model = model
         self.spec = spec
         self.lr = lr
-        self.save_hyperparameters({"task": spec.task, "dataset": spec.dataset, "lr": lr})
+        self.weight_decay = weight_decay
+        self.save_hyperparameters({"task": spec.task, "dataset": spec.dataset, "lr": lr, "weight_decay": weight_decay})
         self.val_metrics = build_metrics(spec, prefix="val")
         self.test_metrics = build_metrics(spec, prefix="test")
         self._freeze_encoder()
@@ -69,7 +70,7 @@ class DownstreamModule(L.LightningModule):
     def configure_optimizers(self):
         trainable_params = [param for param in self.parameters() if param.requires_grad]
         
-        optimizer = torch.optim.AdamW(trainable_params, lr=self.lr, weight_decay=1e-4)
+        optimizer = torch.optim.AdamW(trainable_params, lr=self.lr, weight_decay=self.weight_decay)
         
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, 

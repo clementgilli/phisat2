@@ -20,6 +20,7 @@ EPOCHS     ?= 50
 BATCH_SIZE ?= 16
 CROP_SIZE  ?= 224
 LR         ?= 0.0001
+WEIGHT_DECAY ?= 0.0001
 PATIENCE   ?=
 
 # ── Infrastructure ────────────────────────────────────────────────────────────
@@ -188,6 +189,7 @@ smoke: ## Synthetic one-batch smoke test — CPU only, no dataset required.
 		--batch-size 2 \
 		--crop-size 224 \
 		--lr 0.0001 \
+		--weight-decay 0.0001 \
 		--num-workers 0 \
 		--accelerator cpu \
 		--devices 1 \
@@ -208,6 +210,7 @@ fast-dev-run: ## One-batch fast-dev-run using the configured real dataloader.
 		--batch-size $(BATCH_SIZE) \
 		--crop-size $(CROP_SIZE) \
 		--lr $(LR) \
+		--weight-decay $(WEIGHT_DECAY) \
 		--num-workers $(NUM_WORKERS) \
 		--accelerator $(ACCELERATOR) \
 		--devices $(DEVICES) \
@@ -236,6 +239,7 @@ train: ## Generic fit. Override with TASK= MODEL= DATASET= DATALOADER= SEEDS= et
 		--batch-size $(BATCH_SIZE) \
 		--crop-size $(CROP_SIZE) \
 		--lr $(LR) \
+		--weight-decay $(WEIGHT_DECAY) \
 		--num-workers $(NUM_WORKERS) \
 		--accelerator $(ACCELERATOR) \
 		--devices $(DEVICES) \

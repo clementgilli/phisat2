@@ -81,29 +81,94 @@ class PretrainEvalModule(L.LightningModule):
                 self.test_features[layer].append(f_1d[valid_mask].cpu())
                 self.test_classes[layer].append(dominant_classes[valid_mask].cpu())
 
+    def _evaluate_few_shot_1nn(self, X: np.ndarray, Y: np.ndarray, n_shots: int = 1, runs: int = 10) -> float:
+        from sklearn.neighbors import KNeighborsClassifier
+        from sklearn.metrics import accuracy_score
+        
+        accs = []
+        unique_classes = np.unique(Y)
+        
+        for _ in range(runs):
+            support_X, support_Y = [], []
+            query_X, query_Y = [], []
+            
+            for c in unique_classes:
+                idx = np.where(Y == c)[0]
+                if len(idx) <= n_shots:
+                    continue 
+                
+                np.random.shuffle(idx)
+                support_idx = idx[:n_shots]
+                query_idx = idx[n_shots:]
+                
+                support_X.append(X[support_idx])
+                support_Y.append(Y[support_idx])
+                query_X.append(X[query_idx])
+                query_Y.append(Y[query_idx])
+                
+            if not support_X:
+                continue
+                
+            X_sup = np.concatenate(support_X)
+            Y_sup = np.concatenate(support_Y)
+            X_que = np.concatenate(query_X)
+            Y_que = np.concatenate(query_Y)
+            
+            knn = KNeighborsClassifier(n_neighbors=1, metric='cosine')
+            knn.fit(X_sup, Y_sup)
+            preds = knn.predict(X_que)
+            
+            accs.append(accuracy_score(Y_que, preds))
+            
+        return float(np.mean(accs)) if accs else 0.0
+
     def on_test_epoch_end(self) -> None:
         out_dir = Path(self.trainer.default_root_dir)
         
+        MICRO_TO_MACRO_MAP = {
+            0: 0, 1: 0, 2: 0, 3: 0, 10: 0,
+            4: 1,
+            5: 2, 6: 2,
+            7: 3, 8: 3, 9: 3
+        }
+        
         for layer in self.feature_layers:
-            print(f"\n[INFO] Agrégation pour la couche : {layer}")
-            
             if not self.test_features[layer]:
-                print(f"[WARN] Aucune donnée valide pour {layer}, saut de l'étape.")
                 continue
 
             X = torch.cat(self.test_features[layer], dim=0).numpy()
-            Y = torch.cat(self.test_classes[layer], dim=0).numpy()
+            Y_micro = torch.cat(self.test_classes[layer], dim=0).numpy()
             
-            if len(X) > self.max_samples:
-                indices = np.random.choice(len(X), self.max_samples, replace=False)
-                X, Y = X[indices], Y[indices]
+            Y_macro = np.array([MICRO_TO_MACRO_MAP.get(y, -1) for y in Y_micro])
+            
+            valid_mask = Y_macro != -1
+            X_valid = X[valid_mask]
+            Y_micro_valid = Y_micro[valid_mask]
+            Y_macro_valid = Y_macro[valid_mask]
+            
+            acc_micro_1shot = self._evaluate_few_shot_1nn(X_valid, Y_micro_valid, n_shots=1, runs=200)
+            acc_micro_5shot = self._evaluate_few_shot_1nn(X_valid, Y_micro_valid, n_shots=5, runs=200)
+            acc_macro_1shot = self._evaluate_few_shot_1nn(X_valid, Y_macro_valid, n_shots=1, runs=200)
+            acc_macro_5shot = self._evaluate_few_shot_1nn(X_valid, Y_macro_valid, n_shots=5, runs=200)
+            
+            self.log(f"few_shot_micro/1_shot_{layer}", acc_micro_1shot, on_step=False, on_epoch=True)
+            self.log(f"few_shot_micro/5_shot_{layer}", acc_micro_5shot, on_step=False, on_epoch=True)
+            self.log(f"few_shot_macro/1_shot_{layer}", acc_macro_1shot, on_step=False, on_epoch=True)
+            self.log(f"few_shot_macro/5_shot_{layer}", acc_macro_5shot, on_step=False, on_epoch=True)
+            
+            if len(X_valid) > self.max_samples:
+                indices = np.random.choice(len(X_valid), self.max_samples, replace=False)
+                X_tsne = X_valid[indices]
+                Y_tsne = Y_micro_valid[indices] 
+            else:
+                X_tsne = X_valid
+                Y_tsne = Y_micro_valid
 
-            print(f"[INFO] Calcul t-SNE ({layer}) avec {len(X)} points...")
             tsne = TSNE(n_components=2, perplexity=30, random_state=42, n_jobs=-1)
-            emb = tsne.fit_transform(X)
+            emb = tsne.fit_transform(X_tsne)
 
-            self._plot_micro(emb, Y, out_dir / f"tsne_{layer}_micro.png")
-            self._plot_macro(emb, Y, out_dir / f"tsne_{layer}_macro.png")
+            self._plot_micro(emb, Y_tsne, out_dir / f"tsne_{layer}_micro.png")
+            self._plot_macro(emb, Y_tsne, out_dir / f"tsne_{layer}_macro.png")
             
             self.test_features[layer].clear()
             self.test_classes[layer].clear()
