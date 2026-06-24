@@ -257,20 +257,37 @@ def run_fit(args: argparse.Namespace) -> None:
         module = _build_module(bundle, spec, lr=args.lr, weight_decay=args.weight_decay)
 
         # ── Callbacks ─────────────────────────────────────────────────────
+        if spec.task == "segmentation":
+            monitor_metric = "val_iou"
+            monitor_mode = "max"
+        elif spec.task == "classification":
+            monitor_metric = "val_f1"
+            monitor_mode = "max"
+        elif spec.task == "pixel_regression":
+            monitor_metric = "val_rmse"
+            monitor_mode = "min"
+        else:
+            monitor_metric = "val_loss"
+            monitor_mode = "min"
+        
         callbacks = []
         if not args.fast_dev_run:
             callbacks.append(
                 ModelCheckpoint(
                     dirpath=seed_dir / "checkpoints",
                     filename="best",
-                    monitor="val_loss",
-                    mode="min",
+                    monitor=monitor_metric,
+                    mode=monitor_mode,
                     save_last=True,
                 )
             )
             if args.patience is not None:
                 callbacks.append(
-                    EarlyStopping(monitor="val_loss", patience=args.patience, mode="min")
+                    EarlyStopping(
+                        monitor=monitor_metric, 
+                        patience=args.patience, 
+                        mode=monitor_mode
+                    )
                 )
 
         # ── Trainer ───────────────────────────────────────────────────────
@@ -316,7 +333,16 @@ def run_test(args: argparse.Namespace) -> None:
     seed_everything(args.seed)
     L.seed_everything(args.seed, workers=True)
 
-    subset_name = Path(args.subset_csv).stem if args.subset_csv else "full_dataset"
+    subset_name = "full_dataset"
+    if args.subset_csv:
+        subset_name = Path(args.subset_csv).stem
+    elif args.weights and args.task not in {"eval_domain_gap", "eval_encoder"}:
+        ckpt_path = Path(args.weights)
+        for parent in ckpt_path.parents:
+            if parent.name.startswith("seed_"):
+                subset_name = parent.parent.name
+                break
+
     eval_dir = (
         Path(args.output_dir)
         / spec.task / spec.dataset / args.model / subset_name / f"eval_seed_{args.seed}"

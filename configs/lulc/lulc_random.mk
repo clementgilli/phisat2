@@ -36,7 +36,7 @@ CPUS       = 16
 MEM        = 128G
 
 BATCH_SIZE = 128
-LR         = 0.0003
+LR         = 0.001
 EPOCHS     = 100
 
 WEIGHTS    = $(_PRETRAIN)

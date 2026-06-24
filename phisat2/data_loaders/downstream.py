@@ -105,12 +105,16 @@ class DownstreamDataset(Dataset):
         self.mean, self.std = get_norm_tensors("phisat2_sim", PHISAT2_REAL_BANDS)
 
         self.samples: list[tuple] = []
-        read_size = self.load_size * self.downsample   # e.g. 256*8=2048 for clouds
+        read_size = self.load_size * self.downsample
 
         for patch_path in self.patches:
             patch_path = Path(patch_path)
-            img_arr    = self._open_array(patch_path / "img")
-            H, W       = img_arr.shape[-2:]
+            
+            if patch_path.name.startswith(".") or not (patch_path / "img").exists():
+                continue
+                
+            img_arr = self._open_array(patch_path / "img")
+            H, W    = img_arr.shape[-2:]
 
             if H <= read_size and W <= read_size:
                 self.samples.append((patch_path, 0, 0))

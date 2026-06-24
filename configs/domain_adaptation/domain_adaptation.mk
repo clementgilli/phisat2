@@ -18,9 +18,9 @@ NUM_WORKERS = 14
 # ── Paths ────────────────────────────
 _BASE        = /lustre/home/u10010021/phisat2/runs
 _PRETRAIN    = $(_BASE)/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
-_LULC        = $(_BASE)/segmentation/lulc/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+_LULC        = $(_BASE)/segmentation/lulc/phisatnet/full_dataset/seed_42/checkpoints/best-v1.ckpt
 _FLOODS      = $(_BASE)/segmentation/floods/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
-_CLOUDS      = $(_BASE)/segmentation/clouds/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+_CLOUDS      = $(_BASE)/segmentation/clouds/phisatnet/full_dataset/seed_42/checkpoints/best-v1.ckpt
 _BURNED      = $(_BASE)/segmentation/burned/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
 _ROADS       = $(_BASE)/pixel_regression/roads/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
 _BLDG        = $(_BASE)/pixel_regression/building/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
