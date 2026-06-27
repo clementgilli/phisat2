@@ -36,7 +36,7 @@ class ModelBundle:
     task                    | model | teacher | student | decoders
     ─────────────────────────┼───────┼─────────┼─────────┼─────────
     pretrain_reconstruction  |  ✓    |         |         |
-    distillation_kd          |       |    ✓    |    ✓    |
+    knowledge_distillation          |       |    ✓    |    ✓    |
     domain_adaptation        |       |    ✓    |    ✓    |
     eval_domain_gap          |       |    ✓    |    ✓    |    ✓
     downstream               |  ✓    |         |         |
@@ -63,6 +63,39 @@ _TERRAMIND_BANDS: tuple[str, ...] = (
     "NIR_NARROW", "WATER_VAPOR", "CIRRUS", "SWIR_1", "SWIR_2",
 )
 
+_SATLAS_BANDS: tuple[str, ...] = (
+    "RED", "GREEN", "BLUE",
+    "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3",
+    "NIR_BROAD", "SWIR_1", "SWIR_2"
+)
+
+_SSL4EO_BANDS: tuple[str, ...] = (
+    "COASTAL_AEROSOL", "BLUE", "GREEN", "RED",
+    "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3", "NIR_BROAD",
+    "NIR_NARROW", "WATER_VAPOR", "CIRRUS", "SWIR_1", "SWIR_2",
+)
+
+_DOFA_BANDS: tuple[str, ...] = (
+    "COASTAL_AEROSOL", "BLUE", "GREEN", "RED",
+    "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3", "NIR_BROAD",
+    "NIR_NARROW", "WATER_VAPOR", "CIRRUS", "SWIR_1", "SWIR_2",
+)
+
+_CLAY_BANDS: tuple[str, ...] = (
+    "COASTAL_AEROSOL", "BLUE", "GREEN", "RED",
+    "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3", "NIR_BROAD",
+    "NIR_NARROW", "WATER_VAPOR", "CIRRUS", "SWIR_1", "SWIR_2",
+)
+
+_PRITHVI_BANDS: tuple[str, ...] = (
+    "BLUE", "GREEN", "RED",
+    "NIR_NARROW", "SWIR_1", "SWIR_2",
+)
+
+_SECO_BANDS: tuple[str, ...] = (
+    "BLUE", "GREEN", "RED",
+)
+    
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Registry
@@ -100,6 +133,120 @@ REGISTRY: dict[str, ModelEntry] = {
         role="teacher",
         description="TerraMind ViT-Large via TerraTorch.",
         pretrain_bands=_TERRAMIND_BANDS,
+    ),
+    "satlas_resnet50_sentinel2_si_ms_satlas": ModelEntry(
+        name="satlas_resnet50_sentinel2_si_ms_satlas",
+        role="teacher",
+        description="Satlas ResNet-50 via TerraTorch.",
+        pretrain_bands=_SATLAS_BANDS,
+    ),
+    "satlas_swin_t_sentinel2_si_ms": ModelEntry(
+        name="satlas_swin_t_sentinel2_si_ms",
+        role="teacher",
+        description="Satlas Swin-Tiny via TerraTorch.",
+        pretrain_bands=_SATLAS_BANDS,
+    ),
+    "satlas_swin_b_sentinel2_si_ms": ModelEntry(
+        name="satlas_swin_b_sentinel2_si_ms",
+        role="teacher",
+        description="Satlas Swin-Base via TerraTorch.",
+        pretrain_bands=_SATLAS_BANDS,
+    ),
+    "ssl4eos12_resnet50_sentinel2_all_dino": ModelEntry(
+        name="ssl4eos12_resnet50_sentinel2_all_dino",
+        role="teacher",
+        description="SSL4EO-S12 ResNet-50 trained with DINO via TerraTorch.",
+        pretrain_bands=_SSL4EO_BANDS,
+    ),
+    "ssl4eos12_vit_small_patch16_224_sentinel2_all_dino": ModelEntry(
+        name="ssl4eos12_vit_small_patch16_224_sentinel2_all_dino",
+        role="teacher",
+        description="SSL4EO-S12 ViT-Small trained with DINO via TerraTorch.",
+        pretrain_bands=_SSL4EO_BANDS,
+    ),
+    "ssl4eos12_resnet18_sentinel2_all_moco": ModelEntry(
+        name="ssl4eos12_resnet18_sentinel2_all_moco",
+        role="teacher",
+        description="SSL4EO-S12 ResNet-18 trained with MoCo via TerraTorch.",
+        pretrain_bands=_SSL4EO_BANDS,
+    ),
+    "ssl4eos12_resnet50_sentinel2_all_moco": ModelEntry(
+        name="ssl4eos12_resnet50_sentinel2_all_moco",
+        role="teacher",
+        description="SSL4EO-S12 ResNet-50 trained with MoCo via TerraTorch.",
+        pretrain_bands=_SSL4EO_BANDS,
+    ),
+    "ssl4eos12_vit_small_patch16_224_sentinel2_all_moco": ModelEntry(
+        name="ssl4eos12_vit_small_patch16_224_sentinel2_all_moco",
+        role="teacher",
+        description="SSL4EO-S12 ViT-Small trained with MoCo via TerraTorch.",
+        pretrain_bands=_SSL4EO_BANDS,
+    ),
+    "ssl4eos12_resnet50_sentinel2_all_decur": ModelEntry(
+        name="ssl4eos12_resnet50_sentinel2_all_decur",
+        role="teacher",
+        description="SSL4EO-S12 ResNet-50 trained with DeCur via TerraTorch.",
+        pretrain_bands=_SSL4EO_BANDS,
+    ),
+    "ssl4eos12_resnet50_sentinel2_all_softcon": ModelEntry(
+        name="ssl4eos12_resnet50_sentinel2_all_softcon",
+        role="teacher",
+        description="SSL4EO-S12 ResNet-50 trained with SoftContrast via TerraTorch.",
+        pretrain_bands=_SSL4EO_BANDS,
+    ),
+    "dofa_small_patch16_224": ModelEntry(
+        name="dofa_small_patch16_224",
+        role="teacher",
+        description="DOFA small ViT backbone via TerraTorch.",
+        pretrain_bands=_DOFA_BANDS,
+    ),
+    "dofa_base_patch16_224": ModelEntry(
+        name="dofa_base_patch16_224",
+        role="teacher",
+        description="DOFA base ViT backbone via TerraTorch.",
+        pretrain_bands=_DOFA_BANDS,
+    ),
+    "dofa_large_patch16_224": ModelEntry(
+        name="dofa_large_patch16_224",
+        role="teacher",
+        description="DOFA large ViT backbone via TerraTorch.",
+        pretrain_bands=_DOFA_BANDS,
+    ),
+    "clay_v1_base": ModelEntry(
+        name="clay_v1_base",
+        role="teacher",
+        description="CLAY v1 base backbone via TerraTorch.",
+        pretrain_bands=_CLAY_BANDS,
+    ),
+    "prithvi_eo_v1_100": ModelEntry(
+        name="prithvi_eo_v1_100",
+        role="teacher",
+        description="Prithvi EO v1 100 backbone via TerraTorch.",
+        pretrain_bands=_PRITHVI_BANDS,
+    ),
+    "prithvi_eo_v2_300": ModelEntry(
+        name="prithvi_eo_v2_300",
+        role="teacher",
+        description="Prithvi EO v2 300 backbone via TerraTorch.",
+        pretrain_bands=_PRITHVI_BANDS,
+    ),
+    "prithvi_eo_v2_600": ModelEntry(
+        name="prithvi_eo_v2_600",
+        role="teacher",
+        description="Prithvi EO v2 600 backbone via TerraTorch.",
+        pretrain_bands=_PRITHVI_BANDS,
+    ),
+    "seco_resnet18_sentinel2_rgb_seco": ModelEntry(
+        name="seco_resnet18_sentinel2_rgb_seco",
+        role="teacher",
+        description="SeCo ResNet-18 via TerraTorch.",
+        pretrain_bands=_SECO_BANDS,
+    ),
+    "seco_resnet50_sentinel2_rgb_seco": ModelEntry(
+        name="seco_resnet50_sentinel2_rgb_seco",
+        role="teacher",
+        description="SeCo ResNet-50 via TerraTorch.",
+        pretrain_bands=_SECO_BANDS,
     ),
 }
 
@@ -145,6 +292,7 @@ def build_model(
     *,
     pretrained: bool,
     input_bands: list[str],
+    teacher_bands: list[str] | None = None,
     weights_path:  str | None       = None,
     teacher_ckpt:  str | None       = None,
     student_ckpt:  str | None       = None,
@@ -184,19 +332,22 @@ def build_model(
         return ModelBundle(task=spec.task, model=ComposedModel(encoder, head))
 
     # ── Phase 2 — Knowledge Distillation ─────────────────────────────────
-    elif spec.task == "distillation_kd":
+    elif spec.task == "knowledge_distillation":
         if entry.role != "teacher":
             raise ValueError(
                 f"KD requires a 'teacher' model as --model, "
                 f"got '{name}' (role={entry.role})."
             )
-        if not weights_path:
+        
+        if not teacher_bands:
             raise ValueError(
-                "KD requires --weights pointing to the Phase 1 SSL encoder checkpoint."
+                "Knowledge Distillation requires --teacher-bands to be specified "
+                "in the datamodule (e.g. s2_bands for Sentinel-2)."
             )
-        teacher = _build_encoder(name,        pretrained=True,  input_bands=input_bands)
+        
+        teacher = _build_encoder(name,        pretrained=True,  input_bands=teacher_bands)
         student = _build_encoder("phisatnet", pretrained=False, input_bands=input_bands)
-        load_encoder_weights(student, weights_path)
+        
         return ModelBundle(task=spec.task, teacher=teacher, student=student)
 
     # ── Phase 4 — Domain Adaptation ───────────────────────────────────────
@@ -248,91 +399,3 @@ def build_model(
 
         head = _build_decoder(spec, tuple(encoder.out_channels))
         return ModelBundle(task=spec.task, model=ComposedModel(encoder, head))
-
-
-
-""" TODO
-     # --- PHISAT-2 / MYRIAD BASES ---
-    "phisat2_geoaware": ModelEntry(
-        "phisat2_geoaware", "Local compact PhiSat-2 CNN encoder baseline.", True, 
-        pretrain_mean=_PHISAT2_MEAN, pretrain_std=_PHISAT2_STD
-    ),
-    "myriad2_full_unet": ModelEntry(
-        "myriad2_full_unet", "Full-structure Myriad2 U-Net exception.", False,
-        pretrain_mean=_PHISAT2_MEAN, pretrain_std=_PHISAT2_STD
-    ),
-    
-    # --- PRITHVI ---
-    "prithvi_eo_v1_100": ModelEntry(
-        "prithvi_eo_v1_100", "TerraTorch Prithvi EO 100M backbone.", True, 
-        pretrain_mean=_PRITHVI_MEAN, pretrain_std=_PRITHVI_STD
-    ),
-    "prithvi_eo_tiny": ModelEntry(
-        "prithvi_eo_tiny", "TerraTorch Prithvi EO tiny backbone.", True, 
-        pretrain_mean=_PRITHVI_MEAN, pretrain_std=_PRITHVI_STD
-    ),
-    "prithvi_eo_v2_tiny_tl": ModelEntry(
-        "prithvi_eo_v2_tiny_tl", "TerraTorch Prithvi EO v2 tiny TL backbone.", True, 
-        pretrain_mean=_PRITHVI_MEAN, pretrain_std=_PRITHVI_STD
-    ),
-    "prithvi_eo_v2_100_tl": ModelEntry(
-        "prithvi_eo_v2_100_tl", "TerraTorch Prithvi EO v2 100M TL backbone.", True, 
-        pretrain_mean=_PRITHVI_MEAN, pretrain_std=_PRITHVI_STD
-    ),
-    "prithvi_swin_B": ModelEntry(
-        "prithvi_swin_B", "TerraTorch Prithvi Swin-B backbone.", True, 
-        pretrain_mean=_PRITHVI_MEAN, pretrain_std=_PRITHVI_STD
-    ),
-    "prithvi_swin_L": ModelEntry(
-        "prithvi_swin_L", "TerraTorch Prithvi Swin-L backbone.", True, 
-        pretrain_mean=_PRITHVI_MEAN, pretrain_std=_PRITHVI_STD
-    ),
-    
-    # --- DOFA ---
-    "dofa_small_patch16_224": ModelEntry(
-        "dofa_small_patch16_224", "TerraTorch DOFA small ViT backbone.", True,
-        pretrain_mean=_DOFA_MEAN, pretrain_std=_DOFA_STD
-    ),
-    "dofa_base_patch16_224": ModelEntry(
-        "dofa_base_patch16_224", "TerraTorch DOFA base ViT backbone.", True,
-        pretrain_mean=_DOFA_MEAN, pretrain_std=_DOFA_STD
-    ),
-    "dofa_large_patch16_224": ModelEntry(
-        "dofa_large_patch16_224", "TerraTorch DOFA large ViT backbone.", True,
-        pretrain_mean=_DOFA_MEAN, pretrain_std=_DOFA_STD
-    ),
-    
-    # --- SECO ---
-    "seco_resnet18_sentinel2_rgb_seco": ModelEntry(
-        "seco_resnet18_sentinel2_rgb_seco", "TerraTorch SeCo Sentinel-2 ResNet-18 backbone.", True,
-        pretrain_mean=_SECO_RGB_MEAN, pretrain_std=_SECO_RGB_STD
-    ),
-    "seco_resnet50_sentinel2_rgb_seco": ModelEntry(
-        "seco_resnet50_sentinel2_rgb_seco", "TerraTorch SeCo Sentinel-2 ResNet-50 backbone.", True,
-        pretrain_mean=_SECO_RGB_MEAN, pretrain_std=_SECO_RGB_STD
-    ),
-    
-    # --- SSL4EO ---
-    "ssl4eos12_resnet18_sentinel2_all_moco": ModelEntry(
-        "ssl4eos12_resnet18_sentinel2_all_moco", "TerraTorch SSL4EO-S12 Sentinel-2 ResNet-18 backbone.", True,
-        pretrain_mean=_SSL4EO_MEAN, pretrain_std=_SSL4EO_STD
-    ),
-    "ssl4eos12_resnet50_sentinel2_all_moco": ModelEntry(
-        "ssl4eos12_resnet50_sentinel2_all_moco", "TerraTorch SSL4EO-S12 Sentinel-2 ResNet-50 backbone.", True,
-        pretrain_mean=_SSL4EO_MEAN, pretrain_std=_SSL4EO_STD
-    ),
-    "ssl4eos12_vit_small_patch16_224_sentinel2_all_moco": ModelEntry(
-        "ssl4eos12_vit_small_patch16_224_sentinel2_all_moco", "TerraTorch SSL4EO-S12 Sentinel-2 ViT-small backbone.", True,
-        pretrain_mean=_SSL4EO_MEAN, pretrain_std=_SSL4EO_STD
-    ),
-    
-    # --- SATLAS ---
-    "satlas_resnet50_sentinel2_si_ms_satlas": ModelEntry(
-        "satlas_resnet50_sentinel2_si_ms_satlas", "TerraTorch Satlas Sentinel-2 ResNet-50 backbone.", True,
-        pretrain_mean=_SATLAS_MEAN, pretrain_std=_SATLAS_STD
-    ),
-    "satlas_swin_t_sentinel2_si_ms": ModelEntry(
-        "satlas_swin_t_sentinel2_si_ms", "TerraTorch Satlas Sentinel-2 Swin-T backbone.", True,
-        pretrain_mean=_SATLAS_MEAN, pretrain_std=_SATLAS_STD
-    )
-    """

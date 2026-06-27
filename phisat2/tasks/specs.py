@@ -10,7 +10,7 @@ TASK_GLOBAL_REGRESSION = "global_regression"
 TASK_PRETRAIN_RECONSTRUCTION = "pretrain_reconstruction"
 TASK_EVAL_ENCODER = "eval_encoder"
 
-TASK_DISTILLATION_KD = "distillation_kd"
+TASK_KNOWLEDGE_DISTILLATION = "knowledge_distillation"
 
 TASK_DOMAIN_ADAPTATION = "domain_adaptation"
 TASK_EVAL_DOMAIN_GAP = "eval_domain_gap" 
@@ -21,7 +21,7 @@ TASKS = {
     TASK_CLASSIFICATION,
     TASK_GLOBAL_REGRESSION,
     TASK_PRETRAIN_RECONSTRUCTION,
-    TASK_DISTILLATION_KD,
+    TASK_KNOWLEDGE_DISTILLATION,
     TASK_DOMAIN_ADAPTATION,
     TASK_EVAL_DOMAIN_GAP,
     TASK_EVAL_ENCODER,
@@ -56,7 +56,7 @@ PRETRAIN_RECONSTRUCTION_OUTPUTS = {
     "triplets": 8,
 }
 
-DISTILLATION_KD_OUTPUTS = {
+KNOWLEDGE_DISTILLATION_OUTPUTS = {
     "triplets": 0,
 }
 
@@ -99,8 +99,8 @@ def resolve_task_spec(task: str, dataset: str) -> TaskSpec:
     if task == TASK_PRETRAIN_RECONSTRUCTION:
         return TaskSpec(task, dataset, _lookup(dataset, PRETRAIN_RECONSTRUCTION_OUTPUTS), "simulated", "mse")
         
-    if task == TASK_DISTILLATION_KD:
-        return TaskSpec(task, dataset, _lookup(dataset, DISTILLATION_KD_OUTPUTS), "none", "kd_loss")
+    if task == TASK_KNOWLEDGE_DISTILLATION:
+        return TaskSpec(task, dataset, _lookup(dataset, KNOWLEDGE_DISTILLATION_OUTPUTS), "none", "kd_loss")
     
     if task == TASK_DOMAIN_ADAPTATION:
         return TaskSpec(task, dataset, _lookup(dataset, DOMAIN_ADAPTATION_OUTPUTS), "none", "mse_multiscale")

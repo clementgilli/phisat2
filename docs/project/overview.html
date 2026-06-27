@@ -40,7 +40,7 @@
     downstream.py        # Supervised downstream training
     pretrain_ssl.py      # Self-supervised reconstruction
     domain_adaptation.py # Sim-to-real feature alignment
-    distillation_kd.py   # KD module code, not wired by CLI
+    knowledge_distillation.py   # KD module code, not wired by CLI
   evaluation/
     domain_eval.py       # Domain-gap evaluation
     encoder_eval.py      # Encoder t-SNE evaluation
@@ -99,7 +99,7 @@
         <li>Build datamodule, model bundle, and Lightning module.</li>
         <li>Run Lightning Trainer with callbacks, logger, and hardware config.</li>
       </ol>
-      <p class="muted"><code>distillation_kd</code> is registered, but <code>_build_module</code> raises <code>NotImplementedError</code> for it.</p>
+      <p class="muted"><code>knowledge_distillation</code> is registered, but <code>_build_module</code> raises <code>NotImplementedError</code> for it.</p>
     </section>
 
     <section>

@@ -25,7 +25,7 @@
         <li><strong>Unknown dataloader:</strong> run <code>make list-dataloaders</code>. Valid names are <code>downstream</code>, <code>triplets</code>, and <code>synthetic</code>.</li>
         <li><strong>TerraTorch import error:</strong> run <code>make install</code>; TerraMind backbones require TerraTorch.</li>
         <li><strong>Loader path error:</strong> ensure <code>ROOT_DIR</code> points to an expected Zarr dataset tree or triplets root.</li>
-        <li><strong>Knowledge distillation fails:</strong> <code>distillation_kd</code> is registered but the CLI module is not implemented yet.</li>
+        <li><strong>Knowledge distillation fails:</strong> <code>knowledge_distillation</code> is registered but the CLI module is not implemented yet.</li>
         <li><strong>CUDA/DDP mismatch:</strong> test one device first; then enable <code>AUTO_DDP=true</code> on multi-GPU.</li>
       </ol>
     </section>

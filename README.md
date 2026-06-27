@@ -6,7 +6,7 @@ Makefile workflow, and static docs in `docs/`.
 The active package supports downstream supervised training, self-supervised
 PhiSatNet pretraining, domain adaptation, evaluation, and registry utilities.
 Knowledge distillation metadata is present, but the CLI currently raises
-`NotImplementedError` for `distillation_kd`.
+`NotImplementedError` for `knowledge_distillation`.
 
 ## Quick Start
 
@@ -117,7 +117,7 @@ make eval \
 ## Common Make Variables
 
 ```bash
-TASK=segmentation|classification|pixel_regression|global_regression|pretrain_reconstruction|distillation_kd|domain_adaptation|eval_domain_gap|eval_encoder
+TASK=segmentation|classification|pixel_regression|global_regression|pretrain_reconstruction|knowledge_distillation|domain_adaptation|eval_domain_gap|eval_encoder
 DATASET=lulc|lc|burned|clouds|floods|roads|building|fire
 MODEL=phisatnet|terramind_v1_tiny|terramind_v1_small|terramind_v1_base|terramind_v1_large
 DATALOADER=downstream|triplets|synthetic

@@ -15,6 +15,7 @@ from phisat2.tasks import resolve_task_spec
 from phisat2.tasks.specs import TASKS
 
 from phisat2.training.pretrain_ssl import SSLPretrainModule
+from phisat2.training.knowledge_distillation import KDModule
 from phisat2.training.domain_adaptation import DomainAdaptationModule
 from phisat2.training.downstream import DownstreamModule
 from phisat2.evaluation.domain_eval import DomainEvalModule
@@ -30,7 +31,7 @@ from phisat2.utils.seed import seed_everything
 # Maps task name → dataloader name (no need for --dataset / --dataloader)
 _PAIRED_TASKS: dict[str, str] = {
     "pretrain_reconstruction": "triplets",  # (sim)
-    "distillation_kd":         "triplets",  # (sim, s2)
+    "knowledge_distillation":  "triplets",  # (sim, s2)
     "domain_adaptation":       "triplets",     # (real, sim)
     "eval_domain_gap":         "triplets",     # (real, sim)
 }
@@ -177,9 +178,13 @@ def _build_module(bundle: ModelBundle, spec, lr: float, weight_decay: float) -> 
             weight_decay=weight_decay,
         )
 
-    elif task == "distillation_kd":
-        raise NotImplementedError(
-            "CrossArchKDModule not wired yet — implement Phase 2 here."
+    elif task == "knowledge_distillation":
+        module = KDModule(
+            student_model=bundle.student,
+            teacher_model=bundle.teacher,
+            spec=spec,
+            lr=lr,
+            weight_decay=weight_decay,
         )
 
     elif task == "eval_domain_gap":
@@ -242,11 +247,13 @@ def run_fit(args: argparse.Namespace) -> None:
         )
 
         # ── Model ─────────────────────────────────────────────────────────
+        teacher_bands = getattr(datamodule, "s2_bands", None)
         bundle = build_model(
             args.model,
             spec,
             pretrained=args.pretrained,
             input_bands=datamodule.input_bands,
+            teacher_bands=teacher_bands,
             weights_path=args.weights,
             teacher_ckpt=args.teacher_ckpt,
             student_ckpt=args.student_ckpt,
@@ -363,11 +370,13 @@ def run_test(args: argparse.Namespace) -> None:
     )
 
     # ── Model ─────────────────────────────────────────────────────────────
+    teacher_bands = getattr(datamodule, "s2_bands", None)
     bundle = build_model(
         args.model,
         spec,
         pretrained=False,
         input_bands=datamodule.input_bands,
+        teacher_bands=teacher_bands,
         weights_path=args.weights,
         teacher_ckpt=args.teacher_ckpt,
         student_ckpt=args.student_ckpt,

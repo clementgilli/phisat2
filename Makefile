@@ -257,7 +257,7 @@ pretrain: ## Phase 1 — SSL pretraining on simulated PhiSat-2 data.
 	$(MAKE) train TASK=pretrain_reconstruction MODEL=phisatnet DATASET= DATALOADER=
 
 distillation: ## Phase 2 — Knowledge distillation (MODEL=terramind_v1_*  WEIGHTS=<ssl.ckpt>).
-	$(MAKE) train TASK=distillation_kd DATASET= DATALOADER=
+	$(MAKE) train TASK=knowledge_distillation DATASET= DATALOADER=
 
 domain-adaptation: ## Phase 4 — Sim-to-real domain adaptation (WEIGHTS=<pretrained_sim.pth>).
 	$(MAKE) train TASK=domain_adaptation DATASET= DATALOADER=
