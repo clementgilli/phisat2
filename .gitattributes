@@ -1,0 +1,10 @@
+* text=auto
+
+*.pth binary
+*.pt binary
+*.onnx binary
+*.csv binary
+*.h5 binary
+*.sqlite binary
+
+*.ipynb linguist-detectable=false
