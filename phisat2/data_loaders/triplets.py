@@ -111,13 +111,20 @@ class TripletsDataset(Dataset):
         )
         sim_tensor, real_tensor, s2_tensor, cloud_tensor, wc_tensor = transformed
         
+        s2_tensor = torch.nn.functional.interpolate(
+            s2_tensor.unsqueeze(0),
+            scale_factor=0.475, 
+            mode="bilinear", 
+            align_corners=False
+        ).squeeze(0)
+        
         if cloud_tensor.shape[0] == 1: cloud_tensor = cloud_tensor.squeeze(0)
         if wc_tensor.shape[0] == 1: wc_tensor = wc_tensor.squeeze(0)
         
         return {
-            "simulated": sim_tensor,
-            "real": real_tensor,
-            "sentinel2": s2_tensor,
+            "simulated": sim_tensor,       # (8, 224, 224) @ 4.75m
+            "real": real_tensor,           # (8, 224, 224) @ 4.75m
+            "sentinel2": s2_tensor,        # (13, 106, 106) @ 10m
             "mask_cloud": cloud_tensor,
             "mask_worldcover": wc_tensor,
             "tile_id": sample_paths["tile_id"]

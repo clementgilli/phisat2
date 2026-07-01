@@ -110,6 +110,58 @@ REGISTRY: dict[str, ModelEntry] = {
         pretrain_bands=_PHISATNET_BANDS,
     ),
     # ── Teachers ──────────────────────────────────────────────────────────
+    
+    ## ── CNN based teachers  ──
+    "satlas_resnet50_sentinel2_si_ms_satlas": ModelEntry(
+        name="satlas_resnet50_sentinel2_si_ms_satlas",
+        role="teacher",
+        description="Satlas ResNet-50 via TerraTorch.",
+        pretrain_bands=_SATLAS_BANDS,
+    ),
+    "ssl4eos12_resnet50_sentinel2_all_dino": ModelEntry(
+        name="ssl4eos12_resnet50_sentinel2_all_dino",
+        role="teacher",
+        description="SSL4EO-S12 ResNet-50 trained with DINO via TerraTorch.",
+        pretrain_bands=_SSL4EO_BANDS,
+    ),
+    "ssl4eos12_resnet50_sentinel2_all_decur": ModelEntry(
+        name="ssl4eos12_resnet50_sentinel2_all_decur",
+        role="teacher",
+        description="SSL4EO-S12 ResNet-50 trained with DeCur via TerraTorch.",
+        pretrain_bands=_SSL4EO_BANDS,
+    ),
+    "ssl4eos12_resnet50_sentinel2_all_softcon": ModelEntry(
+        name="ssl4eos12_resnet50_sentinel2_all_softcon",
+        role="teacher",
+        description="SSL4EO-S12 ResNet-50 trained with SoftContrast via TerraTorch.",
+        pretrain_bands=_SSL4EO_BANDS,
+    ),
+    "ssl4eos12_resnet18_sentinel2_all_moco": ModelEntry(
+        name="ssl4eos12_resnet18_sentinel2_all_moco",
+        role="teacher",
+        description="SSL4EO-S12 ResNet-18 trained with MoCo via TerraTorch.",
+        pretrain_bands=_SSL4EO_BANDS,
+    ),
+    "ssl4eos12_resnet50_sentinel2_all_moco": ModelEntry(
+        name="ssl4eos12_resnet50_sentinel2_all_moco",
+        role="teacher",
+        description="SSL4EO-S12 ResNet-50 trained with MoCo via TerraTorch.",
+        pretrain_bands=_SSL4EO_BANDS,
+    ),
+    "seco_resnet18_sentinel2_rgb_seco": ModelEntry(
+        name="seco_resnet18_sentinel2_rgb_seco",
+        role="teacher",
+        description="SeCo ResNet-18 via TerraTorch.",
+        pretrain_bands=_SECO_BANDS,
+    ),
+    "seco_resnet50_sentinel2_rgb_seco": ModelEntry(
+        name="seco_resnet50_sentinel2_rgb_seco",
+        role="teacher",
+        description="SeCo ResNet-50 via TerraTorch.",
+        pretrain_bands=_SECO_BANDS,
+    ),
+    
+    ## ── ViT based teachers ──
     "terramind_v1_tiny": ModelEntry(
         name="terramind_v1_tiny",
         role="teacher",
@@ -134,12 +186,6 @@ REGISTRY: dict[str, ModelEntry] = {
         description="TerraMind ViT-Large via TerraTorch.",
         pretrain_bands=_TERRAMIND_BANDS,
     ),
-    "satlas_resnet50_sentinel2_si_ms_satlas": ModelEntry(
-        name="satlas_resnet50_sentinel2_si_ms_satlas",
-        role="teacher",
-        description="Satlas ResNet-50 via TerraTorch.",
-        pretrain_bands=_SATLAS_BANDS,
-    ),
     "satlas_swin_t_sentinel2_si_ms": ModelEntry(
         name="satlas_swin_t_sentinel2_si_ms",
         role="teacher",
@@ -152,46 +198,16 @@ REGISTRY: dict[str, ModelEntry] = {
         description="Satlas Swin-Base via TerraTorch.",
         pretrain_bands=_SATLAS_BANDS,
     ),
-    "ssl4eos12_resnet50_sentinel2_all_dino": ModelEntry(
-        name="ssl4eos12_resnet50_sentinel2_all_dino",
-        role="teacher",
-        description="SSL4EO-S12 ResNet-50 trained with DINO via TerraTorch.",
-        pretrain_bands=_SSL4EO_BANDS,
-    ),
     "ssl4eos12_vit_small_patch16_224_sentinel2_all_dino": ModelEntry(
         name="ssl4eos12_vit_small_patch16_224_sentinel2_all_dino",
         role="teacher",
         description="SSL4EO-S12 ViT-Small trained with DINO via TerraTorch.",
         pretrain_bands=_SSL4EO_BANDS,
     ),
-    "ssl4eos12_resnet18_sentinel2_all_moco": ModelEntry(
-        name="ssl4eos12_resnet18_sentinel2_all_moco",
-        role="teacher",
-        description="SSL4EO-S12 ResNet-18 trained with MoCo via TerraTorch.",
-        pretrain_bands=_SSL4EO_BANDS,
-    ),
-    "ssl4eos12_resnet50_sentinel2_all_moco": ModelEntry(
-        name="ssl4eos12_resnet50_sentinel2_all_moco",
-        role="teacher",
-        description="SSL4EO-S12 ResNet-50 trained with MoCo via TerraTorch.",
-        pretrain_bands=_SSL4EO_BANDS,
-    ),
     "ssl4eos12_vit_small_patch16_224_sentinel2_all_moco": ModelEntry(
         name="ssl4eos12_vit_small_patch16_224_sentinel2_all_moco",
         role="teacher",
         description="SSL4EO-S12 ViT-Small trained with MoCo via TerraTorch.",
-        pretrain_bands=_SSL4EO_BANDS,
-    ),
-    "ssl4eos12_resnet50_sentinel2_all_decur": ModelEntry(
-        name="ssl4eos12_resnet50_sentinel2_all_decur",
-        role="teacher",
-        description="SSL4EO-S12 ResNet-50 trained with DeCur via TerraTorch.",
-        pretrain_bands=_SSL4EO_BANDS,
-    ),
-    "ssl4eos12_resnet50_sentinel2_all_softcon": ModelEntry(
-        name="ssl4eos12_resnet50_sentinel2_all_softcon",
-        role="teacher",
-        description="SSL4EO-S12 ResNet-50 trained with SoftContrast via TerraTorch.",
         pretrain_bands=_SSL4EO_BANDS,
     ),
     "dofa_small_patch16_224": ModelEntry(
@@ -235,18 +251,6 @@ REGISTRY: dict[str, ModelEntry] = {
         role="teacher",
         description="Prithvi EO v2 600 backbone via TerraTorch.",
         pretrain_bands=_PRITHVI_BANDS,
-    ),
-    "seco_resnet18_sentinel2_rgb_seco": ModelEntry(
-        name="seco_resnet18_sentinel2_rgb_seco",
-        role="teacher",
-        description="SeCo ResNet-18 via TerraTorch.",
-        pretrain_bands=_SECO_BANDS,
-    ),
-    "seco_resnet50_sentinel2_rgb_seco": ModelEntry(
-        name="seco_resnet50_sentinel2_rgb_seco",
-        role="teacher",
-        description="SeCo ResNet-50 via TerraTorch.",
-        pretrain_bands=_SECO_BANDS,
     ),
 }
 

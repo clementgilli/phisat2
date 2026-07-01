@@ -195,7 +195,7 @@ def _build_module(bundle: ModelBundle, spec, lr: float, weight_decay: float) -> 
         )
     
     elif task == "eval_encoder":
-        module = PretrainEvalModule(full_model=bundle.model)
+        module = PretrainEvalModule(full_model=bundle.model, spec=spec)
 
     else:
         # All downstream tasks: segmentation, classification, regression

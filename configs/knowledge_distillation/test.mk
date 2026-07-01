@@ -2,7 +2,7 @@
 # CONFIGURATION : Knowledge Distillation
 # ==========================================
 
-BASE_NAME   = kd_test
+BASE_NAME   = kd
 QUEUE       = gpu4_std
 GPUS        = 1
 
@@ -15,12 +15,13 @@ PRECISION   = bf16-mixed
 BATCH_SIZE  = 128
 NUM_WORKERS = 14
 
-JOB_NAME  = $(BASE_NAME)_train
+JOB_NAME  = $(BASE_NAME)_${MODEL}
 WALLTIME  = 24:00:00
 CPUS      = 16
 MEM       = 256G
 
 TASK    = knowledge_distillation
-EPOCHS  = 2
-PATIENCE = 50
+EPOCHS  = 300
+#PATIENCE = 50
 LR      = 0.001
+WEIGHT_DECAY = 0.0001
