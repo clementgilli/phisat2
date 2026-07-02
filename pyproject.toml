@@ -30,7 +30,9 @@ dependencies = [
 phisat2-train = "phisat2.cli.train:main"
 
 [tool.setuptools.packages.find]
+where = ["."]
 include = ["phisat2*"]
+exclude = ["runs*", "checkpoints*", "data*", "notebooks*", ".venv*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

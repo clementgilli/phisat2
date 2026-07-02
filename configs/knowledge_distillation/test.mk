@@ -2,11 +2,12 @@
 # CONFIGURATION : Knowledge Distillation
 # ==========================================
 
-BASE_NAME   = kd
+MODEL      ?=
+
+BASE_NAME   = kd_${MODEL}
 QUEUE       = gpu4_std
 GPUS        = 1
 
-MODEL       = seco_resnet50_sentinel2_rgb_seco
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data/triplets
 
 SEEDS       = 42

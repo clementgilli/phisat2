@@ -12,7 +12,7 @@ from lightning.pytorch.loggers import WandbLogger
 from phisat2.data_loaders import build_datamodule, list_dataloaders
 from phisat2.models.registry import build_model, list_models, ModelBundle
 from phisat2.tasks import resolve_task_spec
-from phisat2.tasks.specs import TASKS
+from phisat2.tasks.specs import TASKS, TaskSpec
 
 from phisat2.training.pretrain_ssl import SSLPretrainModule
 from phisat2.training.knowledge_distillation import KDModule
@@ -216,7 +216,7 @@ def _build_module(bundle: ModelBundle, spec, lr: float, weight_decay: float) -> 
 # fit
 # ─────────────────────────────────────────────────────────────────────────────
 
-def run_fit(args: argparse.Namespace) -> None:
+def run_fit(args: argparse.Namespace) -> None:    
     _auto_detect_dataloader(args)
 
     spec        = resolve_task_spec(args.task, args.dataset)
@@ -332,7 +332,7 @@ def run_fit(args: argparse.Namespace) -> None:
 # test
 # ─────────────────────────────────────────────────────────────────────────────
 
-def run_test(args: argparse.Namespace) -> None:
+def run_test(args: argparse.Namespace) -> None:    
     _auto_detect_dataloader(args)
 
     spec = resolve_task_spec(args.task, args.dataset)
@@ -343,7 +343,7 @@ def run_test(args: argparse.Namespace) -> None:
     subset_name = "full_dataset"
     if args.subset_csv:
         subset_name = Path(args.subset_csv).stem
-    elif args.weights and args.task not in {"eval_domain_gap", "eval_encoder"}:
+    elif args.weights and args.task not in {"eval_domain_gap", "eval_encoder", "knowledge_distillation"}:
         ckpt_path = Path(args.weights)
         for parent in ckpt_path.parents:
             if parent.name.startswith("seed_"):
@@ -394,6 +394,7 @@ def run_test(args: argparse.Namespace) -> None:
         **hardware,
         precision=args.precision,
         default_root_dir=eval_dir,
+        logger=False,
         #logger=WandbLogger(
         #    project="PhiSat2",
         #    name=run_name,
@@ -405,7 +406,7 @@ def run_test(args: argparse.Namespace) -> None:
     # For eval_domain_gap, encoder weights are already baked in by build_model
     # (loaded from --teacher-ckpt / --student-ckpt). No Lightning ckpt to reload.
     # For all other tasks, --weights is the full Lightning .ckpt to restore.
-    ckpt_path = None if args.task in {"eval_domain_gap", "eval_encoder"} else args.weights
+    ckpt_path = None if args.task in {"eval_domain_gap", "eval_encoder", "knowledge_distillation"} else args.weights
 
     results = trainer.test(module, datamodule=datamodule, ckpt_path=ckpt_path)
 

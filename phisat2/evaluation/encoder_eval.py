@@ -92,28 +92,6 @@ class PretrainEvalModule(L.LightningModule):
         if isinstance(features, (list, tuple)):
             return {layer: features[i] for i, layer in enumerate(self.feature_layers)}
         return {"bottleneck": features}
-
-    def test_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
-        images = batch["image"]
-        labels = batch[self.spec.target_key]
-        
-        B = labels.shape[0]
-        dominant_classes, _ = torch.mode(labels.view(B, -1), dim=1)
-        
-        feat_dict = self._to_named(self.backbone(images))
-        
-        for layer in self.feature_layers:
-            if layer not in feat_dict: continue
-            
-            f = feat_dict[layer]
-            f_1d = F.adaptive_avg_pool2d(f, 1).flatten(1)
-            
-            valid_mask = ~torch.isnan(f_1d).any(dim=1)
-            
-            if valid_mask.sum() > 0:
-                self.test_features[layer].append(f_1d[valid_mask].cpu())
-                self.test_classes[layer].append(dominant_classes[valid_mask].cpu())
-                
                 
     def test_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
         images = batch["image"]

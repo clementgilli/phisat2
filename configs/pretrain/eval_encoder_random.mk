@@ -8,3 +8,5 @@ MEM      = 32GB
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data
 MODEL    = phisatnet
 BATCH_SIZE = 128
+
+DATASET     = lulc

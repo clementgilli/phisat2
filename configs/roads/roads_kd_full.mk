@@ -1,23 +1,24 @@
 # ==========================================
-# CONFIGURATION : CLOUDS — Full Dataset
+# CONFIGURATION : Roads — Full Dataset
 # ==========================================
 
-BASE_NAME   = clouds_full
-QUEUE       = gpu8_std
+MODEL       ?=
+
+BASE_NAME   = roads_$(MODEL)_full
+QUEUE       = gpu4_std
 GPUS        = 1
 
-TASK        = segmentation
-DATASET     = clouds
-MODEL       = phisatnet
+TASK        = pixel_regression
+DATASET     = roads
 DATALOADER  = downstream
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data
 
-SEEDS       = 42 7 6
+SEEDS       = 42
 DEVICES     = 1
 PRECISION   = bf16-mixed
 NUM_WORKERS = 8
 
-_PRETRAIN = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+_PRETRAIN = /lustre/home/u10010021/phisat2/runs/knowledge_distillation/triplets/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
 
 # ─── eval / submit-eval ───────────────────────────────────────────────────────
 ifneq ($(filter eval submit-eval, $(MAKECMDGOALS) $(TARGET)),)
@@ -27,7 +28,7 @@ WALLTIME  = 02:00:00
 CPUS      = 8
 MEM       = 64G
 
-CKPT_PATH ?=
+CKPT_PATH = /lustre/home/u10010021/phisat2/runs/pixel_regression/roads/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
 
 # ─── train / submit-train ─────────────────────────────────────────────────────
 else
@@ -38,7 +39,7 @@ CPUS       = 16
 MEM        = 128G
 
 BATCH_SIZE = 128
-LR         = 0.001
+LR         = 0.0003
 EPOCHS     = 100
 
 WEIGHTS    = $(_PRETRAIN)

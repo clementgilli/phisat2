@@ -1,14 +1,15 @@
 # ==========================================
-# CONFIGURATION : LULC — Full Dataset
+# CONFIGURATION : Burned Area — Full Dataset
 # ==========================================
 
-BASE_NAME   = lulc_satlas_full
+MODEL       ?=
+
+BASE_NAME   = burned_$(MODEL)_full
 QUEUE       = gpu4_std
 GPUS        = 1
 
 TASK        = segmentation
-DATASET     = lulc
-MODEL       = satlas_resnet50_sentinel2_si_ms_satlas
+DATASET     = burned
 DATALOADER  = downstream
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data
 
@@ -17,7 +18,7 @@ DEVICES     = 1
 PRECISION   = bf16-mixed
 NUM_WORKERS = 8
 
-_PRETRAIN = /lustre/home/u10010021/phisat2/runs/knowledge_distillation/triplets/satlas_resnet50_sentinel2_si_ms_satlas/full_dataset/seed_42/checkpoints/best.ckpt
+_PRETRAIN = /lustre/home/u10010021/phisat2/runs/knowledge_distillation/triplets/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
 
 # ─── eval / submit-eval ───────────────────────────────────────────────────────
 ifneq ($(filter eval submit-eval, $(MAKECMDGOALS) $(TARGET)),)
@@ -27,7 +28,7 @@ WALLTIME  = 02:00:00
 CPUS      = 8
 MEM       = 64G
 
-CKPT_PATH ?=
+CKPT_PATH = /lustre/home/u10010021/phisat2/runs/segmentation/burned/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
 
 # ─── train / submit-train ─────────────────────────────────────────────────────
 else

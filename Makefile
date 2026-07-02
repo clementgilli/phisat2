@@ -372,6 +372,7 @@ _submit:
 	     -e "s|__EXPERIMENT__|$(EXPERIMENT)|g" \
 	     -e "s|__MAKE_TARGET__|$(TARGET)|g" \
 	     -e "s|__CKPT_PATH__|$(CKPT_PATH)|g" \
+		 -e "s|__MODEL__|$(MODEL)|g" \
 	     scripts/runner_template.pbs > .temp_job.pbs
 	@qsub .temp_job.pbs
 	@rm .temp_job.pbs

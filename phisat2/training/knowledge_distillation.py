@@ -7,6 +7,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import pandas as pd
+from pathlib import Path
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Loss helpers
@@ -245,6 +247,8 @@ class KDModule(L.LightningModule):
         self.register_buffer("_at_scale",     torch.tensor(1.0))
         self.register_buffer("_rkd_scale",    torch.tensor(1.0))
         self.register_buffer("_scales_set",   torch.tensor(False))
+        
+        self.test_step_outputs: list[torch.Tensor] = []
 
         # ── teacher_to_student: warmup tracking ───────────────────────────────
         # NOTE: we deliberately do NOT toggle requires_grad on student/projector
@@ -400,12 +404,6 @@ class KDModule(L.LightningModule):
     def validation_step(self, batch: dict, batch_idx: int) -> None:
         img_s = batch["simulated"]
         img_t = batch["sentinel2"]
-        if img_t.shape[-1] != int(img_s.shape[-1] * 0.475):
-            img_t = F.interpolate(
-                img_t,
-                size=(int(img_s.shape[-2] * 0.475), int(img_s.shape[-1] * 0.475)),
-                mode="bilinear", align_corners=False,
-            )
 
         with torch.no_grad():
             t_feats = self.teacher(img_t)
@@ -415,7 +413,48 @@ class KDModule(L.LightningModule):
         self.log("val_loss", loss, prog_bar=True,
                  on_step=False, on_epoch=True, sync_dist=True,
                  batch_size=img_s.shape[0])
+        
+    def test_step(self, batch: dict, batch_idx: int) -> None:
+        img_s = batch["simulated"]
+        img_t = batch["sentinel2"]
 
+        with torch.no_grad():
+            self.teacher.eval()
+            t_feats = self.teacher(img_t)
+            s_feats = self.student(img_s)
+
+        batch_matrix = torch.zeros(self.n_levels, len(t_feats), device=self.device)
+        
+        for i, s_f in enumerate(s_feats):
+            for j, t_f in enumerate(t_feats):
+                batch_matrix[i, j] = self._compute_linear_cka(s_f, t_f)
+                
+        self.test_step_outputs.append(batch_matrix)
+
+
+    def on_test_epoch_end(self) -> None:
+        if not self.test_step_outputs:
+            return
+
+        cka_matrix = torch.stack(self.test_step_outputs).mean(dim=0).cpu().numpy()
+        self.test_step_outputs.clear()
+        
+        print(f"\n[CKA MATRIX] Layer-by-Layer Representation Alignment")
+        print(f"Teacher: {self.hparams.spec if hasattr(self.hparams, 'spec') else 'Frozen Teacher'}")
+        print("Rows = Student Layers (0 à N), Cols = Teacher Layers (0 à M)\n")
+        print(cka_matrix)
+        print("\n" + "="*60 + "\n")
+
+        out_dir = Path(self.trainer.default_root_dir) / "cka_matrix.csv"
+        
+        df = pd.DataFrame(
+            cka_matrix,
+            index=[f"student_enc_{i}" for i in range(cka_matrix.shape[0])],
+            columns=[f"teacher_enc_{j}" for j in range(cka_matrix.shape[1])]
+        )
+        df.to_csv(out_dir)
+        print(f"[KDModule] CKA Matrix successfully saved to {out_dir}")
+        
     # ── Optimiser ─────────────────────────────────────────────────────────────
 
     def configure_optimizers(self):
@@ -452,3 +491,21 @@ class KDModule(L.LightningModule):
                 optimizer, [warmup, cosine], milestones=[warmup_epochs],
             ),
         }
+        
+    
+    @torch.no_grad()
+    def _compute_linear_cka(self, feat_s: torch.Tensor, feat_t: torch.Tensor) -> torch.Tensor:
+        X = feat_s.flatten(start_dim=1).float()
+        Y = feat_t.flatten(start_dim=1).float()
+
+        X = X - X.mean(dim=0, keepdim=True)
+        Y = Y - Y.mean(dim=0, keepdim=True)
+
+        K = X @ X.T
+        L = Y @ Y.T
+
+        cross_term = torch.sum(K * L)
+        norm_K = torch.sqrt(torch.sum(K * K))
+        norm_L = torch.sqrt(torch.sum(L * L))
+
+        return cross_term / (norm_K * norm_L + 1e-8)

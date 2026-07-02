@@ -1,14 +1,15 @@
 # ==========================================
-# CONFIGURATION : Router
+# CONFIGURATION : Building — Full Dataset
 # ==========================================
 
-BASE_NAME   = router
+MODEL       ?=
+
+BASE_NAME   = building_$(MODEL)_full
 QUEUE       = gpu4_std
 GPUS        = 1
 
-TASK        = classification
-DATASET     = router
-MODEL       = ssl4eos12_resnet50_sentinel2_all_decur
+TASK        = pixel_regression
+DATASET     = building
 DATALOADER  = downstream
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data
 
@@ -17,7 +18,7 @@ DEVICES     = 1
 PRECISION   = bf16-mixed
 NUM_WORKERS = 8
 
-_PRETRAIN = /lustre/home/u10010021/phisat2/runs/knowledge_distillation/triplets/ssl4eos12_resnet50_sentinel2_all_decur/full_dataset/seed_42/checkpoints/best.ckpt
+_PRETRAIN = /lustre/home/u10010021/phisat2/runs/knowledge_distillation/triplets/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
 
 # ─── eval / submit-eval ───────────────────────────────────────────────────────
 ifneq ($(filter eval submit-eval, $(MAKECMDGOALS) $(TARGET)),)
@@ -27,7 +28,7 @@ WALLTIME  = 02:00:00
 CPUS      = 8
 MEM       = 64G
 
-CKPT_PATH ?=
+CKPT_PATH = /lustre/home/u10010021/phisat2/runs/pixel_regression/building/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
 
 # ─── train / submit-train ─────────────────────────────────────────────────────
 else

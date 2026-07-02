@@ -1,14 +1,16 @@
 # ==========================================
-# CONFIGURATION : LULC — Full Dataset
+# CONFIGURATION : Router
 # ==========================================
 
-BASE_NAME   = lulc_dino_full
+MODEL       ?=
+
+BASE_NAME   = router_$(MODEL)
 QUEUE       = gpu4_std
 GPUS        = 1
 
-TASK        = segmentation
-DATASET     = lulc
-MODEL       = ssl4eos12_resnet50_sentinel2_all_dino
+TASK        = classification
+DATASET     = router
+
 DATALOADER  = downstream
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data
 
@@ -17,7 +19,7 @@ DEVICES     = 1
 PRECISION   = bf16-mixed
 NUM_WORKERS = 8
 
-_PRETRAIN = /lustre/home/u10010021/phisat2/runs/knowledge_distillation/triplets/ssl4eos12_resnet50_sentinel2_all_dino/full_dataset/seed_42/checkpoints/best.ckpt
+_PRETRAIN = /lustre/home/u10010021/phisat2/runs/knowledge_distillation/triplets/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
 
 # ─── eval / submit-eval ───────────────────────────────────────────────────────
 ifneq ($(filter eval submit-eval, $(MAKECMDGOALS) $(TARGET)),)
@@ -27,7 +29,7 @@ WALLTIME  = 02:00:00
 CPUS      = 8
 MEM       = 64G
 
-CKPT_PATH ?=
+CKPT_PATH = /lustre/home/u10010021/phisat2/runs/classification/router/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
 
 # ─── train / submit-train ─────────────────────────────────────────────────────
 else
@@ -38,7 +40,7 @@ CPUS       = 16
 MEM        = 128G
 
 BATCH_SIZE = 128
-LR         = 0.001
+LR         = 0.0003
 EPOCHS     = 100
 
 WEIGHTS    = $(_PRETRAIN)
