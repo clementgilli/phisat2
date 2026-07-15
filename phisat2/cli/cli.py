@@ -15,7 +15,8 @@ from phisat2.tasks import resolve_task_spec
 from phisat2.tasks.specs import TASKS, TaskSpec
 
 from phisat2.training.pretrain_ssl import SSLPretrainModule
-from phisat2.training.knowledge_distillation import KDModule
+from phisat2.training.knowledge_distillation_cnn import CNNKDModule
+from phisat2.training.knowledge_distillation_vit import ViTKDModule
 from phisat2.training.domain_adaptation import DomainAdaptationModule
 from phisat2.training.downstream import DownstreamModule
 from phisat2.evaluation.domain_eval import DomainEvalModule
@@ -69,6 +70,8 @@ def _add_shared_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--student-ckpt", type=str, default=None,
                    help="Student encoder .pth (eval_domain_gap only). "
                         "Falls back to --teacher-ckpt if not provided.")
+    p.add_argument("--base-channels", type=int, default=16, 
+                    help="Multiplier for the student encoder capacity (default: 16 for ~200K params, 64 for ~3M params).")
     p.add_argument("--decoders",     type=str, nargs="+", default=[],
                    help="Decoder checkpoints: 'dataset_name=path/to/ckpt' "
                         "(eval_domain_gap only). Example: lulc=weights/lulc.pth")
@@ -179,13 +182,22 @@ def _build_module(bundle: ModelBundle, spec, lr: float, weight_decay: float) -> 
         )
 
     elif task == "knowledge_distillation":
-        module = KDModule(
-            student_model=bundle.student,
-            teacher_model=bundle.teacher,
-            spec=spec,
-            lr=lr,
-            weight_decay=weight_decay,
-        )
+        if bundle.teacher.output_type == "vit":
+            module = ViTKDModule(
+                student_model=bundle.student,
+                teacher_model=bundle.teacher,
+                spec=spec,
+                lr=lr,
+                weight_decay=weight_decay,
+            )
+        else:
+            module = CNNKDModule(
+                student_model=bundle.student,
+                teacher_model=bundle.teacher,
+                spec=spec,
+                lr=lr,
+                weight_decay=weight_decay,
+            )
 
     elif task == "eval_domain_gap":
         module = DomainEvalModule(
@@ -258,6 +270,7 @@ def run_fit(args: argparse.Namespace) -> None:
             teacher_ckpt=args.teacher_ckpt,
             student_ckpt=args.student_ckpt,
             decoders=args.decoders,
+            base_channels=args.base_channels,
         )
 
         # ── Lightning module ──────────────────────────────────────────────
@@ -332,7 +345,10 @@ def run_fit(args: argparse.Namespace) -> None:
 # test
 # ─────────────────────────────────────────────────────────────────────────────
 
-def run_test(args: argparse.Namespace) -> None:    
+def run_test(args: argparse.Namespace) -> None:
+    
+    torch.serialization.add_safe_globals([TaskSpec])
+        
     _auto_detect_dataloader(args)
 
     spec = resolve_task_spec(args.task, args.dataset)
@@ -343,7 +359,7 @@ def run_test(args: argparse.Namespace) -> None:
     subset_name = "full_dataset"
     if args.subset_csv:
         subset_name = Path(args.subset_csv).stem
-    elif args.weights and args.task not in {"eval_domain_gap", "eval_encoder", "knowledge_distillation"}:
+    elif args.weights and args.task not in {"eval_domain_gap", "eval_encoder"}:
         ckpt_path = Path(args.weights)
         for parent in ckpt_path.parents:
             if parent.name.startswith("seed_"):
@@ -381,6 +397,7 @@ def run_test(args: argparse.Namespace) -> None:
         teacher_ckpt=args.teacher_ckpt,
         student_ckpt=args.student_ckpt,
         decoders=args.decoders,
+        base_channels=args.base_channels,
     )
 
     # lr=0.0 — not used at test time but required by module constructors
@@ -406,7 +423,7 @@ def run_test(args: argparse.Namespace) -> None:
     # For eval_domain_gap, encoder weights are already baked in by build_model
     # (loaded from --teacher-ckpt / --student-ckpt). No Lightning ckpt to reload.
     # For all other tasks, --weights is the full Lightning .ckpt to restore.
-    ckpt_path = None if args.task in {"eval_domain_gap", "eval_encoder", "knowledge_distillation"} else args.weights
+    ckpt_path = None if args.task in {"eval_domain_gap", "eval_encoder"} else args.weights
 
     results = trainer.test(module, datamodule=datamodule, ckpt_path=ckpt_path)
 

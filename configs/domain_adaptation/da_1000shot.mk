@@ -52,9 +52,9 @@ CPUS      = 16
 MEM       = 256G
 
 TASK    = domain_adaptation
-EPOCHS  = 300
+EPOCHS  = 3000
 PATIENCE = 50
-LR      = 0.001
+LR      = 0.0008
 WEIGHT_DECAY = 0.0001
 
 # Initialisation weights (teacher and student)

@@ -12,7 +12,7 @@ ROOT_DIR    = /lustre/home/u10010021/phisat2/data/triplets
 SEEDS       = 42
 DEVICES     = 1
 PRECISION   = bf16-mixed
-BATCH_SIZE  = 128
+BATCH_SIZE  = 1
 NUM_WORKERS = 14
 
 # ── Paths ────────────────────────────
@@ -52,9 +52,9 @@ CPUS      = 16
 MEM       = 256G
 
 TASK    = domain_adaptation
-EPOCHS  = 300
+EPOCHS  = 1000
 PATIENCE = 50
-LR      = 0.001
+LR      = 0.00005
 WEIGHT_DECAY = 0.0001
 
 # Initialisation weights (teacher and student)

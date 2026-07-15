@@ -13,6 +13,8 @@ DATASET     = lulc
 DATALOADER  = downstream
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data
 
+BASE_CHANNELS = 16
+
 SEEDS       = 42
 DEVICES     = 1
 PRECISION   = bf16-mixed
@@ -40,7 +42,7 @@ MEM        = 128G
 
 BATCH_SIZE = 128
 LR         = 0.001
-EPOCHS     = 100
+EPOCHS     = 30
 
 WEIGHTS    = $(_PRETRAIN)
 SUBSET_CSV =

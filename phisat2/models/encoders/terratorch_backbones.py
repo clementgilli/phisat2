@@ -9,7 +9,7 @@ import torch.nn.functional as F
 
 # Prefixes that identify ViT-based architectures in TerraTorch.
 # CNN-based backbones (seco, ssl4eos12, satlas…) are NOT listed here.
-_VIT_PREFIXES = ("terramind", "dofa", "prithvi", "clay")
+_VIT_PREFIXES = ("terramind", "dofa", "prithvi", "clay", "ssl4eos12_vit")
 
 
 class TerraTorchBackboneEncoder(nn.Module):
@@ -87,7 +87,7 @@ class TerraTorchBackboneEncoder(nn.Module):
             build_kwargs.setdefault("modalities", [self.modality_name])
             build_kwargs.setdefault("bands", {self.modality_name: valid_bands})
 
-        elif backbone.startswith(("dofa_", "clay_")):
+        elif backbone.startswith(("dofa_", "clay_", "ssl4eos12_vit_")):
             build_kwargs.setdefault("model_bands", valid_bands)
 
         elif "resnet" in backbone:
@@ -179,22 +179,16 @@ class TerraTorchBackboneEncoder(nn.Module):
                 if first.ndim == 2:
                     return {"cls_token": raw[0], "patch_tokens": raw[1]}
 
-                # Liste de séquences de tokens à différentes profondeurs
-                # (sortie intermédiaire ViT : [layer1, layer2, ..., layerN])
-                # On prend le dernier (représentation finale)
                 if first.ndim == 3:
                     tokens = raw[-1]             # (B, N, D) — last transformer layer
                     cls    = tokens.mean(dim=1)  # (B, D)    — global embedding via mean pool
                     return {"cls_token": cls, "patch_tokens": tokens}
 
-                # Liste de feature maps spatiales (4D) — ne devrait pas arriver pour
-                # un ViT pur, mais certains encodeurs retournent des features en pyramide
                 if first.ndim == 4:
                     last = raw[-1]
                     cls  = F.adaptive_avg_pool2d(last, 1).flatten(1)
                     return {"cls_token": cls, "patch_tokens": None}
 
-            # Éléments hétérogènes ou non-tenseurs → essayer le dernier élément
             return self._normalize_vit(raw[-1])
 
         # ── Tensor brut ───────────────────────────────────────────────────────
@@ -204,7 +198,6 @@ class TerraTorchBackboneEncoder(nn.Module):
             if raw.ndim == 2:
                 return {"cls_token": raw, "patch_tokens": None}
 
-        # ── Erreur détaillée ──────────────────────────────────────────────────
         detail = f"type={type(raw)}"
         if hasattr(raw, "__len__"):
             detail += f", len={len(raw)}"

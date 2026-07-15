@@ -12,7 +12,7 @@ MODEL       = phisatnet
 DATALOADER  = downstream
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data
 
-SEEDS       = 42 7 6
+SEEDS       = 42
 DEVICES     = 1
 PRECISION   = bf16-mixed
 NUM_WORKERS = 8

@@ -162,25 +162,25 @@ REGISTRY: dict[str, ModelEntry] = {
     ),
     
     ## ── ViT based teachers ──
-    "terramind_v1_tiny": ModelEntry(
+    "terramind_v1_tiny": ModelEntry( # 6.0 M params
         name="terramind_v1_tiny",
         role="teacher",
         description="TerraMind ViT-Tiny via TerraTorch.",
         pretrain_bands=_TERRAMIND_BANDS,
     ),
-    "terramind_v1_small": ModelEntry(
+    "terramind_v1_small": ModelEntry( # 22.6 M params
         name="terramind_v1_small",
         role="teacher",
         description="TerraMind ViT-Small via TerraTorch.",
         pretrain_bands=_TERRAMIND_BANDS,
     ),
-    "terramind_v1_base": ModelEntry(
+    "terramind_v1_base": ModelEntry( # 87.5 M params
         name="terramind_v1_base",
         role="teacher",
         description="TerraMind ViT-Base via TerraTorch.",
         pretrain_bands=_TERRAMIND_BANDS,
     ),
-    "terramind_v1_large": ModelEntry(
+    "terramind_v1_large": ModelEntry( # 305 M params
         name="terramind_v1_large",
         role="teacher",
         description="TerraMind ViT-Large via TerraTorch.",
@@ -210,19 +210,19 @@ REGISTRY: dict[str, ModelEntry] = {
         description="SSL4EO-S12 ViT-Small trained with MoCo via TerraTorch.",
         pretrain_bands=_SSL4EO_BANDS,
     ),
-    "dofa_small_patch16_224": ModelEntry(
+    "dofa_small_patch16_224": ModelEntry( # 34.8 M params
         name="dofa_small_patch16_224",
         role="teacher",
         description="DOFA small ViT backbone via TerraTorch.",
         pretrain_bands=_DOFA_BANDS,
     ),
-    "dofa_base_patch16_224": ModelEntry(
+    "dofa_base_patch16_224": ModelEntry( # 111 M params
         name="dofa_base_patch16_224",
         role="teacher",
         description="DOFA base ViT backbone via TerraTorch.",
         pretrain_bands=_DOFA_BANDS,
     ),
-    "dofa_large_patch16_224": ModelEntry(
+    "dofa_large_patch16_224": ModelEntry( # 337 M params
         name="dofa_large_patch16_224",
         role="teacher",
         description="DOFA large ViT backbone via TerraTorch.",
@@ -234,19 +234,19 @@ REGISTRY: dict[str, ModelEntry] = {
         description="CLAY v1 base backbone via TerraTorch.",
         pretrain_bands=_CLAY_BANDS,
     ),
-    "prithvi_eo_v1_100": ModelEntry(
+    "prithvi_eo_v1_100": ModelEntry( # 86.2 M params
         name="prithvi_eo_v1_100",
         role="teacher",
         description="Prithvi EO v1 100 backbone via TerraTorch.",
         pretrain_bands=_PRITHVI_BANDS,
     ),
-    "prithvi_eo_v2_300": ModelEntry(
+    "prithvi_eo_v2_300": ModelEntry( # 303 M params
         name="prithvi_eo_v2_300",
         role="teacher",
         description="Prithvi EO v2 300 backbone via TerraTorch.",
         pretrain_bands=_PRITHVI_BANDS,
     ),
-    "prithvi_eo_v2_600": ModelEntry(
+    "prithvi_eo_v2_600": ModelEntry( # 631 M params
         name="prithvi_eo_v2_600",
         role="teacher",
         description="Prithvi EO v2 600 backbone via TerraTorch.",
@@ -273,9 +273,9 @@ def get_model_bands(name: str) -> tuple[str, ...] | None:
 # Private builders
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _build_encoder(name: str, pretrained: bool, input_bands: list[str]) -> nn.Module:
+def _build_encoder(name: str, pretrained: bool, input_bands: list[str], base_channels: int = 16) -> nn.Module:
     if name == "phisatnet":
-        return PhiSatNetEncoder(in_channels=len(input_bands))
+        return PhiSatNetEncoder(in_channels=len(input_bands), base_channels=base_channels)
     return TerraTorchBackboneEncoder(name, pretrained=pretrained, input_bands=input_bands)
 
 
@@ -301,6 +301,7 @@ def build_model(
     teacher_ckpt:  str | None       = None,
     student_ckpt:  str | None       = None,
     decoders:      list[str] | None = None,
+    base_channels: int = 16,
 ) -> ModelBundle:
     """
     Central factory for all model configurations.
@@ -317,6 +318,14 @@ def build_model(
                         Falls back to teacher_ckpt if None.
         decoders      : List of "dataset_name=path/to/ckpt" strings (eval_domain_gap only).
     """
+    
+    if base_channels != 16:
+        print(f"\n{'='*70}")
+        print(f" WARNING: NON-STANDARD STUDENT CAPACITY SELECTED")
+        print(f" PhiSatNet base_channels is set to {base_channels} (default: 16).")
+        print(f" You are training a scaled-up student to debug the capacity gap.")
+        print(f"{'='*70}\n")
+    
     if name not in REGISTRY:
         raise ValueError(
             f"Unknown model '{name}'. Expected one of: {', '.join(sorted(REGISTRY))}."
@@ -350,7 +359,7 @@ def build_model(
             )
         
         teacher = _build_encoder(name,        pretrained=True,  input_bands=teacher_bands)
-        student = _build_encoder("phisatnet", pretrained=False, input_bands=input_bands)
+        student = _build_encoder("phisatnet", pretrained=False, input_bands=input_bands, base_channels=base_channels)
         
         return ModelBundle(task=spec.task, teacher=teacher, student=student)
 
@@ -397,7 +406,7 @@ def build_model(
         if entry.role == "teacher":
             print(f"[INFO] Downstream: using 'phisatnet' architecture (ignoring '{name}').")
 
-        encoder = _build_encoder(target_name, pretrained=False, input_bands=input_bands)
+        encoder = _build_encoder(target_name, pretrained=False, input_bands=input_bands, base_channels=base_channels)
         if weights_path:
             load_encoder_weights(encoder, weights_path)
 

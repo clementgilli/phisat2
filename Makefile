@@ -22,6 +22,7 @@ CROP_SIZE  ?= 224
 LR         ?= 0.0001
 WEIGHT_DECAY ?= 0.0001
 PATIENCE   ?=
+BASE_CHANNELS ?= 16
 
 # ── Infrastructure ────────────────────────────────────────────────────────────
 NUM_WORKERS ?= 4
@@ -103,6 +104,12 @@ ifneq ($(PATIENCE),)
 PATIENCE_FLAG = --patience $(PATIENCE)
 else
 PATIENCE_FLAG =
+endif
+
+ifneq ($(BASE_CHANNELS),16)
+BASE_CHANNELS_FLAG = --base-channels $(BASE_CHANNELS)
+else
+BASE_CHANNELS_FLAG =
 endif
 
 ifneq ($(TEACHER_CKPT),)
@@ -251,6 +258,7 @@ train: ## Generic fit. Override with TASK= MODEL= DATASET= DATALOADER= SEEDS= et
 		$(RESUME_FLAG) \
 		$(WEIGHTS_FLAG) \
 		$(PATIENCE_FLAG) \
+		$(BASE_CHANNELS_FLAG) \
 		$(EXTRA_ARGS)
 
 pretrain: ## Phase 1 — SSL pretraining on simulated PhiSat-2 data.
@@ -296,6 +304,7 @@ eval: ## Generic evaluation. Pass CKPT_PATH=<lightning.ckpt> and TASK= DATASET= 
 		--precision $(PRECISION) \
 		$(AUTO_DDP_FLAG) \
 		$(CKPT_FLAG) \
+		$(BASE_CHANNELS_FLAG) \
 		$(EXTRA_ARGS)
 
 eval-domain-gap: ## Domain gap evaluation (TEACHER_CKPT= STUDENT_CKPT= DECODERS=).
@@ -332,6 +341,7 @@ eval-encoder: ## Run t-SNE latent space evaluation on LULC (WEIGHTS=...).
 		--precision $(PRECISION) \
 		$(AUTO_DDP_FLAG) \
 		$(WEIGHTS_FLAG) \
+		$(BASE_CHANNELS_FLAG) \
 		$(EXTRA_ARGS)
 
 # ─────────────────────────────────────────────────────────────────────────────

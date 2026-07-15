@@ -13,7 +13,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import LinearSVC
-from torchmetrics.functional import jaccard_index
+from torchmetrics.functional import jaccard_index, f1_score
 
 from phisat2.utils.visualization import mask_to_rgb
 
@@ -147,6 +147,7 @@ class DomainEvalModule(L.LightningModule):
         task_name: str,
         batch_idx: int,
         max_samples: int = 5,
+        mask_gt: torch.Tensor | None = None,  # <-- AJOUT du paramètre GT
     ) -> None:
         
         def argmax(t: torch.Tensor) -> np.ndarray:
@@ -157,24 +158,37 @@ class DomainEvalModule(L.LightningModule):
         preds_after  = argmax(logits_after)
         
         n = min(max_samples, img_sim.shape[0])
-        
         sampled_indices = np.random.choice(img_sim.shape[0], n, replace=False)
 
-        fig, axes = plt.subplots(n, 5, figsize=(25, 4 * n), squeeze=False, constrained_layout=True)
+        # <-- AJOUT : Adaptation dynamique du nombre de colonnes (5 ou 6)
+        has_gt = mask_gt is not None
+        n_cols = 6 if has_gt else 5
+
+        fig, axes = plt.subplots(n, n_cols, figsize=(5 * n_cols, 4 * n), squeeze=False, constrained_layout=True)
         fig.suptitle(f"Consistency Segmentation — {task_name} — Batch {batch_idx}", fontsize=14)
-        for ax, title in zip(
-            axes[0],
-            ["Image SIM", "Pred SIM", "Image REAL", "Pred REAL (before DA)", "Pred REAL (after DA)"],
-        ):
+        
+        titles = ["Image SIM", "Pred SIM", "Image REAL", "Pred REAL (before DA)", "Pred REAL (after DA)"]
+        if has_gt:
+            titles.append("Ground Truth REAL")
+            mask_gt_np = mask_gt.detach().cpu().numpy()
+
+        for ax, title in zip(axes[0], titles):
             ax.set_title(title, fontsize=11)
 
         meta = None
         for row, idx in enumerate(sampled_indices):
             axes[row, 0].imshow(self._to_falsecolor(img_sim[idx].cpu()))
             axes[row, 2].imshow(self._to_falsecolor(img_real[idx].cpu()))
+            
             for ax_col, pred_np in [(1, preds_sim), (3, preds_before), (4, preds_after)]:
                 rgb, meta = mask_to_rgb(pred_np[idx], task_name)
                 axes[row, ax_col].imshow(rgb)
+            
+            # <-- AJOUT : Affichage de la Ground Truth dans la dernière colonne
+            if has_gt:
+                rgb_gt, meta = mask_to_rgb(mask_gt_np[idx], task_name)
+                axes[row, 5].imshow(rgb_gt)
+
             for ax in axes[row]:
                 ax.axis("off")
 
@@ -323,6 +337,7 @@ class DomainEvalModule(L.LightningModule):
     def test_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
         img_sim  = batch["simulated"]
         img_real = batch["real"]
+        mask_gt  = batch.get("mask_worldcover")  # <-- Récupération GT
 
         feat_sim    = self._to_named(self.teacher(img_sim),  self.feature_layers)
         feat_before = self._to_named(self.teacher(img_real), self.feature_layers)
@@ -375,11 +390,67 @@ class DomainEvalModule(L.LightningModule):
                     self.log(f"{prefix}/consistency_{task_name}_miou", miou, on_step=False, on_epoch=True)
                     self.log(f"{prefix}/consistency_{task_name}_kl",   kl,   on_step=False, on_epoch=True)
 
+                # <-- AJOUT : Absolute Metrics + MACRO Merging (LULC)
+                mask_gt_aligned = None
+                if task_name == "lulc" and mask_gt is not None:
+                    mask_gt_int = mask_gt.long()
+                    
+                    # Sécurité : Si le masque est brut (10-100), on le map en (0-10)
+                    if mask_gt_int.max() >= 10:
+                        wc_mapping = {10: 0, 20: 1, 30: 2, 40: 3, 50: 4, 60: 5, 70: 6, 80: 7, 90: 8, 95: 9, 100: 10}
+                        mapped = torch.zeros_like(mask_gt_int)
+                        for raw_val, idx_val in wc_mapping.items():
+                            mapped[mask_gt_int == raw_val] = idx_val
+                        mask_gt_int = mapped
+
+                    # Sécurité : Alignement des résolutions
+                    if mask_gt_int.shape[-2:] != logits_sim.shape[-2:]:
+                        mask_gt_int = F.interpolate(
+                            mask_gt_int.unsqueeze(1).float(), 
+                            size=logits_sim.shape[-2:], 
+                            mode="nearest"
+                        ).squeeze(1).long()
+
+                    mask_gt_aligned = mask_gt_int
+
+                    preds_sim_hard = logits_sim.argmax(1)
+                    preds_before_hard = logits_before.argmax(1)
+                    preds_after_hard = logits_after.argmax(1)
+
+                    # Ton mapping Macro (11 classes -> 4 macro classes)
+                    macro_mapping = torch.tensor([0, 0, 0, 0, 1, 2, 2, 3, 3, 3, 0], device=self.device)
+                    n_macro_classes = 4
+
+                    eval_configs = [
+                        ("upper_bound", preds_sim_hard),
+                        ("before", preds_before_hard),
+                        ("after", preds_after_hard)
+                    ]
+                    
+                    for prefix, preds in eval_configs:
+                        # 1. Métriques Classiques (sur les 11 classes)
+                        iou = jaccard_index(preds, mask_gt_aligned, task="multiclass", num_classes=n_classes, average="macro")
+                        f1  = f1_score(preds, mask_gt_aligned, task="multiclass", num_classes=n_classes, average="macro")
+                        
+                        self.log(f"{prefix}/{task_name}_iou", iou, on_step=False, on_epoch=True)
+                        self.log(f"{prefix}/{task_name}_f1",  f1,  on_step=False, on_epoch=True)
+                        
+                        # 2. Métriques "Macro" (sur tes 4 classes mergées)
+                        preds_m = macro_mapping[preds]
+                        gt_m    = macro_mapping[mask_gt_aligned]
+                        
+                        m_iou = jaccard_index(preds_m, gt_m, task="multiclass", num_classes=n_macro_classes, average="macro")
+                        m_f1  = f1_score(preds_m, gt_m, task="multiclass", num_classes=n_macro_classes, average="macro")
+                        
+                        self.log(f"{prefix}/{task_name}_macro_iou", m_iou, on_step=False, on_epoch=True)
+                        self.log(f"{prefix}/{task_name}_macro_f1",  m_f1,  on_step=False, on_epoch=True)
+
                 if do_plot:
                     self._visualize_seg(
                         img_sim, img_real,
                         logits_sim, logits_before, logits_after,
                         task_name, batch_idx,
+                        mask_gt=mask_gt_aligned  # <-- On passe le masque pour la 6ème colonne
                     )
 
             elif not is_spatial and n_classes > 1:

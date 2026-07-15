@@ -24,14 +24,14 @@ def analyze_cka(base_dir: str | Path):
         return
 
     top_models = [
-        "satlas_resnet50_sentinel2_si_ms_satlas",
-        "ssl4eos12_resnet50_sentinel2_all_decur",
-        "ssl4eos12_resnet50_sentinel2_all_dino",
-        #"ssl4eos12_resnet18_sentinel2_all_moco",
-        "ssl4eos12_resnet50_sentinel2_all_moco",
-        #"ssl4eos12_resnet50_sentinel2_all_softcon",
-        #"seco_resnet18_sentinel2_rgb_seco",
-        #"seco_resnet50_sentinel2_rgb_seco",
+        #"satlas_resnet50_sentinel2_si_ms_satlas",
+        #"ssl4eos12_resnet50_sentinel2_all_decur",
+        #"ssl4eos12_resnet50_sentinel2_all_dino",
+        "ssl4eos12_resnet18_sentinel2_all_moco",
+        #"ssl4eos12_resnet50_sentinel2_all_moco",
+        "ssl4eos12_resnet50_sentinel2_all_softcon",
+        "seco_resnet18_sentinel2_rgb_seco",
+        "seco_resnet50_sentinel2_rgb_seco",
     ]
     
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))

@@ -52,7 +52,7 @@ CPUS      = 16
 MEM       = 256G
 
 TASK    = domain_adaptation
-EPOCHS  = 300
+EPOCHS  = 500
 PATIENCE = 50
 LR      = 0.001
 WEIGHT_DECAY = 0.0001
