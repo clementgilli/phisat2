@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
-
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -159,45 +159,50 @@ class TerraTorchBackboneEncoder(nn.Module):
 
     def _normalize_vit(self, raw: Any) -> dict[str, torch.Tensor | None]:
 
-        # ── dict structuré (DINOv2-style) ────────────────────────────────────
+        # ── 1. dict (DINOv2-style) ─────────────────────────────────
         if isinstance(raw, dict):
             cls   = raw.get("cls_token") or raw.get("x_norm_clstoken") or raw.get("global")
             patch = raw.get("patch_tokens") or raw.get("x_norm_patchtokens") or raw.get("local")
             if cls is not None:
                 return {"cls_token": cls, "patch_tokens": patch}
 
-        # ── list / tuple ──────────────────────────────────────────────────────
+        # ── 2. list / tuple (TerraMind, SSL4EO, DOFA, Prithvi) ────────
         if isinstance(raw, (list, tuple)):
-
-            if len(raw) == 1:
-                return self._normalize_vit(raw[0])
-
-            if all(isinstance(f, torch.Tensor) for f in raw):
-                first = raw[0]
-
-                # (B, D) + (B, N, D) → cls et patches déjà séparés
-                if first.ndim == 2:
-                    return {"cls_token": raw[0], "patch_tokens": raw[1]}
-
-                if first.ndim == 3:
-                    tokens = raw[-1]             # (B, N, D) — last transformer layer
-                    cls    = tokens.mean(dim=1)  # (B, D)    — global embedding via mean pool
-                    return {"cls_token": cls, "patch_tokens": tokens}
-
-                if first.ndim == 4:
-                    last = raw[-1]
-                    cls  = F.adaptive_avg_pool2d(last, 1).flatten(1)
-                    return {"cls_token": cls, "patch_tokens": None}
-
+            if len(raw) == 0:
+                raise RuntimeError("[TerraTorchBackboneEncoder] Received an empty list/tuple.")
+            
             return self._normalize_vit(raw[-1])
 
-        # ── Tensor brut ───────────────────────────────────────────────────────
+        # ── 3. Tensor brut ───────────────────────────────────────────────────
         if isinstance(raw, torch.Tensor):
+            
+            # SSL4EO: [B, C, H, W]
+            if raw.ndim == 4:
+                cls = F.adaptive_avg_pool2d(raw, 1).flatten(1)
+                patches = raw.flatten(2).transpose(1, 2)
+                return {"cls_token": cls, "patch_tokens": patches}
+                
+            # TerraMind, DOFA, Prithvi: [B, N, D]
             if raw.ndim == 3:
-                return {"cls_token": raw[:, 0], "patch_tokens": raw[:, 1:]}
+                B, N, D = raw.shape
+                grid_size = int(math.isqrt(N))
+                
+                if grid_size * grid_size == N:
+                    # N = 196 (TerraMind). 14x14 Grid.
+                    cls = raw.mean(dim=1)
+                    return {"cls_token": cls, "patch_tokens": raw}
+                else:
+                    # N = 197 (DOFA, Prithvi 300) -> 14x14 Grid + 1 CLS
+                    # N = 257 (Prithvi 600) -> 16x16 Grid + 1 CLS
+                    num_special = N - (grid_size * grid_size)
+                    cls = raw[:, 0]
+                    patches = raw[:, num_special:]
+                    return {"cls_token": cls, "patch_tokens": patches}
+                
             if raw.ndim == 2:
                 return {"cls_token": raw, "patch_tokens": None}
 
+        # ── 4. Errors ───────────────────────────────────────────
         detail = f"type={type(raw)}"
         if hasattr(raw, "__len__"):
             detail += f", len={len(raw)}"
@@ -206,10 +211,6 @@ class TerraTorchBackboneEncoder(nn.Module):
             detail += f", raw[0]={type(e0)}"
             if isinstance(e0, torch.Tensor):
                 detail += f" shape={e0.shape} ndim={e0.ndim}"
-            elif isinstance(e0, (list, tuple)):
-                detail += f" len={len(e0)}"
-                if len(e0) > 0 and isinstance(e0[0], torch.Tensor):
-                    detail += f" [0].shape={e0[0].shape}"
         raise RuntimeError(
             f"[TerraTorchBackboneEncoder] Cannot normalise ViT output: {detail}. "
             f"Add a case to _normalize_vit()."

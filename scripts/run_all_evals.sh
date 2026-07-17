@@ -29,9 +29,12 @@ source .venv/bin/activate
 #wandb sync /lustre/home/u10010021/phisat2/runs/pixel_regression/building/phisatnet/full_dataset/seed_42/wandb/latest-run
 #wandb sync /lustre/home/u10010021/phisat2/runs/domain_adaptation/triplets/phisatnet/full_dataset/seed_42/wandb/latest-run
 
-wandb sync /lustre/home/u10010021/phisat2/runs/knowledge_distillation/triplets/terramind_v1_tiny/full_dataset/seed_42/wandb/offline-run-20260713_134545-yvnqefub
-wandb sync /lustre/home/u10010021/phisat2/runs/knowledge_distillation/triplets/terramind_v1_tiny/full_dataset/seed_42/wandb/offline-run-20260713_142643-7l4t8j3e
-wandb sync /lustre/home/u10010021/phisat2/runs/knowledge_distillation/triplets/terramind_v1_tiny/full_dataset/seed_42/wandb/offline-run-20260713_142952-l3z5jisj
-wandb sync /lustre/home/u10010021/phisat2/runs/knowledge_distillation/triplets/terramind_v1_tiny/full_dataset/seed_42/wandb/offline-run-20260713_143632-qrnes979
+wandb sync /lustre/home/u10010021/phisat2/runs/segmentation/lulc/terramind_v1_large/full_dataset/seed_42/wandb/latest-run
+wandb sync /lustre/home/u10010021/phisat2/runs/segmentation/clouds/terramind_v1_large/full_dataset/seed_42/wandb/latest-run
+wandb sync /lustre/home/u10010021/phisat2/runs/segmentation/burned/terramind_v1_large/full_dataset/seed_42/wandb/latest-run
+wandb sync /lustre/home/u10010021/phisat2/runs/segmentation/floods/terramind_v1_large/full_dataset/seed_42/wandb/latest-run
+
+wandb sync /lustre/home/u10010021/phisat2/runs/pixel_regression/building/terramind_v1_large/full_dataset/seed_42/wandb/latest-run
+wandb sync /lustre/home/u10010021/phisat2/runs/pixel_regression/roads/terramind_v1_large/full_dataset/seed_42/wandb/latest-run
 
 echo "Done."

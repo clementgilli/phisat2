@@ -1,19 +1,17 @@
 # ==========================================
-# CONFIGURATION : LULC — Full Dataset
+# CONFIGURATION : Burned Area — Full Dataset
 # ==========================================
 
 MODEL       ?=
 
-BASE_NAME   = lulc_$(MODEL)_full
+BASE_NAME   = burned_$(MODEL)_full
 QUEUE       = gpu4_std
 GPUS        = 1
 
 TASK        = segmentation
-DATASET     = lulc
+DATASET     = burned
 DATALOADER  = downstream
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data
-
-BASE_CHANNELS = 16
 
 SEEDS       = 42
 DEVICES     = 1
@@ -30,7 +28,7 @@ WALLTIME  = 02:00:00
 CPUS      = 8
 MEM       = 64G
 
-CKPT_PATH = /lustre/home/u10010021/phisat2/runs/segmentation/lulc/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
+CKPT_PATH = /lustre/home/u10010021/phisat2/runs/segmentation/burned/$(MODEL)/burned_train_500_global/seed_42/checkpoints/best.ckpt
 
 # ─── train / submit-train ─────────────────────────────────────────────────────
 else
@@ -40,11 +38,12 @@ WALLTIME   = 12:00:00
 CPUS       = 16
 MEM        = 128G
 
-BATCH_SIZE = 128
-LR         = 0.001
-EPOCHS     = 100
+BATCH_SIZE = 32
+LR         = 0.005
+WEIGHT_DECAY = 0.05
+EPOCHS     = 200
 
 WEIGHTS    = $(_PRETRAIN)
-SUBSET_CSV =
+SUBSET_CSV = /lustre/home/u10010021/phisat2/splits/burned/burned_train_500_global.csv
 
 endif

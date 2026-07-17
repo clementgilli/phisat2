@@ -306,7 +306,6 @@ class ViTKDModule(L.LightningModule):
             t_out   = self.teacher(torch.zeros(1, 13, _D, _D))
 
         t_tokens = t_out["patch_tokens"]
-        print(t_out)
         assert t_tokens.ndim == 3, (
             f"Expected ViT token sequence (B, N, D), got {t_tokens.shape}."
         )
@@ -347,7 +346,8 @@ class ViTKDModule(L.LightningModule):
         """
         Register a forward hook on the last 'qkv' linear layer of the teacher.
         Generic: searches named_modules() for any Linear with 'qkv' in its name.
-        The hook stores the raw output (B, N, 3·D) in self._qkv_cache.
+        The hook automatically strips special tokens (like [CLS]) if present,
+        storing only the spatial tokens (B, H*W, 3·D) in self._qkv_cache.
         """
         last_name, last_mod = None, None
         for name, mod in self.teacher.named_modules():
@@ -362,7 +362,15 @@ class ViTKDModule(L.LightningModule):
         print(f"[ViTKDModule] QKV hook → {last_name}  (out_features={last_mod.out_features})")
 
         def _hook(mod, inp, out):
-            self._qkv_cache = out   # (B, N, 3·D)
+            # out shape: (B, N, 3*D)
+            B, N, dim = out.shape
+            grid_size = int(math.isqrt(N))
+            
+            if grid_size * grid_size == N:
+                self._qkv_cache = out
+            else:
+                num_special = N - (grid_size * grid_size)
+                self._qkv_cache = out[:, num_special:, :]
 
         return last_mod.register_forward_hook(_hook)
 
@@ -463,8 +471,6 @@ class ViTKDModule(L.LightningModule):
         s_bottleneck = self.student(img_s)[-1]
 
         L_student, L_disc, _ = self._compute_losses(s_bottleneck, z_t, "train")
-
-        breakpoint()
         
         # Student + projector update
         opt_s.zero_grad()

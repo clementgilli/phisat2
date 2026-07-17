@@ -2,11 +2,12 @@
 # CONFIGURATION : Domain Adaptation & Gap Eval
 # ==========================================
 
-BASE_NAME   = da_phisatnet
+MODEL       = terramind_v1_large
+
+BASE_NAME   = da_$(MODEL)
 QUEUE       = gpu4_std
 GPUS        = 1
 
-MODEL       = phisatnet
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data/triplets
 
 SEEDS       = 42
@@ -17,14 +18,21 @@ NUM_WORKERS = 14
 
 # ── Paths ────────────────────────────
 _BASE        = /lustre/home/u10010021/phisat2/runs
-_PRETRAIN    = $(_BASE)/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
-_LULC        = $(_BASE)/segmentation/lulc/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
-_FLOODS      = $(_BASE)/segmentation/floods/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
-_CLOUDS      = $(_BASE)/segmentation/clouds/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
-_BURNED      = $(_BASE)/segmentation/burned/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
-_ROADS       = $(_BASE)/pixel_regression/roads/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
-_BLDG        = $(_BASE)/pixel_regression/building/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
-_ROUTER      = $(_BASE)/classification/router/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+
+ifeq ($(MODEL), phisatnet)
+	_PRETRAIN    = $(_BASE)/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+else
+	_PRETRAIN    = $(_BASE)/knowledge_distillation/triplets/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
+endif
+
+_PRETRAIN    = $(_BASE)/knowledge_distillation/triplets/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
+_LULC        = $(_BASE)/segmentation/lulc/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
+_FLOODS      = $(_BASE)/segmentation/floods/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
+_CLOUDS      = $(_BASE)/segmentation/clouds/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
+_BURNED      = $(_BASE)/segmentation/burned/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
+_ROADS       = $(_BASE)/pixel_regression/roads/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
+_BLDG        = $(_BASE)/pixel_regression/building/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
+_ROUTER      = $(_BASE)/classification/router/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
 
 # ─── eval-domain-gap / submit-eval-domain-gap ────────────────────────────────
 ifneq ($(filter eval-domain-gap submit-eval-domain-gap, $(MAKECMDGOALS) $(TARGET)),)

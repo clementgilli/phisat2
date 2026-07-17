@@ -53,19 +53,20 @@ class DownstreamModule(L.LightningModule):
         self.val_metrics.update(preds, targets)
         self.log_dict(self.val_metrics, on_step=False, on_epoch=True, prog_bar=True)
 
-    def test_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
+    def test_step(self, batch: dict[str, torch.Tensor], batch_idx: int, visualize: bool = False) -> None:
         loss, preds, targets = self._shared_step(batch, "test")
         self.test_metrics.update(preds, targets)
         self.log_dict(self.test_metrics, on_step=False, on_epoch=True, prog_bar=True)
         
-        if self.spec.task == "segmentation":
-            self._visualize_and_save_segmentation(batch, preds, targets, batch_idx)
-            
-        if self.spec.task == "pixel_regression":
-            self._visualize_and_save_pixel_regression(batch, preds, targets, batch_idx)
-            
-        if self.spec.task == "classification":
-            self._visualize_and_save_classification(batch, preds, targets, batch_idx)
+        if visualize:
+            if self.spec.task == "segmentation":
+                self._visualize_and_save_segmentation(batch, preds, targets, batch_idx)
+                
+            if self.spec.task == "pixel_regression":
+                self._visualize_and_save_pixel_regression(batch, preds, targets, batch_idx)
+                
+            if self.spec.task == "classification":
+                self._visualize_and_save_classification(batch, preds, targets, batch_idx)
 
     def configure_optimizers(self):
         trainable_params = [param for param in self.parameters() if param.requires_grad]

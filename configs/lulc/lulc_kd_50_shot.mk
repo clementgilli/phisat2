@@ -30,7 +30,7 @@ WALLTIME  = 02:00:00
 CPUS      = 8
 MEM       = 64G
 
-CKPT_PATH = /lustre/home/u10010021/phisat2/runs/segmentation/lulc/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
+CKPT_PATH = /lustre/home/u10010021/phisat2/runs/segmentation/lulc/$(MODEL)/lulc_train_50_global/seed_42/checkpoints/best.ckpt
 
 # ─── train / submit-train ─────────────────────────────────────────────────────
 else
@@ -40,11 +40,12 @@ WALLTIME   = 12:00:00
 CPUS       = 16
 MEM        = 128G
 
-BATCH_SIZE = 128
+BATCH_SIZE = 8           
 LR         = 0.001
-EPOCHS     = 100
+WEIGHT_DECAY = 0.05     
+EPOCHS     = 400        
 
 WEIGHTS    = $(_PRETRAIN)
-SUBSET_CSV =
+SUBSET_CSV = /lustre/home/u10010021/phisat2/splits/lulc/lulc_train_50_global.csv
 
 endif

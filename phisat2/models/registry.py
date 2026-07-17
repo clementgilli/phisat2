@@ -198,13 +198,13 @@ REGISTRY: dict[str, ModelEntry] = {
         description="Satlas Swin-Base via TerraTorch.",
         pretrain_bands=_SATLAS_BANDS,
     ),
-    "ssl4eos12_vit_small_patch16_224_sentinel2_all_dino": ModelEntry(
+    "ssl4eos12_vit_small_patch16_224_sentinel2_all_dino": ModelEntry( # 23 M params
         name="ssl4eos12_vit_small_patch16_224_sentinel2_all_dino",
         role="teacher",
         description="SSL4EO-S12 ViT-Small trained with DINO via TerraTorch.",
         pretrain_bands=_SSL4EO_BANDS,
     ),
-    "ssl4eos12_vit_small_patch16_224_sentinel2_all_moco": ModelEntry(
+    "ssl4eos12_vit_small_patch16_224_sentinel2_all_moco": ModelEntry( # 23 M params
         name="ssl4eos12_vit_small_patch16_224_sentinel2_all_moco",
         role="teacher",
         description="SSL4EO-S12 ViT-Small trained with MoCo via TerraTorch.",
