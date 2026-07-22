@@ -134,7 +134,7 @@ class DomainEvalModule(L.LightningModule):
         plt.tight_layout()
         
         save_dir = self._viz_dir("tsne")
-        plt.savefig(os.path.join(save_dir, f"{layer}.png"), dpi=150, bbox_inches="tight")
+        plt.savefig(os.path.join(save_dir, f"{layer}.pdf"), format="pdf", bbox_inches="tight")
         plt.close(fig)
 
     def _visualize_seg(
@@ -165,7 +165,7 @@ class DomainEvalModule(L.LightningModule):
         n_cols = 6 if has_gt else 5
 
         fig, axes = plt.subplots(n, n_cols, figsize=(5 * n_cols, 4 * n), squeeze=False, constrained_layout=True)
-        fig.suptitle(f"Consistency Segmentation — {task_name} — Batch {batch_idx}", fontsize=14)
+        #fig.suptitle(f"Consistency Segmentation — {task_name} — Batch {batch_idx}", fontsize=14)
         
         titles = ["Image SIM", "Pred SIM", "Image REAL", "Pred REAL (before DA)", "Pred REAL (after DA)"]
         if has_gt:
@@ -202,8 +202,8 @@ class DomainEvalModule(L.LightningModule):
 
         save_dir = self._viz_dir(f"seg_{task_name}")
         plt.savefig(
-            os.path.join(save_dir, f"batch_{batch_idx}.png"),
-            dpi=120, bbox_inches="tight",
+            os.path.join(save_dir, f"batch_{batch_idx}.pdf"),
+            format="pdf", bbox_inches="tight",
         )
         plt.close(fig)
 
@@ -233,7 +233,7 @@ class DomainEvalModule(L.LightningModule):
         sampled_indices = np.random.choice(img_sim.shape[0], n, replace=False)
 
         fig, axes = plt.subplots(n, 5, figsize=(25, 4 * n), squeeze=False, constrained_layout=True)
-        fig.suptitle(f"Consistency Regression — {task_name} — Batch {batch_idx}", fontsize=14)
+        #fig.suptitle(f"Consistency Regression — {task_name} — Batch {batch_idx}", fontsize=14)
         for ax, title in zip(
             axes[0],
             ["Image SIM", "Pred SIM", "Image REAL", "Pred REAL (before DA)", "Pred REAL (after DA)"],
@@ -254,8 +254,8 @@ class DomainEvalModule(L.LightningModule):
 
         save_dir = self._viz_dir(f"reg_{task_name}")
         plt.savefig(
-            os.path.join(save_dir, f"batch_{batch_idx}.png"),
-            dpi=120, bbox_inches="tight",
+            os.path.join(save_dir, f"batch_{batch_idx}.pdf"),
+            format="pdf", bbox_inches="tight",
         )
         plt.close(fig)
         
@@ -283,7 +283,7 @@ class DomainEvalModule(L.LightningModule):
         sampled_indices = np.random.choice(img_sim.shape[0], n, replace=False)
 
         fig, axes = plt.subplots(n, 5, figsize=(25, 4 * n), squeeze=False, constrained_layout=True)
-        fig.suptitle(f"Consistency Classification — {task_name} — Batch {batch_idx}", fontsize=16, fontweight='bold')
+        #fig.suptitle(f"Consistency Classification — {task_name} — Batch {batch_idx}", fontsize=16, fontweight='bold')
         
         col_titles = ["Image SIM", "Pred SIM", "Image REAL", "Pred REAL (before DA)", "Pred REAL (after DA)"]
         for ax, title in zip(axes[0], col_titles):
@@ -324,9 +324,9 @@ class DomainEvalModule(L.LightningModule):
 
         save_dir = self._viz_dir(f"cls_{task_name}")
         os.makedirs(save_dir, exist_ok=True)
-        save_path = os.path.join(save_dir, f"batch_{batch_idx}.png")
+        save_path = os.path.join(save_dir, f"batch_{batch_idx}.pdf")
         
-        plt.savefig(save_path, dpi=120, bbox_inches="tight")
+        plt.savefig(save_path, format="pdf", bbox_inches="tight")
         plt.close(fig)
         print(f"[Viz] saved → {save_path}")
 

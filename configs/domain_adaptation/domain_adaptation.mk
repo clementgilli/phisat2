@@ -25,7 +25,6 @@ else
 	_PRETRAIN    = $(_BASE)/knowledge_distillation/triplets/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
 endif
 
-_PRETRAIN    = $(_BASE)/knowledge_distillation/triplets/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
 _LULC        = $(_BASE)/segmentation/lulc/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
 _FLOODS      = $(_BASE)/segmentation/floods/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
 _CLOUDS      = $(_BASE)/segmentation/clouds/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt

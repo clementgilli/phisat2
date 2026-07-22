@@ -7,6 +7,35 @@ import torch.nn.functional as F
 
 from phisat2.tasks import TaskSpec
 
+def sliced_wasserstein_distance(
+    x: torch.Tensor, 
+    y: torch.Tensor, 
+    num_projections: int = 128,
+    dense_alignment: bool = False,
+    p: int = 2
+) -> torch.Tensor:
+    """
+    Computes the Sliced Wasserstein-p Distance between two CNN feature maps.
+    Expects inputs strictly of shape (B, C, H, W).
+    """
+    x_flat = x.mean(dim=[2, 3])
+    y_flat = y.mean(dim=[2, 3])
+
+    dim = x_flat.size(1)
+    
+    projections = torch.randn(dim, num_projections, device=x.device)
+    projections = F.normalize(projections, p=2, dim=0)
+    
+    x_proj  = (x_flat @ projections).sort(dim=0).values
+    y_proj  = (y_flat @ projections).sort(dim=0).values
+    
+    if p == 1:
+        return F.l1_loss(x_proj, y_proj)
+    elif p == 2:
+        return F.mse_loss(x_proj, y_proj)
+    else:
+        return torch.mean(torch.abs(x_proj - y_proj) ** p) ** (1.0 / p)
+
 class DomainAdaptationModule(L.LightningModule):
     
     def __init__(
@@ -18,6 +47,7 @@ class DomainAdaptationModule(L.LightningModule):
         lr: float,
         weight_decay: float,
         loss_weights: dict[str, float] | None = None,
+        lambda_swd: float = 0.0,
     ) -> None:
         super().__init__()
         self.student = student_model
@@ -25,6 +55,7 @@ class DomainAdaptationModule(L.LightningModule):
         self.spec = spec
         self.lr = lr
         self.weight_decay = weight_decay
+        self.lambda_swd = lambda_swd
 
         self.loss_weights = loss_weights or {
             "enc_0": 1.0,
@@ -61,16 +92,16 @@ class DomainAdaptationModule(L.LightningModule):
         if isinstance(feat_sim, list) and isinstance(feat_real, list):
             for i, (layer_name, weight) in enumerate(self.loss_weights.items()):
                 if i < len(feat_sim) and i < len(feat_real):
-                    layer_loss = F.mse_loss(feat_real[i], feat_sim[i])
+                    layer_mse = F.mse_loss(feat_real[i], feat_sim[i])
+                    layer_swd = sliced_wasserstein_distance(feat_real[i], feat_sim[i])
+                    layer_loss = layer_mse + self.lambda_swd * layer_swd
                     losses.append(layer_loss * weight)
                     
-                    self.log(
-                        f"{prefix}_{layer_name}_loss", 
-                        layer_loss, 
-                        on_step=False, 
-                        on_epoch=True, 
-                        sync_dist=True
-                    )
+                    self.log_dict({
+                        f"{prefix}_{layer_name}_mse": layer_mse,
+                        f"{prefix}_{layer_name}_swd": layer_swd,
+                        f"{prefix}_{layer_name}_total_loss": layer_loss,
+                    }, on_step=False, on_epoch=True, sync_dist=True)
 
         if not losses:
             actual_type = type(feat_sim)

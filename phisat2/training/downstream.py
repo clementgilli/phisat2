@@ -23,7 +23,7 @@ class DownstreamModule(L.LightningModule):
         self.weight_decay = weight_decay
         self.save_hyperparameters({"task": spec.task, "dataset": spec.dataset, "lr": lr, "weight_decay": weight_decay})
         self.val_metrics = build_metrics(spec, prefix="val")
-        self.test_metrics = build_metrics(spec, prefix="test")
+        self.test_metrics = build_metrics(spec, prefix="test") if spec.dataset != "floods" else build_metrics(spec, prefix="test", ignore_index=0)
         self._freeze_encoder()
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:
@@ -149,7 +149,7 @@ class DownstreamModule(L.LightningModule):
         
         num_cols = 5 if is_lulc else 3
         fig, axes = plt.subplots(n, num_cols, figsize=(5 * num_cols, 4 * n), squeeze=False, constrained_layout=True)
-        fig.suptitle(f"Debug Segmentation ({dataset_name}) - Batch {batch_idx}", fontsize=14, fontweight='bold')
+        #fig.suptitle(f"Debug Segmentation ({dataset_name}) - Batch {batch_idx}", fontsize=14, fontweight='bold')
         
         if is_lulc:
             col_titles = ["Original (RGB)", "Micro GT", "Micro Pred", "Macro GT", "Macro Pred"]
@@ -206,9 +206,9 @@ class DownstreamModule(L.LightningModule):
                 fig.legend(handles=patches_micro, loc='upper center', bbox_to_anchor=(0.5, 0), ncol=len(current_meta_micro), fontsize=11)
             
         os.makedirs(self.trainer.default_root_dir, exist_ok=True)
-        save_path = os.path.join(self.trainer.default_root_dir, f"segmentation_debug_batch_{batch_idx}.png")
+        save_path = os.path.join(self.trainer.default_root_dir, f"segmentation_debug_batch_{batch_idx}.pdf")
         
-        plt.savefig(save_path, dpi=120, bbox_inches="tight")
+        plt.savefig(save_path, format="pdf", bbox_inches="tight")
         plt.close(fig)
         print(f"[Viz] saved → {save_path}")
         
@@ -241,7 +241,7 @@ class DownstreamModule(L.LightningModule):
         n = min(max_samples, image.shape[0])
         
         fig, axes = plt.subplots(n, 3, figsize=(15, 4 * n), squeeze=False, constrained_layout=True)
-        fig.suptitle(f"Debug Pixel Regression ({self.spec.dataset}) - Batch {batch_idx}\nScale: [{vmin:.3f}, {vmax:.3f}]", fontsize=14)
+        #fig.suptitle(f"Debug Pixel Regression ({self.spec.dataset}) - Batch {batch_idx}\nScale: [{vmin:.3f}, {vmax:.3f}]", fontsize=14)
         
         col_titles = ["Original (RGB)", "Ground Truth", "Predictions"]
         for ax, title in zip(axes[0], col_titles):
@@ -265,10 +265,10 @@ class DownstreamModule(L.LightningModule):
         os.makedirs(self.trainer.default_root_dir, exist_ok=True)
         save_path = os.path.join(
             self.trainer.default_root_dir, 
-            f"pixel_regression_debug_batch_{batch_idx}.png"
+            f"pixel_regression_debug_batch_{batch_idx}.pdf"
         )
         
-        plt.savefig(save_path, dpi=120, bbox_inches="tight")
+        plt.savefig(save_path, format="pdf", bbox_inches="tight")
         plt.close(fig)
         print(f"[Viz] saved → {save_path}")
         
@@ -287,7 +287,7 @@ class DownstreamModule(L.LightningModule):
         n = min(max_samples, image.shape[0])
         
         fig, axes = plt.subplots(n, 3, figsize=(12, 4 * n), squeeze=False, constrained_layout=True)
-        fig.suptitle(f"Debug Classification ({dataset_name}) - Batch {batch_idx}", fontsize=14, fontweight='bold')
+        #fig.suptitle(f"Debug Classification ({dataset_name}) - Batch {batch_idx}", fontsize=14, fontweight='bold')
         
         col_titles = ["Original (RGB)", "Ground Truth", "Prediction"]
         for ax, title in zip(axes[0], col_titles):
@@ -331,8 +331,8 @@ class DownstreamModule(L.LightningModule):
             fig.legend(handles=patches, loc='upper center', bbox_to_anchor=(0.5, 0), ncol=len(current_meta), fontsize=12)
             
         os.makedirs(self.trainer.default_root_dir, exist_ok=True)
-        save_path = os.path.join(self.trainer.default_root_dir, f"classification_debug_batch_{batch_idx}.png")
+        save_path = os.path.join(self.trainer.default_root_dir, f"classification_debug_batch_{batch_idx}.pdf")
         
-        plt.savefig(save_path, dpi=120, bbox_inches="tight")
+        plt.savefig(save_path, format="pdf", bbox_inches="tight")
         plt.close(fig)
         print(f"[Viz] saved → {save_path}")

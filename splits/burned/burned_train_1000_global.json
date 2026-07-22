@@ -1,0 +1,43 @@
+{
+  "hist_csv": "/lustre/home/u10010021/phisat2/splits/burned/burned_train_sample_hist.csv",
+  "requested_size": "1000",
+  "seed": 42,
+  "selected_size": 1000,
+  "strategy": "global",
+  "summary": {
+    "full_counts": {
+      "class_0": 220440076,
+      "class_1": 94979503,
+      "class_2": 93198832,
+      "class_3": 101513813
+    },
+    "full_fractions": {
+      "class_0": 0.4321234096358516,
+      "class_1": 0.18618604850180961,
+      "class_2": 0.18269544172139968,
+      "class_3": 0.19899510014093916
+    },
+    "full_total_pixels": 510132224.0,
+    "l1_distance": 0.0012146768599350655,
+    "subset_counts": {
+      "class_0": 28300826,
+      "class_1": 12181178,
+      "class_2": 12012931,
+      "class_3": 13041065
+    },
+    "subset_fractions": {
+      "class_0": 0.43183633422851564,
+      "class_1": 0.18587002563476562,
+      "class_2": 0.1833027801513672,
+      "class_3": 0.19899085998535157
+    },
+    "subset_size": 1000,
+    "subset_total_pixels": 65536000.0,
+    "target_fractions": {
+      "class_0": 0.4321234096358516,
+      "class_1": 0.18618604850180961,
+      "class_2": 0.18269544172139968,
+      "class_3": 0.19899510014093916
+    }
+  }
+}

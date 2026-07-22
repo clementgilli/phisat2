@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--root-dir", default=".", help="Root directory containing the zarr datasets.")
     parser.add_argument("--out-dir", default=".", help="Directory to save the generated CSVs.")
     parser.add_argument("--train-ratio", type=float, default=0.9, help="Ratio of data to use for trainval (default: 0.9).")
-    parser.add_argument("--shots", type=int, nargs="+", default=[50, 500, 5000], help="List of n-shot sizes to extract.")
+    parser.add_argument("--shots", type=int, nargs="+", default=[50, 100, 500, 1000, 5000], help="List of n-shot sizes to extract.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducible shuffling.")
     return parser.parse_args()
 
