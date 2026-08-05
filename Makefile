@@ -330,7 +330,7 @@ eval-encoder: ## Run t-SNE latent space evaluation on LULC (WEIGHTS=...).
 		--task eval_encoder \
 		--model $(MODEL) \
 		--dataset $(DATASET) \
-		--dataloader downstream \
+		--dataloader $(DATALOADER) \
 		--root-dir $(ROOT_DIR) \
 		--output-dir $(OUTPUT_DIR) \
 		--batch-size $(BATCH_SIZE) \

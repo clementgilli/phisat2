@@ -337,7 +337,7 @@ class DomainEvalModule(L.LightningModule):
     def test_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
         img_sim  = batch["simulated"]
         img_real = batch["real"]
-        mask_gt  = batch.get("mask_worldcover")  # <-- Récupération GT
+        mask_gt  = batch.get("mask_worldcover") 
 
         feat_sim    = self._to_named(self.teacher(img_sim),  self.feature_layers)
         feat_before = self._to_named(self.teacher(img_real), self.feature_layers)
@@ -390,26 +390,9 @@ class DomainEvalModule(L.LightningModule):
                     self.log(f"{prefix}/consistency_{task_name}_miou", miou, on_step=False, on_epoch=True)
                     self.log(f"{prefix}/consistency_{task_name}_kl",   kl,   on_step=False, on_epoch=True)
 
-                # <-- AJOUT : Absolute Metrics + MACRO Merging (LULC)
                 mask_gt_aligned = None
                 if task_name == "lulc" and mask_gt is not None:
                     mask_gt_int = mask_gt.long()
-                    
-                    # Sécurité : Si le masque est brut (10-100), on le map en (0-10)
-                    if mask_gt_int.max() >= 10:
-                        wc_mapping = {10: 0, 20: 1, 30: 2, 40: 3, 50: 4, 60: 5, 70: 6, 80: 7, 90: 8, 95: 9, 100: 10}
-                        mapped = torch.zeros_like(mask_gt_int)
-                        for raw_val, idx_val in wc_mapping.items():
-                            mapped[mask_gt_int == raw_val] = idx_val
-                        mask_gt_int = mapped
-
-                    # Sécurité : Alignement des résolutions
-                    if mask_gt_int.shape[-2:] != logits_sim.shape[-2:]:
-                        mask_gt_int = F.interpolate(
-                            mask_gt_int.unsqueeze(1).float(), 
-                            size=logits_sim.shape[-2:], 
-                            mode="nearest"
-                        ).squeeze(1).long()
 
                     mask_gt_aligned = mask_gt_int
 
@@ -417,7 +400,6 @@ class DomainEvalModule(L.LightningModule):
                     preds_before_hard = logits_before.argmax(1)
                     preds_after_hard = logits_after.argmax(1)
 
-                    # Ton mapping Macro (11 classes -> 4 macro classes)
                     macro_mapping = torch.tensor([0, 0, 0, 0, 1, 2, 2, 3, 3, 3, 0], device=self.device)
                     n_macro_classes = 4
 
@@ -428,14 +410,12 @@ class DomainEvalModule(L.LightningModule):
                     ]
                     
                     for prefix, preds in eval_configs:
-                        # 1. Métriques Classiques (sur les 11 classes)
                         iou = jaccard_index(preds, mask_gt_aligned, task="multiclass", num_classes=n_classes, average="macro")
                         f1  = f1_score(preds, mask_gt_aligned, task="multiclass", num_classes=n_classes, average="macro")
                         
                         self.log(f"{prefix}/{task_name}_iou", iou, on_step=False, on_epoch=True)
                         self.log(f"{prefix}/{task_name}_f1",  f1,  on_step=False, on_epoch=True)
                         
-                        # 2. Métriques "Macro" (sur tes 4 classes mergées)
                         preds_m = macro_mapping[preds]
                         gt_m    = macro_mapping[mask_gt_aligned]
                         
@@ -450,7 +430,7 @@ class DomainEvalModule(L.LightningModule):
                         img_sim, img_real,
                         logits_sim, logits_before, logits_after,
                         task_name, batch_idx,
-                        mask_gt=mask_gt_aligned  # <-- On passe le masque pour la 6ème colonne
+                        mask_gt=mask_gt_aligned
                     )
 
             elif not is_spatial and n_classes > 1:

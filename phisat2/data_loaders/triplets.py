@@ -121,6 +121,12 @@ class TripletsDataset(Dataset):
         if cloud_tensor.shape[0] == 1: cloud_tensor = cloud_tensor.squeeze(0)
         if wc_tensor.shape[0] == 1: wc_tensor = wc_tensor.squeeze(0)
         
+        wc_mapping = {10: 0, 20: 1, 30: 2, 40: 3, 50: 4, 60: 5, 70: 6, 80: 7, 90: 8, 95: 9, 100: 10}
+        mapped_wc = torch.zeros_like(wc_tensor)
+        for old_val, new_val in wc_mapping.items():
+            mapped_wc[wc_tensor == old_val] = new_val
+        wc_tensor = mapped_wc
+        
         return {
             "simulated": sim_tensor,       # (8, 224, 224) @ 4.75m
             "real": real_tensor,           # (8, 224, 224) @ 4.75m

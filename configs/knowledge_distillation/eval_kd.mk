@@ -1,5 +1,5 @@
 JOB_NAME = eval-encoder
-QUEUE       = gpu8_std
+QUEUE       = gpu4_std
 WALLTIME = 01:00:00
 GPUS     = 1
 CPUS     = 4
@@ -12,4 +12,5 @@ BATCH_SIZE = 128
 MODEL    ?=
 
 BASE_CHANNELS = 16
-DATASET = lulc
+DATALOADER = eurosat #downstream
+DATASET = eurosat

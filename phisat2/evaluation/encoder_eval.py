@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 import lightning as L
 from sklearn.manifold import TSNE
@@ -26,7 +27,6 @@ LULC_MICRO = {
 }
 
 LULC_MACRO = {
-
     0: ("Vegetation", (34, 139, 34)),
     1: ("Vegetation", (34, 139, 34)),
     2: ("Vegetation", (34, 139, 34)),
@@ -53,6 +53,19 @@ EVENTS_ROUTER = {
     2: ("Burnt",  (105, 105, 105)), 
     3: ("Water",  (30, 144, 255)), 
     4: ("Clouds", (220, 220, 220)),
+}
+
+EUROSAT_CLASSES = {
+    0: ("AnnualCrop",           (230, 230, 0)),   
+    1: ("Forest",               (34, 139, 34)),   
+    2: ("HerbaceousVegetation", (144, 238, 144)), 
+    3: ("Highway",              (105, 105, 105)), 
+    4: ("Industrial",           (220, 20, 60)),     
+    5: ("Pasture",              (173, 255, 47)),   
+    6: ("PermanentCrop",        (218, 165, 32)),  
+    7: ("Residential",          (139, 69, 19)),   
+    8: ("River",                (0, 191, 255)),   
+    9: ("SeaLake",              (0, 0, 128)),     
 }
 
 def to_rgb_norm(color_tuple: tuple[int, int, int]) -> tuple[float, float, float]:
@@ -84,6 +97,9 @@ class PretrainEvalModule(L.LightningModule):
         elif self.spec.dataset == "router":
             self.has_macro = False
             self.class_dict_micro = EVENTS_ROUTER
+        elif self.spec.dataset == "eurosat":
+            self.has_macro = False
+            self.class_dict_micro = EUROSAT_CLASSES
         else:
             raise ValueError(f"Dataset not supported : {self.spec.dataset}")
 

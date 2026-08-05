@@ -1,3 +1,4 @@
+import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -197,3 +198,158 @@ def visualize_downstream_demo(images, targets, preds, task_type, dataset_name, m
     fig.suptitle(f"Client Demo: {dataset_name.upper()} {suffix}", fontsize=16, fontweight="bold")
     
     return fig
+
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import numpy as np
+import torch
+
+def visualize_triplet_batch(
+    batch: dict[str, torch.Tensor | list], 
+    idx: int = 0, 
+    show_cloud: bool = True, 
+    show_worldcover: bool = True, 
+    rgb_indices: tuple[int, int, int] = (3, 2, 1),
+    ir_indices: tuple[int, int, int, int] = (4, 5, 6, 7), # RE1, RE2, RE3, NIR
+    zoom_box: tuple[int, int, int, int] | None = None
+) -> None:
+    """
+    zoom_box: (xmin, ymin, xmax, ymax)
+    """
+    n_cols = 3 + int(show_cloud) + int(show_worldcover)
+    fig, axes = plt.subplots(nrows=3, ncols=n_cols, figsize=(4 * n_cols, 12))
+    
+    tile_id = batch['tile_id'][idx] if 'tile_id' in batch else "Unknown"
+    title_suffix = f" | Zoom: {zoom_box}" if zoom_box else ""
+    fig.suptitle(f"Triplet Visualization | Tile ID: {tile_id}{title_suffix}", fontsize=16, fontweight="bold", y=1.02)
+
+    ref_shape = batch['simulated'][idx].shape[-2:] if 'simulated' in batch else (224, 224)
+
+    def crop_tensor(tensor: torch.Tensor, key: str) -> torch.Tensor:
+        if zoom_box is None:
+            return tensor
+        xmin, ymin, xmax, ymax = zoom_box
+        
+        if key == 'sentinel2':
+            h_s2, w_s2 = tensor.shape[-2:]
+            sy, sx = h_s2 / ref_shape[0], w_s2 / ref_shape[1]
+            xmin, xmax = int(xmin * sx), int(xmax * sx)
+            ymin, ymax = int(ymin * sy), int(ymax * sy)
+            
+        if tensor.ndim == 3:
+            return tensor[:, ymin:ymax, xmin:xmax]
+        return tensor[ymin:ymax, xmin:xmax]
+
+    def get_rgb_stretched(tensor: torch.Tensor) -> np.ndarray:
+        rgb = tensor[list(rgb_indices)].detach().cpu().float().numpy()
+        rgb = np.transpose(rgb, (1, 2, 0))
+        
+        p2, p98 = np.percentile(rgb, (2, 98), axis=(0, 1))
+        p98 = np.maximum(p98, p2 + 1e-5) 
+        
+        rgb_stretched = np.clip((rgb - p2) / (p98 - p2), 0, 1)
+        return rgb_stretched
+
+    def plot_custom_histogram(ax, tensor: torch.Tensor, indices: list[int], colors: list[str], labels: list[str], title: str) -> None:
+        for idx_band, color, label in zip(indices, colors, labels):
+            data = tensor[idx_band].detach().cpu().float().numpy().flatten()
+            ax.hist(
+                data, 
+                bins=50, 
+                color=color, 
+                alpha=0.4, 
+                histtype='stepfilled', 
+                label=label
+            )
+            
+        ax.set_title(title, fontsize=11)
+        ax.set_yticks([])
+        ax.legend(loc='upper right', fontsize=8)
+
+    modalities = [
+        ("Sentinel-2", 'sentinel2'),
+        ("Simulated", 'simulated'), 
+        ("Real PhiSat-2", 'real')
+    ]
+    
+    for row in range(1, 3):
+        for col in range(3, n_cols):
+            axes[row, col].axis("off")
+
+    for col, (title, key) in enumerate(modalities):
+        ax_img = axes[0, col]
+        if key in batch:
+            cropped_tensor = crop_tensor(batch[key][idx], key)
+            img_rgb = get_rgb_stretched(cropped_tensor)
+            ax_img.imshow(img_rgb)
+        ax_img.set_title(title, fontsize=12, fontweight="bold")
+        ax_img.axis("off")
+
+    current_col = 3
+    
+    if show_cloud and 'mask_cloud' in batch:
+        ax_cloud = axes[0, current_col]
+        cloud_mask = crop_tensor(batch['mask_cloud'][idx].squeeze(), 'mask_cloud').detach().cpu().numpy()
+        
+        cloud_rgb, cloud_meta = mask_to_rgb(cloud_mask, "clouds")
+        ax_cloud.imshow(cloud_rgb)
+        ax_cloud.set_title("Cloud Mask", fontsize=12, fontweight="bold")
+        ax_cloud.axis("off")
+        
+        unique_classes = np.unique(cloud_mask)
+        patches = [
+            mpatches.Patch(color=np.array(cloud_meta[c][1])/255.0, label=cloud_meta[c][0]) 
+            for c in unique_classes if c in cloud_meta
+        ]
+        if patches:
+            axes[1, current_col].legend(handles=patches, loc='center', fontsize=10)
+            axes[1, current_col].set_title("Clouds Legend", fontsize=11)
+            
+        current_col += 1
+
+    if show_worldcover and 'mask_worldcover' in batch:
+        ax_wc = axes[0, current_col]
+        wc_mask = crop_tensor(batch['mask_worldcover'][idx].squeeze(), 'mask_worldcover').detach().cpu().numpy()
+        
+        wc_rgb, wc_meta = mask_to_rgb(wc_mask, "lulc")
+        ax_wc.imshow(wc_rgb)
+        ax_wc.set_title("WorldCover Mask", fontsize=12, fontweight="bold")
+        ax_wc.axis("off")
+        
+        unique_classes = np.unique(wc_mask)
+        patches = [
+            mpatches.Patch(color=np.array(wc_meta[c][1])/255.0, label=wc_meta[c][0]) 
+            for c in unique_classes if c in wc_meta
+        ]
+        if patches:
+            axes[1, current_col].legend(handles=patches, loc='center', fontsize=10)
+            axes[1, current_col].set_title("WorldCover Legend", fontsize=11)
+            
+        current_col += 1
+
+    for col, (title, key) in enumerate(modalities):
+        ax_hist = axes[1, col]
+        if key in batch:
+            cropped_tensor = crop_tensor(batch[key][idx], key)
+            plot_custom_histogram(
+                ax_hist, cropped_tensor, 
+                indices=list(rgb_indices), 
+                colors=['red', 'green', 'blue'], 
+                labels=['Red', 'Green', 'Blue'], 
+                title=f"RGB: {title}"
+            )
+
+    for col, (title, key) in enumerate(modalities):
+        ax_hist = axes[2, col]
+        if key in batch:
+            cropped_tensor = crop_tensor(batch[key][idx], key)
+            plot_custom_histogram(
+                ax_hist, cropped_tensor, 
+                indices=list(ir_indices), 
+                colors=['orange', 'magenta', 'purple', 'black'], 
+                labels=['RE1', 'RE2', 'RE3', 'NIR'], 
+                title=f"Infrared: {title}"
+            )
+
+    plt.tight_layout()
+    plt.show()

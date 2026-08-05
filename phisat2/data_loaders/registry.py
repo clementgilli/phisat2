@@ -9,6 +9,7 @@ import lightning as L
 from phisat2.data_loaders.triplets import TripletsDataModule
 from phisat2.data_loaders.synthetic import SyntheticDataModule
 from phisat2.data_loaders.downstream import DownstreamDataModule
+from phisat2.data_loaders.eurosat import EuroSatDataModule
 from phisat2.tasks import TaskSpec
 
 DataModuleBuilder = Callable[..., L.LightningDataModule]
@@ -36,6 +37,11 @@ REGISTRY: dict[str, DataLoaderEntry] = {
         "synthetic",
         "Small random dataloader used by smoke tests and CI.",
         SyntheticDataModule,
+    ),
+    "eurosat": DataLoaderEntry(
+        "eurosat",
+        "Full EuroSAT simulated dataset for 1-NN feature extraction.",
+        EuroSatDataModule,
     ),
 }
 
@@ -75,6 +81,15 @@ def build_datamodule(
             crop_size=crop_size,
             fast_dev_run=fast_dev_run,
             subset_csv=subset_csv,
+        )
+        
+    if name == "eurosat":
+        return entry.builder(
+            root_dir=root_dir,
+            spec=spec,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            seed=seed,
         )
         
     return entry.builder(

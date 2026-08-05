@@ -71,6 +71,7 @@ EVAL_DOMAIN_GAP_OUTPUTS = {
 EVAL_ENCODER_OUTPUTS = {
     "lulc": 0,
     "router": 0,
+    "eurosat": 0,
 }
 
 @dataclass(frozen=True)
