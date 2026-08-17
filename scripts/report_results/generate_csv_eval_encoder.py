@@ -11,7 +11,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-BASE_DIR = "runs/eval_encoder"
+BASE_DIR = "runs/eval_encoder/eurosat"
 
 def parse_metrics():
     base_path = Path(BASE_DIR)
@@ -65,6 +65,7 @@ def generate_summary_and_plots(df):
             
             if len(target_cols) == 4:
                 avg_col_name = f'Global_{shot}_Shot_Avg'
+                target_cols = [target_cols[-1]]
                 df_ds[avg_col_name] = df_ds[target_cols].mean(axis=1)
                 
                 cols_to_show = ['Model', avg_col_name] + target_cols

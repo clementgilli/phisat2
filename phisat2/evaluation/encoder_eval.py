@@ -203,10 +203,10 @@ class PretrainEvalModule(L.LightningModule):
             tsne = TSNE(n_components=2, perplexity=30, random_state=42, n_jobs=-1)
             emb = tsne.fit_transform(X_tsne)
 
-            self._plot_clusters(emb, Y_tsne, self.class_dict_micro, out_dir / f"tsne_{layer}_{self.spec.dataset}.png")
+            self._plot_clusters(emb, Y_tsne, self.class_dict_micro, out_dir / f"tsne_{layer}_{self.spec.dataset}.pdf")
             
             if self.has_macro:
-                self._plot_clusters(emb, Y_tsne, self.class_dict_macro, out_dir / f"tsne_{layer}_lulc_macro.png")
+                self._plot_clusters(emb, Y_tsne, self.class_dict_macro, out_dir / f"tsne_{layer}_lulc_macro.pdf")
 
             self.test_features[layer].clear()
             self.test_classes[layer].clear()
@@ -231,5 +231,5 @@ class PretrainEvalModule(L.LightningModule):
         plt.axis("off")
         plt.legend(handles=legend_patches, loc="lower center", bbox_to_anchor=(0.5, -0.1), ncol=4, fontsize=10)
         plt.tight_layout()
-        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        plt.savefig(save_path, format="pdf", bbox_inches="tight")
         plt.close()

@@ -41,7 +41,6 @@ class EuroSatDataset(Dataset):
         self.split = split
         self.scaling_factor = scaling_factor
 
-        # ── Sécurité Vitale : Permutation des canaux ──────────────────────────
         try:
             self.permutation = [EUROSAT_SOURCE_BANDS.index(b) for b in PHISAT2_REAL_BANDS]
         except ValueError as exc:

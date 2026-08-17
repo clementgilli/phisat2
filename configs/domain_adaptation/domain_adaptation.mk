@@ -39,7 +39,7 @@ ifneq ($(filter eval-domain-gap submit-eval-domain-gap, $(MAKECMDGOALS) $(TARGET
 JOB_NAME  = $(BASE_NAME)_eval
 WALLTIME  = 03:00:00
 CPUS      = 8
-MEM       = 64G
+MEM       = 64gb
 
 # Teacher = checkpoint SSL (always the same, frozen)
 TEACHER_CKPT = $(_PRETRAIN)
@@ -56,7 +56,7 @@ else
 JOB_NAME  = $(BASE_NAME)_train
 WALLTIME  = 24:00:00
 CPUS      = 16
-MEM       = 256G
+MEM       = 256gb
 
 TASK    = domain_adaptation
 EPOCHS  = 300

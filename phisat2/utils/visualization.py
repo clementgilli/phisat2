@@ -221,7 +221,7 @@ def visualize_triplet_batch(
     
     tile_id = batch['tile_id'][idx] if 'tile_id' in batch else "Unknown"
     title_suffix = f" | Zoom: {zoom_box}" if zoom_box else ""
-    fig.suptitle(f"Triplet Visualization | Tile ID: {tile_id}{title_suffix}", fontsize=16, fontweight="bold", y=1.02)
+    #fig.suptitle(f"Triplet Visualization | Tile ID: {tile_id}{title_suffix}", fontsize=16, fontweight="bold", y=1.02)
 
     ref_shape = batch['simulated'][idx].shape[-2:] if 'simulated' in batch else (224, 224)
 
