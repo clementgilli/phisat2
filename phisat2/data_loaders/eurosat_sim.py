@@ -10,7 +10,7 @@ import lightning as L
 from torch.utils.data import DataLoader, Dataset
 
 from phisat2.tasks import TaskSpec
-from phisat2.data_loaders.sensors import S2_BANDS, get_norm_tensors
+from phisat2.data_loaders.sensors import PHISAT2_REAL_BANDS, get_norm_tensors
 from phisat2.data_loaders.transforms import normalize_tensor
 
 EUROSAT_CLASSES = [
@@ -20,6 +20,9 @@ EUROSAT_CLASSES = [
 ]
 CLASS_TO_IDX = {cls_name: idx for idx, cls_name in enumerate(EUROSAT_CLASSES)}
 
+EUROSAT_SOURCE_BANDS = [
+    "BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"
+]
 
 class EuroSatDataset(Dataset):
     def __init__(
@@ -31,12 +34,21 @@ class EuroSatDataset(Dataset):
         seed: int = 42,
         train_ratio: float = 0.7,
         val_ratio: float = 0.1,
+        scaling_factor: float = 1.0,
     ) -> None:
         self.root_dir = Path(root_dir)
         self.spec = spec
         self.split = split
+        self.scaling_factor = scaling_factor
 
-        self.s2_mean, self.s2_std = get_norm_tensors("s2", S2_BANDS)
+        try:
+            self.permutation = [EUROSAT_SOURCE_BANDS.index(b) for b in PHISAT2_REAL_BANDS]
+        except ValueError as exc:
+            raise ValueError(
+                f"Cannot map {EUROSAT_SOURCE_BANDS} → {PHISAT2_REAL_BANDS}."
+            ) from exc
+
+        self.mean, self.std = get_norm_tensors("phisat2_sim", PHISAT2_REAL_BANDS)
         
         self.samples = self._build_stratified_split(
             self.root_dir, split, seed, train_ratio, val_ratio
@@ -53,7 +65,11 @@ class EuroSatDataset(Dataset):
             
         image = torch.from_numpy(image_array).float()
         
-        image = normalize_tensor(image, self.s2_mean, self.s2_std)
+        image = image[self.permutation]
+        
+        image = image / self.scaling_factor
+
+        image = normalize_tensor(image, self.mean, self.std)
         
         target = torch.tensor(label, dtype=torch.long)
 
@@ -111,6 +127,7 @@ class EuroSatDataModule(L.LightningDataModule):
         batch_size: int,
         num_workers: int,
         seed: int,
+        scaling_factor: float = 1.0,
     ) -> None:
         super().__init__()
         self.root_dir = root_dir
@@ -118,21 +135,24 @@ class EuroSatDataModule(L.LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.seed = seed
-        
-        self.input_bands = S2_BANDS
+        self.scaling_factor = scaling_factor
+        self.input_bands = PHISAT2_REAL_BANDS
 
     def setup(self, stage: str | None = None) -> None:
         if stage in {None, "fit", "validate"}:
             self.train_dataset = EuroSatDataset(
-                self.root_dir, self.spec, split="train", seed=self.seed
+                self.root_dir, self.spec, split="train", seed=self.seed, 
+                scaling_factor=self.scaling_factor
             )
             self.val_dataset = EuroSatDataset(
-                self.root_dir, self.spec, split="val", seed=self.seed
+                self.root_dir, self.spec, split="val", seed=self.seed, 
+                scaling_factor=self.scaling_factor
             )
 
         if stage in {None, "test", "predict"}:
             self.test_dataset = EuroSatDataset(
-                self.root_dir, self.spec, split="test", seed=self.seed
+                self.root_dir, self.spec, split="test", seed=self.seed, 
+                scaling_factor=self.scaling_factor
             )
 
     def train_dataloader(self) -> DataLoader:

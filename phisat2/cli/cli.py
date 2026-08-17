@@ -31,8 +31,8 @@ from phisat2.utils.seed import seed_everything
 
 # Maps task name → dataloader name (no need for --dataset / --dataloader)
 _PAIRED_TASKS: dict[str, str] = {
-    "pretrain_reconstruction": "triplets",  # (sim)
-    "knowledge_distillation":  "triplets",  # (sim, s2)
+    "pretrain_reconstruction": "ssl4eo",  # (sim)
+    #"knowledge_distillation":  "triplets",  # (sim, s2)
     "domain_adaptation":       "triplets",     # (real, sim)
     "eval_domain_gap":         "triplets",     # (real, sim)
 }
@@ -313,6 +313,12 @@ def run_fit(args: argparse.Namespace) -> None:
         # ── Trainer ───────────────────────────────────────────────────────
         run_name = f"{spec.task}_{spec.dataset}_{args.model}_{subset_name}_s{seed}"
         hardware = _resolve_hardware(args)
+        
+        trainer_kwargs = {}
+        
+        if spec.task == "pretrain_reconstruction":
+            trainer_kwargs["limit_train_batches"] = max(1, 100_000 // args.batch_size)
+            trainer_kwargs["limit_val_batches"] = max(1, 10_000 // args.batch_size)
 
         trainer = L.Trainer(
             **hardware,
@@ -328,6 +334,7 @@ def run_fit(args: argparse.Namespace) -> None:
             callbacks=callbacks,
             fast_dev_run=args.fast_dev_run,
             log_every_n_steps=1,
+            **trainer_kwargs,
         )
 
         # ── Resume ────────────────────────────────────────────────────────

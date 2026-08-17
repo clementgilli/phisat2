@@ -164,7 +164,7 @@ class SSLPretrainModule(L.LightningModule):
     def _shared_step(
         self, batch: dict[str, torch.Tensor], prefix: str
     ) -> torch.Tensor:
-        image = batch["simulated"]
+        image = batch["sentinel2"]
         B, C, H, W = image.shape
 
         mask           = self.generate_mask(B, H, W, image.device)

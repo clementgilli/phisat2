@@ -7,7 +7,9 @@ QUEUE       = gpu4_std
 GPUS        = 1
 
 MODEL       = phisatnet
-ROOT_DIR    = /lustre/home/u10010021/phisat2/data/triplets
+ROOT_DIR    = /lustre/home/u10010021/phisat2/data/ssl4eo
+DATASET    = ssl4eo
+DATALOADER   = ssl4eo
 
 SEEDS       = 42
 DEVICES     = 1
@@ -21,7 +23,7 @@ ifneq ($(filter eval submit-eval, $(MAKECMDGOALS) $(TARGET)),)
 JOB_NAME  = $(BASE_NAME)_eval
 WALLTIME  = 02:00:00
 CPUS      = 8
-MEM       = 64G
+MEM       = 64gb
 
 TASK      = pretrain_reconstruction
 CKPT_PATH ?=
@@ -32,10 +34,11 @@ else
 JOB_NAME  = $(BASE_NAME)_train
 WALLTIME  = 24:00:00
 CPUS      = 16
-MEM       = 256G
+MEM       = 256gb
 
 EPOCHS    = 300
 LR        = 0.0003
 WEIGHT_DECAY = 0.05
+PATIENCE = 20
 
 endif

@@ -28,16 +28,21 @@ TASKS = {
 }
 
 SEGMENTATION_OUTPUTS = {
-    "lulc": 11,
-    "lc": 11,
+    #"lulc": 11,
+    #"lc": 11,
     #"marine": 9,
     #"marine_area": 9,
     #"anomaly_detection": 9,
-    "burned": 4,
+    #"burned": 4,
     #"burned_area": 4,
-    "clouds": 4,
-    "floods": 3,
+    #"clouds": 4,
+    #"floods": 3,
     #"worldfloods": 3,
+    "lulc": 11,
+    "floods": 4,
+    "clouds": 4,
+    "marine": 9,
+    "methane": 2,
 }
 
 PIXEL_REGRESSION_OUTPUTS = {
@@ -55,10 +60,12 @@ CLASSIFICATION_OUTPUTS = {
 
 PRETRAIN_RECONSTRUCTION_OUTPUTS = {
     "triplets": 8,
+    "ssl4eo": 13,
 }
 
 KNOWLEDGE_DISTILLATION_OUTPUTS = {
     "triplets": 0,
+    "ssl4eo": 0,
 }
 
 DOMAIN_ADAPTATION_OUTPUTS = {

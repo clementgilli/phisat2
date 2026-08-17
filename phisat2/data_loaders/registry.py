@@ -10,6 +10,8 @@ from phisat2.data_loaders.triplets import TripletsDataModule
 from phisat2.data_loaders.synthetic import SyntheticDataModule
 from phisat2.data_loaders.downstream import DownstreamDataModule
 from phisat2.data_loaders.eurosat import EuroSatDataModule
+from phisat2.data_loaders.ssl4eo import SSL4EODataModule
+from phisat2.data_loaders.downstream_s2 import DownstreamS2DataModule
 from phisat2.tasks import TaskSpec
 
 DataModuleBuilder = Callable[..., L.LightningDataModule]
@@ -42,6 +44,16 @@ REGISTRY: dict[str, DataLoaderEntry] = {
         "eurosat",
         "Full EuroSAT simulated dataset for 1-NN feature extraction.",
         EuroSatDataModule,
+    ),
+    "ssl4eo": DataLoaderEntry(
+        "ssl4eo",
+        "SSL4EO dataset for self-supervised learning.",
+        SSL4EODataModule,
+    ),
+    "downstream_s2": DataLoaderEntry(
+        "downstream_s2",
+        "Downstream Sentinel-2 datasets with image/mask batches.",
+        DownstreamS2DataModule,
     ),
 }
 
@@ -90,6 +102,27 @@ def build_datamodule(
             batch_size=batch_size,
             num_workers=num_workers,
             seed=seed,
+        )
+    
+    if name == "ssl4eo":
+        return entry.builder(
+            root_dir=root_dir,
+            spec=spec,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            seed=seed,
+            fast_dev_run=fast_dev_run,
+        )
+        
+    if name == "downstream_s2":
+        return entry.builder(
+            root_dir=root_dir,
+            spec=spec,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            seed=seed,
+            fast_dev_run=fast_dev_run,
+            crop_size=crop_size,
         )
         
     return entry.builder(
