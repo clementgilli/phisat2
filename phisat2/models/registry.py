@@ -45,6 +45,7 @@ class ModelBundle:
     model:    nn.Module     | None = None
     teacher:  nn.Module     | None = None
     student:  nn.Module     | None = None
+    student_before: nn.Module | None = None
     decoders: nn.ModuleDict | None = None
 
 
@@ -275,7 +276,9 @@ def get_model_bands(name: str) -> tuple[str, ...] | None:
 
 def _build_encoder(name: str, pretrained: bool, input_bands: list[str], base_channels: int = 16) -> nn.Module:
     if name == "phisatnet":
-        return PhiSatNetEncoder(in_channels=len(input_bands), base_channels=base_channels)
+        if isinstance(input_bands, list):
+            input_bands = len(input_bands)
+        return PhiSatNetEncoder(in_channels=input_bands, base_channels=base_channels)
     return TerraTorchBackboneEncoder(name, pretrained=pretrained, input_bands=input_bands)
 
 
@@ -370,10 +373,10 @@ def build_model(
                 "DA requires --weights pointing to the pretrained SIM encoder. "
                 "Both teacher (frozen) and student are initialised from it."
             )
-        teacher = _build_encoder("phisatnet", pretrained=False, input_bands=input_bands)
-        student = _build_encoder("phisatnet", pretrained=False, input_bands=input_bands)
-        load_encoder_weights(teacher, weights_path)
-        load_encoder_weights(student, weights_path)
+        teacher = _build_encoder("phisatnet", pretrained=False, input_bands=13)        
+        student = _build_encoder("phisatnet", pretrained=False, input_bands=8)        
+        load_encoder_weights(teacher, weights_path, adapt_13_to_8=False)        
+        load_encoder_weights(student, weights_path, adapt_13_to_8=True)
         
         return ModelBundle(task=spec.task, teacher=teacher, student=student)
 
@@ -381,11 +384,13 @@ def build_model(
     elif spec.task == "eval_domain_gap":
         if not teacher_ckpt:
             raise ValueError("eval_domain_gap requires --teacher-ckpt.")
-
-        teacher = _build_encoder("phisatnet", pretrained=False, input_bands=input_bands)
-        student = _build_encoder("phisatnet", pretrained=False, input_bands=input_bands)
+        
+        teacher = _build_encoder("phisatnet", pretrained=False, input_bands=13)
+        student_before = _build_encoder("phisatnet", pretrained=False, input_bands=8)
+        student = _build_encoder("phisatnet", pretrained=False, input_bands=8)  
         load_encoder_weights(teacher, teacher_ckpt)
-        load_encoder_weights(student, student_ckpt or teacher_ckpt)
+        load_encoder_weights(student_before, teacher_ckpt, adapt_13_to_8=True)           
+        load_encoder_weights(student, student_ckpt)
 
         decoders_dict = nn.ModuleDict()
         for dec_arg in (decoders or []):
@@ -397,7 +402,7 @@ def build_model(
             decoders_dict[dataset_name] = head
 
         return ModelBundle(
-            task=spec.task, teacher=teacher, student=student, decoders=decoders_dict
+            task=spec.task, teacher=teacher, student=student, student_before=student_before, decoders=decoders_dict
         )
 
     # ── Downstream ────────────────────────────────────────────────────────

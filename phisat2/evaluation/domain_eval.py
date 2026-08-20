@@ -24,11 +24,13 @@ class DomainEvalModule(L.LightningModule):
         self,
         teacher_encoder: nn.Module,   
         student_encoder: nn.Module,
+        student_before_encoder: nn.Module,
         decoders: nn.ModuleDict,
     ) -> None:
         super().__init__()
         self.teacher  = teacher_encoder
         self.student  = student_encoder
+        self.student_before = student_before_encoder
         self.decoders = decoders
 
         self.feature_layers = ["enc_0", "enc_1", "enc_2", "bottleneck"]
@@ -147,7 +149,7 @@ class DomainEvalModule(L.LightningModule):
         task_name: str,
         batch_idx: int,
         max_samples: int = 5,
-        mask_gt: torch.Tensor | None = None,  # <-- AJOUT du paramètre GT
+        mask_gt: torch.Tensor | None = None,
     ) -> None:
         
         def argmax(t: torch.Tensor) -> np.ndarray:
@@ -158,9 +160,9 @@ class DomainEvalModule(L.LightningModule):
         preds_after  = argmax(logits_after)
         
         n = min(max_samples, img_sim.shape[0])
-        sampled_indices = np.random.choice(img_sim.shape[0], n, replace=False)
-
-        # <-- AJOUT : Adaptation dynamique du nombre de colonnes (5 ou 6)
+        #sampled_indices = np.random.choice(img_sim.shape[0], n, replace=False)
+        sampled_indices = np.arange(n)  # For consistent visualization across batches
+        
         has_gt = mask_gt is not None
         n_cols = 6 if has_gt else 5
 
@@ -230,7 +232,8 @@ class DomainEvalModule(L.LightningModule):
         
         n = min(max_samples, img_sim.shape[0])
         
-        sampled_indices = np.random.choice(img_sim.shape[0], n, replace=False)
+        #sampled_indices = np.random.choice(img_sim.shape[0], n, replace=False)
+        sampled_indices = np.arange(n)
 
         fig, axes = plt.subplots(n, 5, figsize=(25, 4 * n), squeeze=False, constrained_layout=True)
         #fig.suptitle(f"Consistency Regression — {task_name} — Batch {batch_idx}", fontsize=14)
@@ -280,8 +283,9 @@ class DomainEvalModule(L.LightningModule):
         
         n = min(max_samples, img_sim.shape[0])
         
-        sampled_indices = np.random.choice(img_sim.shape[0], n, replace=False)
-
+        #sampled_indices = np.random.choice(img_sim.shape[0], n, replace=False)
+        sampled_indices = np.arange(n)  # For consistent visualization across batches
+        
         fig, axes = plt.subplots(n, 5, figsize=(25, 4 * n), squeeze=False, constrained_layout=True)
         #fig.suptitle(f"Consistency Classification — {task_name} — Batch {batch_idx}", fontsize=16, fontweight='bold')
         
@@ -335,12 +339,12 @@ class DomainEvalModule(L.LightningModule):
     # ─────────────────────────────────────────────────────────────────────────
 
     def test_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
-        img_sim  = batch["simulated"]
+        img_sim  = batch["sentinel2"]
         img_real = batch["real"]
-        mask_gt  = batch.get("mask_worldcover") 
+        mask_gt  = batch.get("mask_worldcover")
 
         feat_sim    = self._to_named(self.teacher(img_sim),  self.feature_layers)
-        feat_before = self._to_named(self.teacher(img_real), self.feature_layers)
+        feat_before = self._to_named(self.student_before(img_real), self.feature_layers)
         feat_after  = self._to_named(self.student(img_real), self.feature_layers)
 
         for layer in self.feature_layers:
@@ -359,7 +363,7 @@ class DomainEvalModule(L.LightningModule):
             self.stored_after[layer].append(f_after.cpu().numpy())
 
         # ── Consistency downstream ─────────────────────────────────────────────
-        do_plot = (batch_idx % 5 == 0)
+        do_plot = (batch_idx % 1 == 0)
         for task_name, decoder in self.decoders.items():
             feat_list_sim    = [feat_sim[l]    for l in self.feature_layers if l in feat_sim]
             feat_list_before = [feat_before[l] for l in self.feature_layers if l in feat_before]
@@ -394,14 +398,17 @@ class DomainEvalModule(L.LightningModule):
                 if task_name == "lulc" and mask_gt is not None:
                     mask_gt_int = mask_gt.long()
 
-                    mask_gt_aligned = mask_gt_int
+                    # 1. MAPPING WORLDCOVER -> DYNAMIC WORLD
+                    # Index source (WorldCover): 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+                    wc_to_dw = torch.tensor([2, 6, 3, 5, 7, 8, 9, 1, 4, 4, 0], device=self.device)
+                    mask_gt_aligned = wc_to_dw[mask_gt_int]
 
                     preds_sim_hard = logits_sim.argmax(1)
                     preds_before_hard = logits_before.argmax(1)
                     preds_after_hard = logits_after.argmax(1)
 
-                    macro_mapping = torch.tensor([0, 0, 0, 0, 1, 2, 2, 3, 3, 3, 0], device=self.device)
-                    n_macro_classes = 4
+                    macro_mapping = torch.tensor([0, 1, 2, 2, 1, 2, 2, 3, 4, 4, 0], device=self.device)
+                    n_macro_classes = 5
 
                     eval_configs = [
                         ("upper_bound", preds_sim_hard),
@@ -410,8 +417,9 @@ class DomainEvalModule(L.LightningModule):
                     ]
                     
                     for prefix, preds in eval_configs:
-                        iou = jaccard_index(preds, mask_gt_aligned, task="multiclass", num_classes=n_classes, average="macro")
-                        f1  = f1_score(preds, mask_gt_aligned, task="multiclass", num_classes=n_classes, average="macro")
+                        
+                        iou = jaccard_index(preds, mask_gt_aligned, task="multiclass", num_classes=n_classes, average="macro", ignore_index=0)
+                        f1  = f1_score(preds, mask_gt_aligned, task="multiclass", num_classes=n_classes, average="macro", ignore_index=0)
                         
                         self.log(f"{prefix}/{task_name}_iou", iou, on_step=False, on_epoch=True)
                         self.log(f"{prefix}/{task_name}_f1",  f1,  on_step=False, on_epoch=True)
@@ -419,8 +427,8 @@ class DomainEvalModule(L.LightningModule):
                         preds_m = macro_mapping[preds]
                         gt_m    = macro_mapping[mask_gt_aligned]
                         
-                        m_iou = jaccard_index(preds_m, gt_m, task="multiclass", num_classes=n_macro_classes, average="macro")
-                        m_f1  = f1_score(preds_m, gt_m, task="multiclass", num_classes=n_macro_classes, average="macro")
+                        m_iou = jaccard_index(preds_m, gt_m, task="multiclass", num_classes=n_macro_classes, average="macro", ignore_index=0)
+                        m_f1  = f1_score(preds_m, gt_m, task="multiclass", num_classes=n_macro_classes, average="macro", ignore_index=0)
                         
                         self.log(f"{prefix}/{task_name}_macro_iou", m_iou, on_step=False, on_epoch=True)
                         self.log(f"{prefix}/{task_name}_macro_f1",  m_f1,  on_step=False, on_epoch=True)

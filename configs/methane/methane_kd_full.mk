@@ -1,19 +1,17 @@
 # ==========================================
-# CONFIGURATION : LULC — Full Dataset
+# CONFIGURATION : Methane — Full Dataset
 # ==========================================
 
 MODEL       ?=
 
-BASE_NAME   = lulc_$(MODEL)_full
-QUEUE       = gpu4_std
+BASE_NAME   = methane_$(MODEL)_full
+QUEUE       = gpu8_std
 GPUS        = 1
 
 TASK        = segmentation
-DATASET     = lulc
+DATASET     = methane
 DATALOADER  = downstream_s2
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data
-
-BASE_CHANNELS = 16
 
 SEEDS       = 42
 DEVICES     = 1
@@ -30,7 +28,7 @@ WALLTIME  = 02:00:00
 CPUS      = 8
 MEM       = 64gb
 
-CKPT_PATH = /lustre/home/u10010021/phisat2/runs/segmentation/lulc/$(MODEL)/full_dataset/seed_42/checkpoints/best-v6.ckpt
+CKPT_PATH = /lustre/home/u10010021/phisat2/runs/segmentation/methane/$(MODEL)/full_dataset/seed_42/checkpoints/best-v1.ckpt
 
 # ─── train / submit-train ─────────────────────────────────────────────────────
 else
@@ -41,10 +39,8 @@ CPUS       = 16
 MEM        = 128gb
 
 BATCH_SIZE = 128
-LR         = 0.0005
-WEIGHT_DECAY = 0.00001
-EPOCHS     = 300
-PATIENCE   = 20
+LR         = 0.001
+EPOCHS     = 100
 
 WEIGHTS    = $(_PRETRAIN)
 SUBSET_CSV =

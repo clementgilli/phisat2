@@ -8,7 +8,10 @@ BASE_NAME   = kd_${MODEL}
 QUEUE       = gpu4_std
 GPUS        = 1
 
-ROOT_DIR    = /lustre/home/u10010021/phisat2/data/triplets
+#ROOT_DIR    = /lustre/home/u10010021/phisat2/data/triplets
+ROOT_DIR    = /lustre/home/u10010021/phisat2/data/ssl4eo
+DATASET    = ssl4eo
+DATALOADER   = ssl4eo
 
 SEEDS       = 42
 DEVICES     = 1
@@ -19,7 +22,7 @@ NUM_WORKERS = 14
 JOB_NAME  = $(BASE_NAME)_${MODEL}
 WALLTIME  = 24:00:00
 CPUS      = 16
-MEM       = 256G
+MEM       = 256gb
 
 TASK    = knowledge_distillation
 EPOCHS  = 300

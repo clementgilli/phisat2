@@ -112,7 +112,7 @@ class DomainAdaptationModule(L.LightningModule):
         *,
         lr: float,
         weight_decay: float,
-        method: Literal["mse", "coral", "mmd"] = "mmd",
+        method: Literal["mse", "coral", "mmd"] = "mse",
         loss_weights: dict[str, float] | None = None,
         mmd_sigmas: list[float] | None = None,   # only used when method="mmd"
     ) -> None:
@@ -177,7 +177,7 @@ class DomainAdaptationModule(L.LightningModule):
         self, batch: dict[str, torch.Tensor], prefix: str
     ) -> torch.Tensor:
         img_real = batch["real"]
-        img_sim  = batch["simulated"]
+        img_sim  = batch["sentinel2"]
 
         with torch.no_grad():
             feat_sim = self.teacher(img_sim)

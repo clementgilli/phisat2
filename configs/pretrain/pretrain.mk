@@ -14,7 +14,7 @@ DATALOADER   = ssl4eo
 SEEDS       = 42
 DEVICES     = 1
 PRECISION   = bf16-mixed
-BATCH_SIZE  = 512
+BATCH_SIZE  = 128
 NUM_WORKERS = 8
 
 # ─── eval / submit-eval ───────────────────────────────────────────────────────

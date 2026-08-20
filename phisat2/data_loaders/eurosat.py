@@ -6,12 +6,13 @@ from pathlib import Path
 import rasterio
 import numpy as np
 import torch
+import torch.nn.functional as F
 import lightning as L
 from torch.utils.data import DataLoader, Dataset
 
 from phisat2.tasks import TaskSpec
 from phisat2.data_loaders.sensors import S2_BANDS, get_norm_tensors
-from phisat2.data_loaders.transforms import normalize_tensor
+from phisat2.data_loaders.transforms import normalize_tensor, upscale_to_phisat2
 
 EUROSAT_CLASSES = [
     "AnnualCrop", "Forest", "HerbaceousVegetation", "Highway",
@@ -52,6 +53,8 @@ class EuroSatDataset(Dataset):
             image_array = src.read()
             
         image = torch.from_numpy(image_array).float()
+        
+        image = upscale_to_phisat2(image, is_mask=False)
         
         image = normalize_tensor(image, self.s2_mean, self.s2_std)
         

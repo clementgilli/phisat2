@@ -6,13 +6,13 @@ from typing import Any
 
 import lightning as L
 import numpy as np
-import rasterio
+import tifffile
 import torch
 from torch.utils.data import DataLoader, Dataset
 
 from phisat2.tasks.specs import TaskSpec
 from phisat2.data_loaders.sensors import S2_BANDS, get_norm_tensors
-from phisat2.data_loaders.transforms import apply_spatial_transforms, normalize_tensor
+from phisat2.data_loaders.transforms import apply_spatial_transforms, upscale_to_phisat2, normalize_tensor
 
 DATASET_NAMES = {
     "clouds": "clouds",
@@ -20,14 +20,7 @@ DATASET_NAMES = {
     "lulc": "lulc",
     "marine": "marine",
     "methane": "methane",
-}
-
-IGNORE_INDEX_MAP = {
-    "clouds": 255,
-    "floods": 0,
-    "lulc": 0,
-    "marine": 0,
-    "methane": 255,
+    "burned": "burned",
 }
 
 class DownstreamS2Dataset(Dataset):
@@ -37,7 +30,7 @@ class DownstreamS2Dataset(Dataset):
         split: str = "train",
         max_patches: int | None = None,
         is_train: bool = True,
-        crop_size: int = 224
+        crop_size: int = 224,
     ) -> None:
         super().__init__()
         self.dataset_dir = Path(dataset_dir)
@@ -57,8 +50,9 @@ class DownstreamS2Dataset(Dataset):
         return len(self.samples)
 
     def _read_tif(self, path: Path, is_mask: bool = False) -> torch.Tensor:
-        with rasterio.open(path) as src:
-            data = src.read()
+        data = tifffile.imread(path)
+        if not is_mask and data.ndim == 3:
+            data = data.transpose(2, 0, 1)            
         tensor = torch.from_numpy(data.astype(np.int64 if is_mask else np.float32))
         return tensor.squeeze(0) if tensor.ndim == 3 and tensor.shape[0] == 1 else tensor
 
@@ -67,7 +61,13 @@ class DownstreamS2Dataset(Dataset):
         lbl_path = self.labels_dir / img_path.name.replace("_image.tif", "_label.tif")
         
         s2_tensor = self._read_tif(img_path, is_mask=False)[:13]
+        if "marine" in str(self.dataset_dir): #offset ESA (post 2022)
+            s2_tensor = s2_tensor - 1000
+        
         mask_tensor = self._read_tif(lbl_path, is_mask=True)
+        
+        s2_tensor = upscale_to_phisat2(s2_tensor, is_mask=False)
+        mask_tensor = upscale_to_phisat2(mask_tensor, is_mask=True)
         
         s2_tensor = normalize_tensor(s2_tensor, self.s2_mean, self.s2_std)
         
@@ -76,6 +76,7 @@ class DownstreamS2Dataset(Dataset):
             is_train=self.is_train,
             crop_size=self.crop_size
         )
+        
         return {
             "sentinel2": transformed[0],
             "mask": transformed[1],
@@ -107,11 +108,6 @@ class DownstreamS2DataModule(L.LightningDataModule):
         dataset_name = DATASET_NAMES.get(dataset_key, dataset_key)
             
         self.dataset_dir = self.root_dir / dataset_name
-        
-        self.ignore_index = IGNORE_INDEX_MAP[dataset_name] if dataset_name in IGNORE_INDEX_MAP else None
-        if self.ignore_index is None:
-            raise ValueError(f"Unknown dataset name: {dataset_name}. Please add it to IGNORE_INDEX_MAP with the appropriate ignore index value.")
-
 
     def setup(self, stage: str | None = None) -> None:
         max_patches = self.batch_size if self.fast_dev_run else None

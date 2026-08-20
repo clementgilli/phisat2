@@ -302,7 +302,8 @@ class ViTKDModule(L.LightningModule):
         # ── Dummy forward to infer shapes ─────────────────────────────────────
         _D = 224
         with torch.no_grad():
-            s_feats = self.student(torch.zeros(1, 8,  _D, _D))
+            #s_feats = self.student(torch.zeros(1, 8,  _D, _D))
+            s_feats = self.student(torch.zeros(1, 13,  _D, _D))
             t_out   = self.teacher(torch.zeros(1, 13, _D, _D))
 
         t_tokens = t_out["patch_tokens"]
@@ -463,7 +464,8 @@ class ViTKDModule(L.LightningModule):
         opt_s, opt_d = self.optimizers()
         sch_s, sch_d = self.lr_schedulers()
 
-        img_s = batch["simulated"]
+        #img_s = batch["simulated"]
+        img_s = batch["sentinel2_augmented"]
         img_t = batch["sentinel2"]
 
         # Teacher forward (hook fills self._qkv_cache if use_pca)
@@ -492,7 +494,8 @@ class ViTKDModule(L.LightningModule):
             sch_d.step()
 
     def validation_step(self, batch: dict, batch_idx: int) -> None:
-        img_s = batch["simulated"]
+        #img_s = batch["simulated"]
+        img_s = batch["sentinel2_augmented"]
         img_t = batch["sentinel2"]
 
         z_t          = self._teacher_tokens(img_t)

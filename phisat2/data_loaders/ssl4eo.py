@@ -12,7 +12,12 @@ from torch.utils.data import DataLoader, Dataset
 
 from phisat2.tasks.specs import TaskSpec
 from phisat2.data_loaders.sensors import S2_BANDS, get_norm_tensors
-from phisat2.data_loaders.transforms import apply_spatial_transforms, normalize_tensor
+from phisat2.data_loaders.transforms import apply_kd_transforms, upscale_to_phisat2, normalize_tensor
+
+import warnings
+from rasterio.errors import NotGeoreferencedWarning
+
+warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
 
 
 class SSL4EODataset(Dataset):
@@ -51,17 +56,21 @@ class SSL4EODataset(Dataset):
         
         s2_tensor = self._read_tif(img_path)
         
+        s2_tensor = upscale_to_phisat2(s2_tensor, is_mask=False)
+        
         s2_tensor = normalize_tensor(s2_tensor, self.s2_mean, self.s2_std)
         
-        transformed = apply_spatial_transforms(
-            [s2_tensor],
+        tensor_views = apply_kd_transforms(
+            s2_tensor,
             is_train=self.is_train,
-            crop_size=self.crop_size
+            crop_size=self.crop_size,
+            p_jitter=0.0,
+            p_noise=0.0
         )
-        s2_tensor = transformed[0]
         
         return {
-            "sentinel2": s2_tensor,  # (13, 224, 224)
+            "sentinel2": tensor_views["teacher"],  # (13, 224, 224)
+            "sentinel2_augmented": tensor_views["student"],
             "image_id": img_path.name
         }
 

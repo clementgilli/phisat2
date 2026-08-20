@@ -38,11 +38,21 @@ SEGMENTATION_OUTPUTS = {
     #"clouds": 4,
     #"floods": 3,
     #"worldfloods": 3,
-    "lulc": 11,
-    "floods": 4,
-    "clouds": 4,
-    "marine": 9,
-    "methane": 2,
+    "lulc": 11, # train: 12520 / val: 1388 / test: 1636
+    "floods": 4, # train: 60976 / val: 2415 / test: 2698
+    "clouds": 4, # train: 8834 / val: 2140 / test: 3868
+    "marine": 9,  # train: 1984 / val: 320 / test: 896
+    "methane": 2, # train: 11200 / val: 1664 / test: 3120
+    "burned": 7,
+}
+
+SEGMENTATION_IGNORE_INDEX = {
+    "clouds": 99,
+    "floods": 0,
+    "lulc": 0,
+    "marine": 0,
+    "methane": 255,
+    "burned": 255,
 }
 
 PIXEL_REGRESSION_OUTPUTS = {
@@ -89,6 +99,7 @@ class TaskSpec:
     num_outputs: int
     target_key: str
     loss: str
+    ignore_index: int | None = None
 
 
 def resolve_task_spec(task: str, dataset: str) -> TaskSpec:
@@ -98,7 +109,7 @@ def resolve_task_spec(task: str, dataset: str) -> TaskSpec:
         raise ValueError(f"Unknown task '{task}'. Expected one of: {', '.join(sorted(TASKS))}.")
 
     if task == TASK_SEGMENTATION:
-        return TaskSpec(task, dataset, _lookup(dataset, SEGMENTATION_OUTPUTS), "mask", "cross_entropy")
+        return TaskSpec(task, dataset, _lookup(dataset, SEGMENTATION_OUTPUTS), "mask", "cross_entropy", ignore_index=SEGMENTATION_IGNORE_INDEX[dataset])
     if task == TASK_CLASSIFICATION:
         return TaskSpec(task, dataset, _lookup(dataset, CLASSIFICATION_OUTPUTS), "label", "cross_entropy")
     if task == TASK_GLOBAL_REGRESSION:

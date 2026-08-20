@@ -6,7 +6,7 @@ CPUS     = 4
 MEM      = 32GB
 
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data
-WEIGHTS  = /lustre/home/u10010021/phisat2/runs/knowledge_distillation/triplets/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
+WEIGHTS  = /lustre/home/u10010021/phisat2/runs/knowledge_distillation/ssl4eo/$(MODEL)/full_dataset/seed_42/checkpoints/best-v1.ckpt
 BATCH_SIZE = 128
 
 MODEL    ?=

@@ -5,49 +5,76 @@ import matplotlib.patches as mpatches
 from sklearn.manifold import TSNE
 
 SEGMENTATION_METADATA = {
-    "floods": {
-        0: ("Cloud",      (211, 211, 211)), 
-        1: ("Clear Land", (139, 69, 19)),
-        2: ("Water",      (30, 144, 255)),   
-    },
-    "lulc": {
-        0:  ("Tree Cover",          (34, 139, 34)),    
-        1:  ("Shrubland",           (184, 134, 11)),   
-        2:  ("Grassland",           (124, 252, 0)),   
-        3:  ("Cropland",            (255, 215, 0)),   
-        4:  ("Built-up",            (255, 0, 0)),    
-        5:  ("Bare/Sparse Veg",     (210, 180, 140)),  
-        6:  ("Snow and Ice",        (255, 255, 255)), 
-        7:  ("Permanent Water",     (0, 0, 255)),     
-        8:  ("Herbaceous Wetland",  (0, 139, 139)),  
-        9:  ("Mangroves",           (32, 178, 170)),  
-        10: ("Moss and Lichen",     (240, 230, 140)),
-    },
-    "lulc_macro": {
-        0:  ("Vegetation", (34, 139, 34)),    # Tree Cover
-        1:  ("Vegetation", (34, 139, 34)),    # Shrubland
-        2:  ("Vegetation", (34, 139, 34)),    # Grassland
-        3:  ("Vegetation", (34, 139, 34)),    # Cropland
-        10: ("Vegetation", (34, 139, 34)),    # Moss and Lichen
-        4:  ("Built-up",   (255, 0, 0)),      # Built-up        
-        5:  ("Bare/Ice",   (210, 180, 140)),  # Bare/Sparse Veg
-        6:  ("Bare/Ice",   (210, 180, 140)),  # Snow and Ice        
-        7:  ("Water",      (0, 0, 255)),      # Permanent Water
-        8:  ("Water",      (0, 0, 255)),      # Herbaceous Wetland
-        9:  ("Water",      (0, 0, 255)),      # Mangroves
-    },
-    "burned": {
-        0: ("Background",      (0, 0, 0)), 
-        1: ("Burned Area", (255, 0, 0)),
-        2: ("Clouds",      (211, 211, 211)),
-        3: ("Waterbodies",      (30, 144, 255)),      
-    },
     "clouds": {
-        0: ("Clear sky",    (0, 0, 0)),
-        1: ("Shadows",      (75, 0, 130)),
-        2: ("Thin clouds",  (173, 216, 230)),
-        3: ("Thick clouds", (245, 245, 245)),
+        0:  ("Clear",          (46, 139, 87)),
+        1:  ("Thick Cloud",    (255, 255, 255)),
+        2:  ("Thin Cloud",     (0, 255, 255)),  
+        3:  ("Cloud Shadow",   (255, 0, 255)),
+        99: ("No Data",        (0, 0, 0)),
     },
+    
+    "floods": {
+        0: ("Invalid",        (0, 0, 0)), 
+        1: ("Land",           (139, 69, 19)),
+        2: ("Water",          (30, 144, 255)),
+        3: ("Clouds",         (211, 211, 211)),
+    },
+    
+    "lulc": {
+        0:  ("No Data",            (0, 0, 0)),    
+        1:  ("Water",              (0, 0, 255)),   
+        2:  ("Trees",              (34, 139, 34)),   
+        3:  ("Grass",              (124, 252, 0)),   
+        4:  ("Flooded Vegetation", (0, 139, 139)),    
+        5:  ("Crops",              (255, 215, 0)),  
+        6:  ("Scrub",              (184, 134, 11)), 
+        7:  ("Built Area",         (255, 0, 0)),     
+        8:  ("Bare Ground",        (210, 180, 140)),  
+        9:  ("Snow/Ice",           (240, 248, 255)),  
+        10: ("Cloud",              (211, 211, 211)),
+    },
+    
+    "lulc_macro": {
+        0:  ("No Data / Cloud", (0, 0, 0)),       # 0: No Data
+        1:  ("Water",           (0, 0, 255)),     # 1: Water
+        2:  ("Vegetation",      (34, 139, 34)),   # 2: Trees
+        3:  ("Vegetation",      (34, 139, 34)),   # 3: Grass
+        4:  ("Water",           (0, 0, 255)),     # 4: Flooded Vegetation
+        5:  ("Vegetation",      (34, 139, 34)),   # 5: Crops
+        6:  ("Vegetation",      (34, 139, 34)),   # 6: Scrub
+        7:  ("Built Area",      (255, 0, 0)),     # 7: Built Area
+        8:  ("Bare/Ice",        (210, 180, 140)), # 8: Bare Ground
+        9:  ("Bare/Ice",        (210, 180, 140)), # 9: Snow/Ice
+        10: ("No Data / Cloud", (0, 0, 0)),       # 10: Cloud
+    },
+    
+    "marine": {
+        0: ("No Data",      (0, 0, 0)),
+        1: ("Clear Water",  (30, 144, 255)),
+        2: ("Turbid Water", (189, 183, 107)),
+        3: ("Land",         (139, 69, 19)),
+        4: ("Plastic",      (255, 20, 147)),  
+        5: ("Oil",          (47, 79, 79)),   
+        6: ("Algae",        (50, 205, 50)),  
+        7: ("Sediments",    (210, 180, 140)),
+        8: ("Cloud",        (255, 255, 255)),
+    },
+    
+    "methane": {
+        0: ("No Plume", (0, 0, 0)),
+        1: ("Plume",    (255, 69, 0)),
+    },
+    
+    "burned": {
+        0:   ("Clear",        (34, 139, 34)),
+        1:   ("Fresh Burn",   (255, 0, 0)),
+        2:   ("Old Burn",     (139, 69, 19)),
+        3:   ("Cloud",        (255, 255, 255)),
+        4:   ("Cloud Shadow", (105, 105, 105)),
+        5:   ("Water",        (30, 144, 255)),
+        255: ("No Data",      (0, 0, 0))
+    },
+    
     "router": {
         0: ("Safe",   (34, 139, 34)),
         1: ("Fire",   (255, 69, 0)),     

@@ -4,6 +4,16 @@ PHISAT2_REAL_BANDS = ["PAN", "BLUE", "GREEN", "RED", "RED_EDGE_1", "RED_EDGE_2",
 PHISAT2_SIM_BANDS  = ["BLUE", "GREEN", "RED", "PAN", "NIR_BROAD", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3"]
 S2_BANDS           = ["COASTAL_AEROSOL", "BLUE", "GREEN", "RED", "RED_EDGE_1", "RED_EDGE_2", "RED_EDGE_3", "NIR_BROAD", "NIR_NARROW", "WATER_VAPOR", "CIRRUS", "SWIR_1", "SWIR_2"]
 
+PAN_WEIGHTS = {
+    "BLUE":       0.21594369,
+    "GREEN":      0.28731533,
+    "RED":        0.25719303,
+    "RED_EDGE_1": 0.12275664,
+    "RED_EDGE_2": 0.11679131,
+    "RED_EDGE_3": 0.0,
+    "NIR_BROAD":  0.0
+}
+
 STATS = {
     "phisat2_sim": {
         "BLUE": (0.1428, 0.0699), "GREEN": (0.1367, 0.0742), "RED": (0.1461, 0.096), "PAN": (0.1492, 0.0791),
@@ -32,6 +42,13 @@ def get_norm_tensors(sensor: str, bands: list[str]) -> tuple[torch.Tensor, torch
         
     means, stds = [], []
     for band in bands:
+        if band == "PAN" and sensor == "s2":
+            pan_mean = sum(w * STATS["s2"][b][0] for b, w in PAN_WEIGHTS.items() if w > 0)
+            pan_std  = sum(w * STATS["s2"][b][1] for b, w in PAN_WEIGHTS.items() if w > 0)
+            means.append(pan_mean)
+            stds.append(pan_std)
+            continue
+        
         if band not in STATS[sensor]:
             raise ValueError(f"Band {band} not found for sensor {sensor}.")
         mean, std = STATS[sensor][band]

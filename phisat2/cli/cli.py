@@ -31,8 +31,8 @@ from phisat2.utils.seed import seed_everything
 
 # Maps task name → dataloader name (no need for --dataset / --dataloader)
 _PAIRED_TASKS: dict[str, str] = {
-    "pretrain_reconstruction": "ssl4eo",  # (sim)
-    #"knowledge_distillation":  "triplets",  # (sim, s2)
+    "pretrain_reconstruction": "ssl4eo",  # (s2)
+    "knowledge_distillation":  "ssl4eo",  # (s2)
     "domain_adaptation":       "triplets",     # (real, sim)
     "eval_domain_gap":         "triplets",     # (real, sim)
 }
@@ -203,6 +203,7 @@ def _build_module(bundle: ModelBundle, spec, lr: float, weight_decay: float) -> 
         module = DomainEvalModule(
             teacher_encoder=bundle.teacher,
             student_encoder=bundle.student,
+            student_before_encoder=bundle.student_before,
             decoders=bundle.decoders,
         )
     
@@ -316,7 +317,7 @@ def run_fit(args: argparse.Namespace) -> None:
         
         trainer_kwargs = {}
         
-        if spec.task == "pretrain_reconstruction":
+        if args.dataset=="ssl4eo":
             trainer_kwargs["limit_train_batches"] = max(1, 100_000 // args.batch_size)
             trainer_kwargs["limit_val_batches"] = max(1, 10_000 // args.batch_size)
 

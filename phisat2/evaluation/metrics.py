@@ -7,7 +7,14 @@ from phisat2.tasks import TaskSpec
 
 
 MACRO_CLASS_MAPPINGS: dict[str, torch.Tensor] = {
-    "lulc": torch.tensor([0, 0, 0, 0, 1, 2, 2, 3, 3, 3, 0]),
+    # 0:NoData, 1:Water, 2:Trees, 3:Grass, 4:FloodedVeg, 
+    # 5:Crops, 6:Scrub, 7:Built, 8:Bare, 9:Snow/Ice, 10:Cloud
+    
+    # 0: Ignore (NoData, Cloud), 1: Vegetation (Trees, Grass, Crops, Scrub)
+    # 2: Built Area (Built), 3: Bare/Ice (Bare, Snow/Ice), 4: Water (Water, FloodedVeg)
+    "lulc": torch.tensor([0, 4, 1, 1, 4, 1, 1, 2, 3, 3, 0]),
+    
+    "clouds": torch.tensor([0, 1, 1, 0, 99])
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -51,10 +58,10 @@ class _RemappedMetric(torchmetrics.Metric):
 def build_metrics(
     spec: TaskSpec,
     prefix: str,
-    ignore_index: int | None = None,
 ) -> torchmetrics.MetricCollection:
     
     metrics: dict[str, torchmetrics.Metric] = {}
+    ignore_index = spec.ignore_index
 
     # ── Segmentation ─────────────────────────────────────────────────────────
     if spec.task == "segmentation":

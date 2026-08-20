@@ -23,7 +23,7 @@ class DownstreamModule(L.LightningModule):
         self.weight_decay = weight_decay
         self.save_hyperparameters({"task": spec.task, "dataset": spec.dataset, "lr": lr, "weight_decay": weight_decay})
         self.val_metrics = build_metrics(spec, prefix="val")
-        self.test_metrics = build_metrics(spec, prefix="test") if spec.dataset != "floods" else build_metrics(spec, prefix="test", ignore_index=0)
+        self.test_metrics = build_metrics(spec, prefix="test") #if spec.dataset != "floods" else build_metrics(spec, prefix="test", ignore_index=0)
         self._freeze_encoder()
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:
@@ -53,7 +53,7 @@ class DownstreamModule(L.LightningModule):
         self.val_metrics.update(preds, targets)
         self.log_dict(self.val_metrics, on_step=False, on_epoch=True, prog_bar=True)
 
-    def test_step(self, batch: dict[str, torch.Tensor], batch_idx: int, visualize: bool = False) -> None:
+    def test_step(self, batch: dict[str, torch.Tensor], batch_idx: int, visualize: bool = True) -> None:
         loss, preds, targets = self._shared_step(batch, "test")
         self.test_metrics.update(preds, targets)
         self.log_dict(self.test_metrics, on_step=False, on_epoch=True, prog_bar=True)
@@ -94,12 +94,12 @@ class DownstreamModule(L.LightningModule):
             param.requires_grad = False
 
     def _shared_step(self, batch: dict[str, torch.Tensor], prefix: str) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        image = batch["image"]
+        image = batch["sentinel2"]
         prediction = self(image)
         target = batch[self.spec.target_key]
         
-        if prediction.ndim >= 3 and target.ndim >= 3 and prediction.shape[-2:] != target.shape[-2:]:
-            prediction = F.interpolate(prediction, size=target.shape[-2:], mode="bilinear", align_corners=False)
+        #if prediction.ndim >= 3 and target.ndim >= 3 and prediction.shape[-2:] != target.shape[-2:]:
+        #    prediction = F.interpolate(prediction, size=target.shape[-2:], mode="bilinear", align_corners=False)
             
         loss = self._loss(prediction, target)
         self.log(f"{prefix}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
@@ -107,7 +107,9 @@ class DownstreamModule(L.LightningModule):
 
     def _loss(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         if self.spec.task in ["segmentation", "classification"]:
-            return F.cross_entropy(prediction, target.long())
+            if self.spec.dataset == "clouds":
+                return F.cross_entropy(prediction, target.long(), ignore_index=self.spec.ignore_index, label_smoothing=0.1)
+            return F.cross_entropy(prediction, target.long(), ignore_index=self.spec.ignore_index)
         return F.mse_loss(prediction, target.float())
 
     @staticmethod
@@ -133,10 +135,10 @@ class DownstreamModule(L.LightningModule):
         return np.stack(channels, axis=-1)
 
     def _visualize_and_save_segmentation(self, batch, preds, targets, batch_idx, max_samples=5) -> None:
-        if batch_idx % 50 != 0:
+        if batch_idx % 100 != 0:
             return
             
-        image = batch["image"]
+        image = batch["sentinel2"]
         dataset_name = self.spec.dataset
         is_lulc = (dataset_name == "lulc")
         
@@ -220,7 +222,7 @@ class DownstreamModule(L.LightningModule):
         if batch_idx % 50 != 0:
             return
             
-        image = batch["image"]
+        image = batch["sentinel2"]
         
         if preds.ndim == 4 and preds.shape[1] == 1:
             preds = preds.squeeze(1)
@@ -276,7 +278,7 @@ class DownstreamModule(L.LightningModule):
         if batch_idx % 10 != 0:
             return
         
-        image = batch["image"]
+        image = batch["sentinel2"]
         dataset_name = self.spec.dataset
                 
         if preds.ndim == 2:
