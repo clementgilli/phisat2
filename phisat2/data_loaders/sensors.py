@@ -14,6 +14,22 @@ PAN_WEIGHTS = {
     "NIR_BROAD":  0.0
 }
 
+_S2_PAN_MEAN = (
+    0.21594369 * 1397.6 +   # BLUE
+    0.28731533 * 1322.3 +   # GREEN
+    0.25719303 * 1373.1 +   # RED
+    0.12275664 * 1561.0 +   # RE1
+    0.11679131 * 2108.4     # RE2
+)  # ≈ 1472.4
+
+_S2_PAN_STD = (
+    (0.21594369 * 854.3)  ** 2 +
+    (0.28731533 * 878.7)  ** 2 +
+    (0.25719303 * 1144.9) ** 2 +
+    (0.12275664 * 1127.5) ** 2 +
+    (0.11679131 * 1164.2) ** 2
+) ** 0.5  # ≈ 471.3
+
 STATS = {
     "phisat2_sim": {
         "BLUE": (0.1428, 0.0699), "GREEN": (0.1367, 0.0742), "RED": (0.1461, 0.096), "PAN": (0.1492, 0.0791),
@@ -31,7 +47,8 @@ STATS = {
     "s2": { # FROM SSL4EO-S12 L1C
         "COASTAL_AEROSOL": (1612.9, 791.0), "BLUE":(1397.6, 854.3), "GREEN":(1322.3, 878.7), "RED":(1373.1, 1144.9),
         "RED_EDGE_1": (1561.0, 1127.5), "RED_EDGE_2":(2108.4, 1164.2), "RED_EDGE_3":(2390.7, 1276.0), "NIR_BROAD":(2318.7, 1249.5), 
-        "NIR_NARROW": (2581.0, 1345.9), "WATER_VAPOR":(837.7,  577.5), "CIRRUS":(22.0,   47.5), "SWIR_1":(2195.2, 1340.0), "SWIR_2":(1537.4, 1142.9)
+        "NIR_NARROW": (2581.0, 1345.9), "WATER_VAPOR":(837.7,  577.5), "CIRRUS":(22.0,   47.5), "SWIR_1":(2195.2, 1340.0), "SWIR_2":(1537.4, 1142.9),
+        "PAN": (_S2_PAN_MEAN, _S2_PAN_STD)
     }
 }
 
@@ -42,12 +59,6 @@ def get_norm_tensors(sensor: str, bands: list[str]) -> tuple[torch.Tensor, torch
         
     means, stds = [], []
     for band in bands:
-        if band == "PAN" and sensor == "s2":
-            pan_mean = sum(w * STATS["s2"][b][0] for b, w in PAN_WEIGHTS.items() if w > 0)
-            pan_std  = sum(w * STATS["s2"][b][1] for b, w in PAN_WEIGHTS.items() if w > 0)
-            means.append(pan_mean)
-            stds.append(pan_std)
-            continue
         
         if band not in STATS[sensor]:
             raise ValueError(f"Band {band} not found for sensor {sensor}.")

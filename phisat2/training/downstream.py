@@ -94,7 +94,7 @@ class DownstreamModule(L.LightningModule):
             param.requires_grad = False
 
     def _shared_step(self, batch: dict[str, torch.Tensor], prefix: str) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        image = batch["sentinel2"]
+        image = batch["sentinel2_phisat2"]
         prediction = self(image)
         target = batch[self.spec.target_key]
         
@@ -138,7 +138,7 @@ class DownstreamModule(L.LightningModule):
         if batch_idx % 100 != 0:
             return
             
-        image = batch["sentinel2"]
+        image = batch["sentinel2_phisat2"]
         dataset_name = self.spec.dataset
         is_lulc = (dataset_name == "lulc")
         
@@ -222,7 +222,7 @@ class DownstreamModule(L.LightningModule):
         if batch_idx % 50 != 0:
             return
             
-        image = batch["sentinel2"]
+        image = batch["sentinel2_phisat2"]
         
         if preds.ndim == 4 and preds.shape[1] == 1:
             preds = preds.squeeze(1)
@@ -278,7 +278,7 @@ class DownstreamModule(L.LightningModule):
         if batch_idx % 10 != 0:
             return
         
-        image = batch["sentinel2"]
+        image = batch["sentinel2_phisat2"]
         dataset_name = self.spec.dataset
                 
         if preds.ndim == 2:

@@ -38,12 +38,12 @@ SEGMENTATION_OUTPUTS = {
     #"clouds": 4,
     #"floods": 3,
     #"worldfloods": 3,
-    "lulc": 11, # train: 12520 / val: 1388 / test: 1636
-    "floods": 4, # train: 60976 / val: 2415 / test: 2698
-    "clouds": 4, # train: 8834 / val: 2140 / test: 3868
-    "marine": 9,  # train: 1984 / val: 320 / test: 896
-    "methane": 2, # train: 11200 / val: 1664 / test: 3120
-    "burned": 7,
+    "lulc": 11, # train: 50080 / val: 5552 / test: 6544
+    "floods": 4, # train: 243904 / val: 9660 / test: 10792
+    "clouds": 4, # train: 35336 / val: 8560 / test: 15472
+    "marine": 9,  # train: 7936 / val: 1280 / test: 3584
+    "methane": 2, # train: 44800 / val: 6656 / test: 12480
+    "burned": 7, # train: 76912 / val: 11012 / test: 19492
 }
 
 SEGMENTATION_IGNORE_INDEX = {
@@ -70,7 +70,7 @@ CLASSIFICATION_OUTPUTS = {
 
 PRETRAIN_RECONSTRUCTION_OUTPUTS = {
     "triplets": 8,
-    "ssl4eo": 13,
+    "ssl4eo": 8,
 }
 
 KNOWLEDGE_DISTILLATION_OUTPUTS = {

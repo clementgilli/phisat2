@@ -373,10 +373,10 @@ def build_model(
                 "DA requires --weights pointing to the pretrained SIM encoder. "
                 "Both teacher (frozen) and student are initialised from it."
             )
-        teacher = _build_encoder("phisatnet", pretrained=False, input_bands=13)        
+        teacher = _build_encoder("phisatnet", pretrained=False, input_bands=8)        
         student = _build_encoder("phisatnet", pretrained=False, input_bands=8)        
-        load_encoder_weights(teacher, weights_path, adapt_13_to_8=False)        
-        load_encoder_weights(student, weights_path, adapt_13_to_8=True)
+        load_encoder_weights(teacher, weights_path)        
+        load_encoder_weights(student, weights_path)
         
         return ModelBundle(task=spec.task, teacher=teacher, student=student)
 
@@ -385,11 +385,9 @@ def build_model(
         if not teacher_ckpt:
             raise ValueError("eval_domain_gap requires --teacher-ckpt.")
         
-        teacher = _build_encoder("phisatnet", pretrained=False, input_bands=13)
-        student_before = _build_encoder("phisatnet", pretrained=False, input_bands=8)
+        teacher = _build_encoder("phisatnet", pretrained=False, input_bands=8)
         student = _build_encoder("phisatnet", pretrained=False, input_bands=8)  
-        load_encoder_weights(teacher, teacher_ckpt)
-        load_encoder_weights(student_before, teacher_ckpt, adapt_13_to_8=True)           
+        load_encoder_weights(teacher, teacher_ckpt)        
         load_encoder_weights(student, student_ckpt)
 
         decoders_dict = nn.ModuleDict()
@@ -402,7 +400,7 @@ def build_model(
             decoders_dict[dataset_name] = head
 
         return ModelBundle(
-            task=spec.task, teacher=teacher, student=student, student_before=student_before, decoders=decoders_dict
+            task=spec.task, teacher=teacher, student=student, decoders=decoders_dict
         )
 
     # ── Downstream ────────────────────────────────────────────────────────

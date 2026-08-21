@@ -11,8 +11,8 @@ import lightning as L
 from torch.utils.data import DataLoader, Dataset
 
 from phisat2.tasks import TaskSpec
-from phisat2.data_loaders.sensors import S2_BANDS, get_norm_tensors
-from phisat2.data_loaders.transforms import normalize_tensor, upscale_to_phisat2
+from phisat2.data_loaders.sensors import PHISAT2_REAL_BANDS, get_norm_tensors
+from phisat2.data_loaders.transforms import normalize_tensor, upscale_to_phisat2, extract_phisat2_bands
 
 EUROSAT_CLASSES = [
     "AnnualCrop", "Forest", "HerbaceousVegetation", "Highway",
@@ -37,7 +37,7 @@ class EuroSatDataset(Dataset):
         self.spec = spec
         self.split = split
 
-        self.s2_mean, self.s2_std = get_norm_tensors("s2", S2_BANDS)
+        self.s2_mean, self.s2_std = get_norm_tensors("s2", PHISAT2_REAL_BANDS)
         
         self.samples = self._build_stratified_split(
             self.root_dir, split, seed, train_ratio, val_ratio
@@ -55,6 +55,8 @@ class EuroSatDataset(Dataset):
         image = torch.from_numpy(image_array).float()
         
         image = upscale_to_phisat2(image, is_mask=False)
+        
+        image = extract_phisat2_bands(image)
         
         image = normalize_tensor(image, self.s2_mean, self.s2_std)
         
@@ -122,7 +124,7 @@ class EuroSatDataModule(L.LightningDataModule):
         self.num_workers = num_workers
         self.seed = seed
         
-        self.input_bands = S2_BANDS
+        self.input_bands = PHISAT2_REAL_BANDS
 
     def setup(self, stage: str | None = None) -> None:
         if stage in {None, "fit", "validate"}:

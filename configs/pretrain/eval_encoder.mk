@@ -7,7 +7,7 @@ MEM      = 32GB
 
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data
 MODEL    = phisatnet
-WEIGHTS  = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/ssl4eo/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+WEIGHTS  = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/ssl4eo/phisatnet/full_dataset/seed_42/checkpoints/best-v1.ckpt
 BATCH_SIZE = 128
 
 DATALOADER = eurosat #downstream

@@ -11,8 +11,8 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from phisat2.tasks.specs import TaskSpec
-from phisat2.data_loaders.sensors import S2_BANDS, get_norm_tensors
-from phisat2.data_loaders.transforms import apply_spatial_transforms, upscale_to_phisat2, normalize_tensor
+from phisat2.data_loaders.sensors import PHISAT2_REAL_BANDS, get_norm_tensors
+from phisat2.data_loaders.transforms import apply_spatial_transforms, upscale_to_phisat2, normalize_tensor, extract_phisat2_bands
 
 DATASET_NAMES = {
     "clouds": "clouds",
@@ -44,7 +44,7 @@ class DownstreamS2Dataset(Dataset):
         if max_patches is not None:
             self.samples = self.samples[:max_patches]
             
-        self.s2_mean, self.s2_std = get_norm_tensors("s2", S2_BANDS)
+        self.s2_mean, self.s2_std = get_norm_tensors("s2", PHISAT2_REAL_BANDS)
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -69,6 +69,8 @@ class DownstreamS2Dataset(Dataset):
         s2_tensor = upscale_to_phisat2(s2_tensor, is_mask=False)
         mask_tensor = upscale_to_phisat2(mask_tensor, is_mask=True)
         
+        s2_tensor = extract_phisat2_bands(s2_tensor)
+        
         s2_tensor = normalize_tensor(s2_tensor, self.s2_mean, self.s2_std)
         
         transformed = apply_spatial_transforms(
@@ -78,7 +80,7 @@ class DownstreamS2Dataset(Dataset):
         )
         
         return {
-            "sentinel2": transformed[0],
+            "sentinel2_phisat2": transformed[0],
             "mask": transformed[1],
             "image_id": img_path.name
         }
@@ -102,7 +104,7 @@ class DownstreamS2DataModule(L.LightningDataModule):
         self.num_workers = num_workers
         self.fast_dev_run = fast_dev_run
         self.crop_size = crop_size
-        self.input_bands = S2_BANDS
+        self.input_bands = PHISAT2_REAL_BANDS
         
         dataset_key = self.spec.dataset
         dataset_name = DATASET_NAMES.get(dataset_key, dataset_key)

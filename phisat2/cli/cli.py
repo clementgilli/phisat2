@@ -203,7 +203,6 @@ def _build_module(bundle: ModelBundle, spec, lr: float, weight_decay: float) -> 
         module = DomainEvalModule(
             teacher_encoder=bundle.teacher,
             student_encoder=bundle.student,
-            student_before_encoder=bundle.student_before,
             decoders=bundle.decoders,
         )
     

@@ -11,7 +11,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from phisat2.tasks.specs import TaskSpec
-from phisat2.data_loaders.sensors import S2_BANDS, get_norm_tensors
+from phisat2.data_loaders.sensors import S2_BANDS, PHISAT2_REAL_BANDS, get_norm_tensors
 from phisat2.data_loaders.transforms import apply_kd_transforms, upscale_to_phisat2, normalize_tensor
 
 import warnings
@@ -41,7 +41,8 @@ class SSL4EODataset(Dataset):
         if max_patches is not None:
             self.samples = self.samples[:max_patches]
             
-        self.s2_mean, self.s2_std = get_norm_tensors("s2", S2_BANDS)
+        self.s2_mean,  self.s2_std  = get_norm_tensors("s2", S2_BANDS)
+        self.ps2_mean, self.ps2_std = get_norm_tensors("s2", PHISAT2_REAL_BANDS)
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -51,27 +52,27 @@ class SSL4EODataset(Dataset):
             data = src.read()
         return torch.from_numpy(data.astype(np.float32))
 
-    def __getitem__(self, idx: int) -> dict[str, torch.Tensor | str]:
-        img_path = self.samples[idx]
-        
-        s2_tensor = self._read_tif(img_path)
-        
-        s2_tensor = upscale_to_phisat2(s2_tensor, is_mask=False)
-        
-        s2_tensor = normalize_tensor(s2_tensor, self.s2_mean, self.s2_std)
-        
-        tensor_views = apply_kd_transforms(
-            s2_tensor,
-            is_train=self.is_train,
-            crop_size=self.crop_size,
-            p_jitter=0.0,
-            p_noise=0.0
+    def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
+        img_path  = self.samples[idx]
+        s2_raw    = self._read_tif(img_path)
+
+        s2_raw = upscale_to_phisat2(s2_raw, is_mask=False)
+
+        views = apply_kd_transforms(
+            s2_raw,
+            is_train  = self.is_train,
+            crop_size = self.crop_size,
+            p_jitter  = 0.0,
+            p_noise   = 0.0,
         )
-        
+
+        t_norm = normalize_tensor(views["teacher_raw"], self.s2_mean,  self.s2_std)   # (13,)
+        s_norm = normalize_tensor(views["student_raw"], self.ps2_mean, self.ps2_std)  # (8,)
+
         return {
-            "sentinel2": tensor_views["teacher"],  # (13, 224, 224)
-            "sentinel2_augmented": tensor_views["student"],
-            "image_id": img_path.name
+            "sentinel2":            t_norm,         # (13, 224, 224) → teacher
+            "sentinel2_phisat2":    s_norm,         # (8,  224, 224) → student
+            "image_id":             img_path.name,
         }
 
 
@@ -92,7 +93,7 @@ class SSL4EODataModule(L.LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.fast_dev_run = fast_dev_run
-        self.input_bands = S2_BANDS
+        self.input_bands = PHISAT2_REAL_BANDS
         self.s2_bands = S2_BANDS
 
     def setup(self, stage: str | None = None) -> None:

@@ -25,8 +25,8 @@ CPUS      = 16
 MEM       = 256gb
 
 TASK    = knowledge_distillation
-EPOCHS  = 300
-#PATIENCE = 50
+EPOCHS  = 100
+PATIENCE = 20
 LR      = 0.001
 WEIGHT_DECAY = 0.0001
 

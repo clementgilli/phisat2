@@ -87,55 +87,45 @@ def apply_spatial_transforms(
     return transformed
 
 def apply_kd_transforms(
-    tensor: torch.Tensor, 
-    is_train: bool, 
-    crop_size: int = 224,
-    p_jitter: float = 0.5,
-    p_noise: float = 0.5
+    s2_raw:    torch.Tensor,   # (13, H, W)
+    is_train:  bool,
+    crop_size: int   = 224,
+    p_jitter:  float = 0.5,
+    p_noise:   float = 0.5,
 ) -> dict[str, torch.Tensor]:
     
-    _, H, W = tensor.shape
-    
+    ps2_raw = extract_phisat2_bands(s2_raw)  # (8, H, W)
+
+    _, H, W = s2_raw.shape
+
     if is_train:
-        top = int(torch.randint(0, H - crop_size + 1, (1,)).item()) if H > crop_size else 0
-        left = int(torch.randint(0, W - crop_size + 1, (1,)).item()) if W > crop_size else 0
+        top    = int(torch.randint(0, max(1, H - crop_size + 1), (1,)).item())
+        left   = int(torch.randint(0, max(1, W - crop_size + 1), (1,)).item())
         flip_h = torch.rand(1).item() > 0.5
         flip_v = torch.rand(1).item() > 0.5
     else:
-        top = max(0, (H - crop_size) // 2)
-        left = max(0, (W - crop_size) // 2)
-        flip_h = False
-        flip_v = False
+        top, left = max(0, (H - crop_size) // 2), max(0, (W - crop_size) // 2)
+        flip_h = flip_v = False
 
-    t_view = tensor[..., top : top + crop_size, left : left + crop_size]
-    
-    if flip_h: 
-        t_view = torch.flip(t_view, dims=[-1])
-    if flip_v: 
-        t_view = torch.flip(t_view, dims=[-2])
+    def _spatial(t: torch.Tensor) -> torch.Tensor:
+        t = t[..., top:top + crop_size, left:left + crop_size]
+        if flip_h: t = torch.flip(t, dims=[-1])
+        if flip_v: t = torch.flip(t, dims=[-2])
+        return t
 
-    if not is_train:
-        return {"teacher": t_view, "student": t_view}
+    t_view   = _spatial(s2_raw)     # (13, crop, crop) 
+    s_view   = _spatial(ps2_raw)    # (8,  crop, crop)
 
-    s_view = t_view.clone()
+    if is_train:
+        if torch.rand(1).item() < p_jitter:
+            brightness    = torch.empty(1).uniform_(0.85, 1.15)
+            micro_jitter  = torch.empty(s_view.shape[0], 1, 1).uniform_(0.90, 1.10)
+            s_view = s_view * brightness * micro_jitter
 
-    # A. Brightness & Micro Spectral Jitter
-    if torch.rand(1).item() < p_jitter:
-        brightness = torch.empty(1).uniform_(0.8, 1.2)
-        s_view = s_view * brightness
-        
-        micro_jitter = torch.empty((s_view.shape[0], 1, 1)).uniform_(0.97, 1.03)
-        s_view = s_view * micro_jitter
+        if torch.rand(1).item() < p_noise:
+            s_view = s_view + torch.randn_like(s_view) * 0.05 * s_view.abs().mean()
 
-    # B. Additive Noise
-    if torch.rand(1).item() < p_noise:
-        noise = torch.randn_like(s_view) * 0.05
-        s_view = s_view + noise
-
-    return {
-        "teacher": t_view,
-        "student": s_view
-    }
+    return {"teacher_raw": t_view, "student_raw": s_view}
 
 def normalize_tensor(tensor: torch.Tensor, mean: torch.Tensor, std: torch.Tensor) -> torch.Tensor:
     if tensor.numel() > 0:

@@ -18,7 +18,7 @@ DEVICES     = 1
 PRECISION   = bf16-mixed
 NUM_WORKERS = 8
 
-_PRETRAIN = /lustre/home/u10010021/phisat2/runs/knowledge_distillation/ssl4eo/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
+_PRETRAIN = /lustre/home/u10010021/phisat2/runs/knowledge_distillation/ssl4eo/$(MODEL)/full_dataset/seed_42/checkpoints/best-v2.ckpt
 
 # ─── eval / submit-eval ───────────────────────────────────────────────────────
 ifneq ($(filter eval submit-eval, $(MAKECMDGOALS) $(TARGET)),)
@@ -39,8 +39,8 @@ CPUS       = 16
 MEM        = 128gb
 
 BATCH_SIZE = 128
-LR         = 0.0002
-WEIGHT_DECAY = 0.001
+LR         = 0.001
+WEIGHT_DECAY = 0.0001
 EPOCHS     = 300
 PATIENCE   = 20
 

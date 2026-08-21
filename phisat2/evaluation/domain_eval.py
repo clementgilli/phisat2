@@ -24,13 +24,11 @@ class DomainEvalModule(L.LightningModule):
         self,
         teacher_encoder: nn.Module,   
         student_encoder: nn.Module,
-        student_before_encoder: nn.Module,
         decoders: nn.ModuleDict,
     ) -> None:
         super().__init__()
         self.teacher  = teacher_encoder
         self.student  = student_encoder
-        self.student_before = student_before_encoder
         self.decoders = decoders
 
         self.feature_layers = ["enc_0", "enc_1", "enc_2", "bottleneck"]
@@ -344,7 +342,7 @@ class DomainEvalModule(L.LightningModule):
         mask_gt  = batch.get("mask_worldcover")
 
         feat_sim    = self._to_named(self.teacher(img_sim),  self.feature_layers)
-        feat_before = self._to_named(self.student_before(img_real), self.feature_layers)
+        feat_before = self._to_named(self.teacher(img_real), self.feature_layers)
         feat_after  = self._to_named(self.student(img_real), self.feature_layers)
 
         for layer in self.feature_layers:
