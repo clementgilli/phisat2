@@ -28,7 +28,7 @@ WALLTIME  = 02:00:00
 CPUS      = 8
 MEM       = 64gb
 
-CKPT_PATH = /lustre/home/u10010021/phisat2/runs/segmentation/marine/$(MODEL)/full_dataset/seed_42/checkpoints/best-v7.ckpt
+CKPT_PATH = /lustre/home/u10010021/phisat2/runs/segmentation/marine/$(MODEL)/full_dataset/seed_42/checkpoints/best-v3.ckpt
 
 # ─── train / submit-train ─────────────────────────────────────────────────────
 else
@@ -38,8 +38,8 @@ WALLTIME   = 12:00:00
 CPUS       = 16
 MEM        = 128gb
 
-BATCH_SIZE = 128
-LR         = 0.001
+BATCH_SIZE = 32
+LR         = 0.0001
 WEIGHT_DECAY = 0.0001
 EPOCHS     = 600
 

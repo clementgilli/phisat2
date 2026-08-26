@@ -53,7 +53,7 @@ class DownstreamModule(L.LightningModule):
         self.val_metrics.update(preds, targets)
         self.log_dict(self.val_metrics, on_step=False, on_epoch=True, prog_bar=True)
 
-    def test_step(self, batch: dict[str, torch.Tensor], batch_idx: int, visualize: bool = True) -> None:
+    def test_step(self, batch: dict[str, torch.Tensor], batch_idx: int, visualize: bool = False) -> None:
         loss, preds, targets = self._shared_step(batch, "test")
         self.test_metrics.update(preds, targets)
         self.log_dict(self.test_metrics, on_step=False, on_epoch=True, prog_bar=True)
@@ -67,17 +67,26 @@ class DownstreamModule(L.LightningModule):
                 
             if self.spec.task == "classification":
                 self._visualize_and_save_classification(batch, preds, targets, batch_idx)
-
+    
     def configure_optimizers(self):
         trainable_params = [param for param in self.parameters() if param.requires_grad]
         
         optimizer = torch.optim.AdamW(trainable_params, lr=self.lr, weight_decay=self.weight_decay)
         
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer, 
-            T_max=self.trainer.max_epochs
-        )
+        warmup_epochs = max(1, int(self.trainer.max_epochs * 0.05))
+        cosine_epochs = self.trainer.max_epochs - warmup_epochs
         
+        warmup = torch.optim.lr_scheduler.LinearLR(
+            optimizer, start_factor=0.1, end_factor=1.0, total_iters=warmup_epochs
+        )
+        cosine = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=cosine_epochs,
+            eta_min=self.lr * 0.01,
+        )
+        scheduler = torch.optim.lr_scheduler.SequentialLR(
+            optimizer, [warmup, cosine], milestones=[warmup_epochs]
+        )
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
     
     def on_load_checkpoint(self, checkpoint: dict) -> None:
@@ -97,21 +106,21 @@ class DownstreamModule(L.LightningModule):
         image = batch["sentinel2_phisat2"]
         prediction = self(image)
         target = batch[self.spec.target_key]
-        
-        #if prediction.ndim >= 3 and target.ndim >= 3 and prediction.shape[-2:] != target.shape[-2:]:
-        #    prediction = F.interpolate(prediction, size=target.shape[-2:], mode="bilinear", align_corners=False)
             
         loss = self._loss(prediction, target)
         self.log(f"{prefix}_loss", loss, prog_bar=True, on_step=False, on_epoch=True)
         return loss, prediction, target
 
     def _loss(self, prediction: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        if self.spec.task in ["segmentation", "classification"]:
+        if self.spec.task in ["segmentation"]:
             if self.spec.dataset == "clouds":
-                return F.cross_entropy(prediction, target.long(), ignore_index=self.spec.ignore_index, label_smoothing=0.1)
+                return F.cross_entropy(prediction, target.long(), ignore_index=self.spec.ignore_index, label_smoothing=0.05)
             return F.cross_entropy(prediction, target.long(), ignore_index=self.spec.ignore_index)
-        return F.mse_loss(prediction, target.float())
 
+        elif self.spec.task in ["classification"]:
+            return F.cross_entropy(prediction, target.long())
+        return F.mse_loss(prediction, target.float())
+    
     @staticmethod
     def _percentile_stretch(
         t: torch.Tensor, lo: float = 2.0, hi: float = 98.0
@@ -219,7 +228,7 @@ class DownstreamModule(L.LightningModule):
         self, batch, preds, targets, batch_idx, max_samples=5
     ) -> None:
         
-        if batch_idx % 50 != 0:
+        if batch_idx % 100 != 0:
             return
             
         image = batch["sentinel2_phisat2"]
@@ -275,7 +284,7 @@ class DownstreamModule(L.LightningModule):
         print(f"[Viz] saved → {save_path}")
         
     def _visualize_and_save_classification(self, batch, preds, targets, batch_idx, max_samples=5) -> None:
-        if batch_idx % 10 != 0:
+        if batch_idx % 100 != 0:
             return
         
         image = batch["sentinel2_phisat2"]

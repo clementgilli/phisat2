@@ -1,8 +1,8 @@
 # ==========================================
-# CONFIGURATION : CLOUDS — Full Dataset
+# CONFIGURATION : Clouds — Full Dataset
 # ==========================================
 
-BASE_NAME   = clouds_full
+BASE_NAME   = clouds_random
 QUEUE       = gpu4_std
 GPUS        = 1
 
@@ -35,13 +35,10 @@ WALLTIME   = 12:00:00
 CPUS       = 16
 MEM        = 128gb
 
-BATCH_SIZE = 128
-LR         = 0.0002
-WEIGHT_DECAY = 0.001
-EPOCHS     = 300
+EPOCHS     = 150
 PATIENCE   = 20
-
-WEIGHTS    = $(_PRETRAIN)
-SUBSET_CSV =
+BATCH_SIZE = 128
+LR         = 0.0003
+WEIGHT_DECAY = 0.0001
 
 endif

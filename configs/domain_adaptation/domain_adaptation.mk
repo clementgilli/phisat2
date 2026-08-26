@@ -20,7 +20,7 @@ NUM_WORKERS = 14
 _BASE        = /lustre/home/u10010021/phisat2/runs
 
 ifeq ($(MODEL), phisatnet)
-	_PRETRAIN    = $(_BASE)/pretrain_reconstruction/ssl4eo/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+	_PRETRAIN    = $(_BASE)/pretrain_reconstruction/ssl4eo/phisatnet/full_dataset/seed_42/checkpoints/best-v1.ckpt
 else
 	_PRETRAIN    = $(_BASE)/knowledge_distillation/ssl4eo/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
 endif
@@ -34,10 +34,13 @@ endif
 #_ROUTER      = $(_BASE)/classification/router/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
 
 #_METHANE	 = $(_BASE)/segmentation/methane/$(MODEL)/full_dataset/seed_42/checkpoints/best-v1.ckpt
-_MARINE		 = $(_BASE)/segmentation/marine/$(MODEL)/full_dataset/seed_42/checkpoints/best-v6.ckpt
-_LULC		 = $(_BASE)/segmentation/lulc/$(MODEL)/full_dataset/seed_42/checkpoints/best-v6.ckpt
-_CLOUDS		 = $(_BASE)/segmentation/clouds/$(MODEL)/full_dataset/seed_42/checkpoints/best-v4.ckpt
-_FLOODS		 = $(_BASE)/segmentation/floods/$(MODEL)/full_dataset/seed_42/checkpoints/best-v3.ckpt
+#_MARINE		 = $(_BASE)/segmentation/marine/$(MODEL)/full_dataset/seed_42/checkpoints/best-v1.ckpt
+_LULC		 = $(_BASE)/segmentation/lulc/$(MODEL)/full_dataset/seed_42/checkpoints/best-v1.ckpt
+_CLOUDS		 = $(_BASE)/segmentation/clouds/$(MODEL)/full_dataset/seed_42/checkpoints/best-v1.ckpt
+_FLOODS		 = $(_BASE)/segmentation/floods/$(MODEL)/full_dataset/seed_42/checkpoints/best-v1.ckpt
+_BURNED      = $(_BASE)/segmentation/burned/$(MODEL)/full_dataset/seed_42/checkpoints/best-v1.ckpt
+_EUROSAT      = $(_BASE)/classification/eurosat/$(MODEL)/full_dataset/seed_42/checkpoints/best-v1.ckpt
+
 
 # ─── eval-domain-gap / submit-eval-domain-gap ────────────────────────────────
 ifneq ($(filter eval-domain-gap submit-eval-domain-gap, $(MAKECMDGOALS) $(TARGET)),)
@@ -54,7 +57,7 @@ TEACHER_CKPT = $(_PRETRAIN)
 # else build_model on TEACHER_CKPT (eval baseline pre-DA).
 STUDENT_CKPT = $(CKPT_PATH)
 
-DECODERS = lulc=$(_LULC) floods=$(_FLOODS) clouds=$(_CLOUDS) marine=$(_MARINE) #burned=$(_BURNED) roads=$(_ROADS) building=$(_BLDG) router=$(_ROUTER) 
+DECODERS = lulc=$(_LULC) floods=$(_FLOODS) clouds=$(_CLOUDS) burned=$(_BURNED) eurosat=$(_EUROSAT) #roads=$(_ROADS) building=$(_BLDG) router=$(_ROUTER) 
 
 # ─── domain-adaptation / submit-domain-adaptation ────────────────────────────
 else

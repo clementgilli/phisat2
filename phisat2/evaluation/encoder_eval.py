@@ -110,7 +110,7 @@ class PretrainEvalModule(L.LightningModule):
         return {"bottleneck": features}
                 
     def test_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
-        images = batch["image"]
+        images = batch["sentinel2_phisat2"]
         labels = batch[self.spec.target_key]
         
         B = labels.shape[0]

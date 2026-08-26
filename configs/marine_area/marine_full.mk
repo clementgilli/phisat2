@@ -1,49 +1,48 @@
 # ==========================================
-# CONFIGURATION : LULC — 50-shot
+# CONFIGURATION : Marine — Full Dataset
 # ==========================================
 
-BASE_NAME   = lulc_50shot
+BASE_NAME   = marine_full
 QUEUE       = gpu4_std
 GPUS        = 1
 
 TASK        = segmentation
-DATASET     = lulc
+DATASET     = marine
 MODEL       = phisatnet
-DATALOADER  = downstream
+DATALOADER  = downstream_s2
 ROOT_DIR    = /lustre/home/u10010021/phisat2/data
 
 SEEDS       = 42
 DEVICES     = 1
 PRECISION   = bf16-mixed
-NUM_WORKERS = 4
+NUM_WORKERS = 8
 
-_PRETRAIN = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/triplets/phisatnet/full_dataset/seed_42/checkpoints/best.ckpt
+_PRETRAIN = /lustre/home/u10010021/phisat2/runs/pretrain_reconstruction/ssl4eo/phisatnet/full_dataset/seed_42/checkpoints/best-v1.ckpt
 
 # ─── eval / submit-eval ───────────────────────────────────────────────────────
 ifneq ($(filter eval submit-eval, $(MAKECMDGOALS) $(TARGET)),)
 
 JOB_NAME  = $(BASE_NAME)_eval
-WALLTIME  = 01:00:00
-CPUS      = 4
-MEM       = 32G
+WALLTIME  = 02:00:00
+CPUS      = 8
+MEM       = 64gb
 
 CKPT_PATH ?=
 
 # ─── train / submit-train ─────────────────────────────────────────────────────
 else
 
-JOB_NAME  = $(BASE_NAME)_train
-WALLTIME  = 24:00:00
-CPUS      = 8
-MEM       = 64G
+JOB_NAME   = $(BASE_NAME)_train
+WALLTIME   = 12:00:00
+CPUS       = 16
+MEM        = 128gb
 
-BATCH_SIZE = 64           
-LR         = 0.002
-WEIGHT_DECAY = 0.05     
-EPOCHS     = 150      
-#PATIENCE   = 30
+BATCH_SIZE = 32
+LR         = 0.0001
+WEIGHT_DECAY = 0.0001
+EPOCHS     = 600
 
 WEIGHTS    = $(_PRETRAIN)
-SUBSET_CSV = /lustre/home/u10010021/phisat2/splits/lulc/lulc_train_1000_global.csv
+SUBSET_CSV =
 
 endif

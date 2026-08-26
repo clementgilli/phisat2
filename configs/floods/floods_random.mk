@@ -2,7 +2,7 @@
 # CONFIGURATION : Floods — Full Dataset
 # ==========================================
 
-BASE_NAME   = floods_full
+BASE_NAME   = floods_random
 QUEUE       = gpu4_std
 GPUS        = 1
 
@@ -35,13 +35,10 @@ WALLTIME   = 12:00:00
 CPUS       = 16
 MEM        = 128gb
 
-BATCH_SIZE = 128
-LR         = 0.0005
-WEIGHT_DECAY = 0.00001
-EPOCHS     = 150
+EPOCHS     = 4
 PATIENCE   = 10
-
-WEIGHTS    = $(_PRETRAIN)
-SUBSET_CSV =
+BATCH_SIZE = 128
+LR         = 0.0002
+WEIGHT_DECAY = 0.00001
 
 endif

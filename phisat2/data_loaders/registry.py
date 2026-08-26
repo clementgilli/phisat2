@@ -123,6 +123,7 @@ def build_datamodule(
             seed=seed,
             fast_dev_run=fast_dev_run,
             crop_size=crop_size,
+            subset_csv=subset_csv,
         )
         
     return entry.builder(

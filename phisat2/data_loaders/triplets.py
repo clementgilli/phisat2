@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from phisat2.tasks.specs import TaskSpec
 from phisat2.data_loaders.sensors import PHISAT2_SIM_BANDS, PHISAT2_REAL_BANDS, S2_BANDS, get_norm_tensors
-from phisat2.data_loaders.transforms import apply_spatial_transforms, normalize_tensor
+from phisat2.data_loaders.transforms import apply_spatial_transforms, normalize_tensor, extract_phisat2_bands
 
 class TripletsDataset(Dataset):
     def __init__(
@@ -37,7 +37,8 @@ class TripletsDataset(Dataset):
             
         self.sim_mean, self.sim_std = get_norm_tensors("phisat2_sim", PHISAT2_SIM_BANDS)
         self.real_mean, self.real_std = get_norm_tensors("phisat2_real", PHISAT2_REAL_BANDS)
-        self.s2_mean, self.s2_std = get_norm_tensors("s2", S2_BANDS)
+        self.s2_mean, self.s2_std = get_norm_tensors("s2", PHISAT2_REAL_BANDS)
+        self.real_L0_mean, self.real_L0_std = get_norm_tensors("phisat2_l0", PHISAT2_REAL_BANDS)
         self.sim_to_real_idx = [PHISAT2_SIM_BANDS.index(b) for b in PHISAT2_REAL_BANDS]
 
     def _load_from_csv(self, split_csv: Path | None) -> list[dict[str, Path | str]]:
@@ -61,6 +62,7 @@ class TripletsDataset(Dataset):
                     "simulated": base_tiles / "tiles" / "simulated_phisat2" / tile_name,
                     "real": base_tiles / "tiles" / "phisat2" / tile_name,
                     "sentinel2": base_tiles / "tiles" / "sentinel2" / tile_name,
+                    "real_L0": base_tiles / "tiles" / "phisat2_L0" / tile_name,
                     "cloud": base_tiles / "masks" / "phisat2_cloud" / tile_name,
                     "worldcover": base_tiles / "masks" / "worldcover" / tile_name,
                     "tile_id": tile_id
@@ -91,13 +93,17 @@ class TripletsDataset(Dataset):
         sim_tensor = self._read_tif(sample_paths["simulated"])
         real_tensor = self._read_tif(sample_paths["real"])
         s2_tensor = self._read_tif(sample_paths["sentinel2"])
+        real_L0_tensor = self._read_tif(sample_paths["real_L0"])
         
         real_tensor = real_tensor[:8, :, :]
         s2_tensor = s2_tensor - 1000
         
+        s2_tensor = extract_phisat2_bands(s2_tensor)
+        
         sim_tensor = normalize_tensor(sim_tensor, self.sim_mean, self.sim_std)
         real_tensor = normalize_tensor(real_tensor, self.real_mean, self.real_std)
         s2_tensor = normalize_tensor(s2_tensor, self.s2_mean, self.s2_std)
+        real_L0_tensor = normalize_tensor(real_L0_tensor, self.real_L0_mean, self.real_L0_std)
         
         sim_tensor = sim_tensor[self.sim_to_real_idx]
         
@@ -106,11 +112,11 @@ class TripletsDataset(Dataset):
         wc_tensor = self._read_tif(sample_paths["worldcover"], is_mask=True, ref_shape=spatial_shape)
         
         transformed = apply_spatial_transforms(
-            [sim_tensor, real_tensor, s2_tensor, cloud_tensor, wc_tensor],
+            [sim_tensor, real_tensor, s2_tensor, real_L0_tensor, cloud_tensor, wc_tensor],
             is_train=self.is_train,
             crop_size=self.crop_size
         )
-        sim_tensor, real_tensor, s2_tensor, cloud_tensor, wc_tensor = transformed
+        sim_tensor, real_tensor, s2_tensor, real_L0_tensor, cloud_tensor, wc_tensor = transformed
         
         #s2_tensor = torch.nn.functional.interpolate(
         #    s2_tensor.unsqueeze(0),
@@ -132,6 +138,7 @@ class TripletsDataset(Dataset):
             "simulated": sim_tensor,       # (8, 224, 224) @ 4.75m
             "real": real_tensor,           # (8, 224, 224) @ 4.75m
             "sentinel2": s2_tensor,        # (13, 106, 106) @ 10m
+            "real_L0": real_L0_tensor,     # (8, 224, 224) @ 4.75m
             "mask_cloud": cloud_tensor,
             "mask_worldcover": wc_tensor,
             "tile_id": sample_paths["tile_id"]

@@ -2,7 +2,7 @@
 # CONFIGURATION : LULC — Full Dataset
 # ==========================================
 
-BASE_NAME   = lulc_full
+BASE_NAME   = lulc_random
 QUEUE       = gpu4_std
 GPUS        = 1
 
@@ -35,13 +35,10 @@ WALLTIME   = 12:00:00
 CPUS       = 16
 MEM        = 128gb
 
-BATCH_SIZE = 128
-LR         = 0.0005
-WEIGHT_DECAY = 0.00001
 EPOCHS     = 300
-PATIENCE   = 20
-
-WEIGHTS    = $(_PRETRAIN)
-SUBSET_CSV =
+PATIENCE   = 50
+BATCH_SIZE   = 128
+LR           = 0.0005
+WEIGHT_DECAY = 0.0001
 
 endif

@@ -35,8 +35,8 @@ WALLTIME   = 12:00:00
 CPUS       = 16
 MEM        = 128gb
 
-BATCH_SIZE = 128
-LR         = 0.001
+BATCH_SIZE = 32
+LR         = 0.0001
 WEIGHT_DECAY = 0.0001
 EPOCHS     = 600
 

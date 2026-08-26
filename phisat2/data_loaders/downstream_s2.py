@@ -6,6 +6,7 @@ from typing import Any
 
 import lightning as L
 import numpy as np
+import pandas as pd
 import tifffile
 import torch
 from torch.utils.data import DataLoader, Dataset
@@ -31,6 +32,7 @@ class DownstreamS2Dataset(Dataset):
         max_patches: int | None = None,
         is_train: bool = True,
         crop_size: int = 224,
+        subset_csv: str | Path | None = None,
     ) -> None:
         super().__init__()
         self.dataset_dir = Path(dataset_dir)
@@ -39,7 +41,12 @@ class DownstreamS2Dataset(Dataset):
         
         self.images_dir = self.dataset_dir / split / "images"
         self.labels_dir = self.dataset_dir / split / "labels"
-        self.samples = sorted(list(self.images_dir.glob("*_image.tif")))
+        
+        if subset_csv is not None:
+            df = pd.read_csv(subset_csv)
+            self.samples = [self.images_dir / str(sid).replace("_label.tif", "_image.tif") for sid in df["sample_id"].values]
+        else:
+            self.samples = sorted(list(self.images_dir.glob("*_image.tif")))
         
         if max_patches is not None:
             self.samples = self.samples[:max_patches]
@@ -95,6 +102,7 @@ class DownstreamS2DataModule(L.LightningDataModule):
         num_workers: int = 4,
         fast_dev_run: bool = False,
         crop_size: int = 224,
+        subset_csv: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__()
@@ -104,6 +112,7 @@ class DownstreamS2DataModule(L.LightningDataModule):
         self.num_workers = num_workers
         self.fast_dev_run = fast_dev_run
         self.crop_size = crop_size
+        self.subset_csv = subset_csv
         self.input_bands = PHISAT2_REAL_BANDS
         
         dataset_key = self.spec.dataset
@@ -113,14 +122,16 @@ class DownstreamS2DataModule(L.LightningDataModule):
 
     def setup(self, stage: str | None = None) -> None:
         max_patches = self.batch_size if self.fast_dev_run else None
-        
+        print(f"[INFO] DownstreamS2DataModule: Using subset_csv={self.subset_csv}")
         def get_ds(split):
+            current_subset = self.subset_csv if split == "train" else None
             return DownstreamS2Dataset(
                 self.dataset_dir,
                 split=split, 
                 max_patches=max_patches, 
                 is_train=(split=="train"), 
-                crop_size=self.crop_size
+                crop_size=self.crop_size,
+                subset_csv=current_subset
             )
 
         if stage == "fit" or stage is None:

@@ -26,7 +26,7 @@ MEM       = 256gb
 
 TASK    = knowledge_distillation
 EPOCHS  = 100
-PATIENCE = 20
+PATIENCE = 50
 LR      = 0.001
 WEIGHT_DECAY = 0.0001
 

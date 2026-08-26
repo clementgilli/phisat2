@@ -62,7 +62,7 @@ class EuroSatDataset(Dataset):
         
         target = torch.tensor(label, dtype=torch.long)
 
-        return {"image": image, self.spec.target_key: target}
+        return {"sentinel2_phisat2": image, self.spec.target_key: target}
 
     @staticmethod
     def _build_stratified_split(

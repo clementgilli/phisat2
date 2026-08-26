@@ -75,6 +75,19 @@ SEGMENTATION_METADATA = {
         255: ("No Data",      (0, 0, 0))
     },
     
+    "eurosat": {
+        0: ("AnnualCrop",           (230, 230, 0)),   
+        1: ("Forest",               (34, 139, 34)),   
+        2: ("HerbaceousVegetation", (144, 238, 144)), 
+        3: ("Highway",              (105, 105, 105)), 
+        4: ("Industrial",           (220, 20, 60)),     
+        5: ("Pasture",              (173, 255, 47)),   
+        6: ("PermanentCrop",        (218, 165, 32)),  
+        7: ("Residential",          (139, 69, 19)),   
+        8: ("River",                (0, 191, 255)),   
+        9: ("SeaLake",              (0, 0, 128)),     
+    },
+    
     "router": {
         0: ("Safe",   (34, 139, 34)),
         1: ("Fire",   (255, 69, 0)),     
@@ -226,30 +239,41 @@ def visualize_downstream_demo(images, targets, preds, task_type, dataset_name, m
     
     return fig
 
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import numpy as np
-import torch
+
+
+
 
 def visualize_triplet_batch(
     batch: dict[str, torch.Tensor | list], 
     idx: int = 0, 
     show_cloud: bool = True, 
     show_worldcover: bool = True, 
-    rgb_indices: tuple[int, int, int] = (3, 2, 1),
+    vis_indices: tuple[int, ...] = (3, 2, 1), # Supporte (3,2,1) ou (3,)
     ir_indices: tuple[int, int, int, int] = (4, 5, 6, 7), # RE1, RE2, RE3, NIR
     zoom_box: tuple[int, int, int, int] | None = None
 ) -> None:
     """
     zoom_box: (xmin, ymin, xmax, ymax)
+    vis_indices: Index des bandes à afficher (1 bande = Grayscale, 3 bandes = RGB)
     """
-    n_cols = 3 + int(show_cloud) + int(show_worldcover)
+    
+    # On définit les modalités principales (Les L0 sont ajoutées ici !)
+    modalities = [
+        ("Sentinel-2", 'sentinel2'),
+        ("Simulated", 'simulated'), 
+        ("Real PhiSat-2 (L1C)", 'real'),
+        ("Real PhiSat-2 (L0)", 'real_L0')
+    ]
+    
+    # Nombre de colonnes dynamiques
+    n_cols = len(modalities) + int(show_cloud) + int(show_worldcover)
     fig, axes = plt.subplots(nrows=3, ncols=n_cols, figsize=(4 * n_cols, 12))
     
-    tile_id = batch['tile_id'][idx] if 'tile_id' in batch else "Unknown"
-    title_suffix = f" | Zoom: {zoom_box}" if zoom_box else ""
-    #fig.suptitle(f"Triplet Visualization | Tile ID: {tile_id}{title_suffix}", fontsize=16, fontweight="bold", y=1.02)
+    # Sécurité si un tableau 1D (ex: 1 seule ligne) est renvoyé par plt.subplots
+    if axes.ndim == 1:
+        axes = np.expand_dims(axes, axis=0)
 
+    tile_id = batch['tile_id'][idx] if 'tile_id' in batch else "Unknown"
     ref_shape = batch['simulated'][idx].shape[-2:] if 'simulated' in batch else (224, 224)
 
     def crop_tensor(tensor: torch.Tensor, key: str) -> torch.Tensor:
@@ -267,15 +291,22 @@ def visualize_triplet_batch(
             return tensor[:, ymin:ymax, xmin:xmax]
         return tensor[ymin:ymax, xmin:xmax]
 
-    def get_rgb_stretched(tensor: torch.Tensor) -> np.ndarray:
-        rgb = tensor[list(rgb_indices)].detach().cpu().float().numpy()
-        rgb = np.transpose(rgb, (1, 2, 0))
+    def get_stretched_image(tensor: torch.Tensor) -> tuple[np.ndarray, bool]:
+        """Extrait les bandes demandées et normalise. Retourne (image, is_grayscale)."""
+        img_data = tensor[list(vis_indices)].detach().cpu().float().numpy()
         
-        p2, p98 = np.percentile(rgb, (2, 98), axis=(0, 1))
+        if len(vis_indices) == 3:
+            img_data = np.transpose(img_data, (1, 2, 0))
+            p2, p98 = np.percentile(img_data, (2, 98), axis=(0, 1))
+            is_gray = False
+        else: # Cas 1 bande (Grayscale)
+            img_data = img_data[0] # (1, H, W) -> (H, W)
+            p2, p98 = np.percentile(img_data, (2, 98))
+            is_gray = True
+            
         p98 = np.maximum(p98, p2 + 1e-5) 
-        
-        rgb_stretched = np.clip((rgb - p2) / (p98 - p2), 0, 1)
-        return rgb_stretched
+        img_stretched = np.clip((img_data - p2) / (p98 - p2), 0, 1)
+        return img_stretched, is_gray
 
     def plot_custom_histogram(ax, tensor: torch.Tensor, indices: list[int], colors: list[str], labels: list[str], title: str) -> None:
         for idx_band, color, label in zip(indices, colors, labels):
@@ -293,31 +324,37 @@ def visualize_triplet_batch(
         ax.set_yticks([])
         ax.legend(loc='upper right', fontsize=8)
 
-    modalities = [
-        ("Sentinel-2", 'sentinel2'),
-        ("Simulated", 'simulated'), 
-        ("Real PhiSat-2", 'real')
-    ]
-    
+    # 1. Nettoyage des axes vides (Masques)
     for row in range(1, 3):
-        for col in range(3, n_cols):
+        for col in range(len(modalities), n_cols):
             axes[row, col].axis("off")
 
+    # 2. Affichage des images satellites (S2, Sim, L1C, L0)
     for col, (title, key) in enumerate(modalities):
         ax_img = axes[0, col]
         if key in batch:
             cropped_tensor = crop_tensor(batch[key][idx], key)
-            img_rgb = get_rgb_stretched(cropped_tensor)
-            ax_img.imshow(img_rgb)
+            img_disp, is_gray = get_stretched_image(cropped_tensor)
+            
+            if is_gray:
+                ax_img.imshow(img_disp, cmap='gray')
+            else:
+                ax_img.imshow(img_disp)
+        else:
+            # Si le L0 n'est pas dans ce batch, on laisse une case vide
+            ax_img.text(0.5, 0.5, 'Missing\nModality', ha='center', va='center', color='gray')
+            
         ax_img.set_title(title, fontsize=12, fontweight="bold")
         ax_img.axis("off")
 
-    current_col = 3
+    # 3. Affichage des Masques (Nuages & LULC)
+    current_col = len(modalities)
     
     if show_cloud and 'mask_cloud' in batch:
         ax_cloud = axes[0, current_col]
         cloud_mask = crop_tensor(batch['mask_cloud'][idx].squeeze(), 'mask_cloud').detach().cpu().numpy()
         
+        # On suppose que mask_to_rgb existe dans ton scope
         cloud_rgb, cloud_meta = mask_to_rgb(cloud_mask, "clouds")
         ax_cloud.imshow(cloud_rgb)
         ax_cloud.set_title("Cloud Mask", fontsize=12, fontweight="bold")
@@ -338,6 +375,12 @@ def visualize_triplet_batch(
         ax_wc = axes[0, current_col]
         wc_mask = crop_tensor(batch['mask_worldcover'][idx].squeeze(), 'mask_worldcover').detach().cpu().numpy()
         
+        # 1. MAPPING WORLDCOVER -> DYNAMIC WORLD
+        # Index source (WorldCover): 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+        wc_to_dw = torch.tensor([2, 6, 3, 5, 7, 8, 9, 1, 4, 4, 0])
+        wc_mask = wc_to_dw[wc_mask]
+        
+        # On suppose que mask_to_rgb existe dans ton scope
         wc_rgb, wc_meta = mask_to_rgb(wc_mask, "lulc")
         ax_wc.imshow(wc_rgb)
         ax_wc.set_title("WorldCover Mask", fontsize=12, fontweight="bold")
@@ -354,18 +397,31 @@ def visualize_triplet_batch(
             
         current_col += 1
 
+    # 4. Affichage des Histogrammes Visuels (RGB ou Mono-bande)
     for col, (title, key) in enumerate(modalities):
         ax_hist = axes[1, col]
         if key in batch:
             cropped_tensor = crop_tensor(batch[key][idx], key)
-            plot_custom_histogram(
-                ax_hist, cropped_tensor, 
-                indices=list(rgb_indices), 
-                colors=['red', 'green', 'blue'], 
-                labels=['Red', 'Green', 'Blue'], 
-                title=f"RGB: {title}"
-            )
+            
+            if len(vis_indices) == 3:
+                plot_custom_histogram(
+                    ax_hist, cropped_tensor, 
+                    indices=list(vis_indices), 
+                    colors=['red', 'green', 'blue'], 
+                    labels=['Red', 'Green', 'Blue'], 
+                    title=f"Vis Hist: {title}"
+                )
+            else:
+                # Adaptation si une seule bande est demandée
+                plot_custom_histogram(
+                    ax_hist, cropped_tensor, 
+                    indices=list(vis_indices), 
+                    colors=['gray'], 
+                    labels=[f'Band {vis_indices[0]}'], 
+                    title=f"Band {vis_indices[0]} Hist: {title}"
+                )
 
+    # 5. Affichage des Histogrammes Infrarouge (RE1, RE2, RE3, NIR)
     for col, (title, key) in enumerate(modalities):
         ax_hist = axes[2, col]
         if key in batch:
@@ -375,7 +431,7 @@ def visualize_triplet_batch(
                 indices=list(ir_indices), 
                 colors=['orange', 'magenta', 'purple', 'black'], 
                 labels=['RE1', 'RE2', 'RE3', 'NIR'], 
-                title=f"Infrared: {title}"
+                title=f"IR Hist: {title}"
             )
 
     plt.tight_layout()

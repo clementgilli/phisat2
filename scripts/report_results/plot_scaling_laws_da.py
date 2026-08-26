@@ -9,7 +9,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-CSV_FILE = "/lustre/home/u10010021/phisat2/runs/eval_domain_gap/triplets/phisatnet/full_dataset/eval_seed_42/da_nshot.csv"
+#CSV_FILE = "/lustre/home/u10010021/phisat2/runs/eval_domain_gap/triplets/phisatnet/full_dataset/eval_seed_42/da_nshot.csv"
+CSV_FILE = "/lustre/home/u10010021/phisat2/domain_adaptation_final.csv"
 
 MODELS = {
     "phisatnet": {"color": "#2563eb", "label": "PhiSatNet"},
