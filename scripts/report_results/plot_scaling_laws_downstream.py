@@ -9,7 +9,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-CSV_FILE = "/lustre/home/u10010021/phisat2/runs/downstream_metrics.csv"
+CSV_FILE = "/lustre/home/u10010021/phisat2/runs/downstream_metrics2.csv"
 
 MODELS_TO_PLOT = [
     "phisatnet",

@@ -23,7 +23,7 @@ class DownstreamModule(L.LightningModule):
         self.weight_decay = weight_decay
         self.save_hyperparameters({"task": spec.task, "dataset": spec.dataset, "lr": lr, "weight_decay": weight_decay})
         self.val_metrics = build_metrics(spec, prefix="val")
-        self.test_metrics = build_metrics(spec, prefix="test") #if spec.dataset != "floods" else build_metrics(spec, prefix="test", ignore_index=0)
+        self.test_metrics = build_metrics(spec, prefix="test")
         self._freeze_encoder()
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:
@@ -160,7 +160,6 @@ class DownstreamModule(L.LightningModule):
         
         num_cols = 5 if is_lulc else 3
         fig, axes = plt.subplots(n, num_cols, figsize=(5 * num_cols, 4 * n), squeeze=False, constrained_layout=True)
-        #fig.suptitle(f"Debug Segmentation ({dataset_name}) - Batch {batch_idx}", fontsize=14, fontweight='bold')
         
         if is_lulc:
             col_titles = ["Original (RGB)", "Micro GT", "Micro Pred", "Macro GT", "Macro Pred"]
@@ -252,7 +251,6 @@ class DownstreamModule(L.LightningModule):
         n = min(max_samples, image.shape[0])
         
         fig, axes = plt.subplots(n, 3, figsize=(15, 4 * n), squeeze=False, constrained_layout=True)
-        #fig.suptitle(f"Debug Pixel Regression ({self.spec.dataset}) - Batch {batch_idx}\nScale: [{vmin:.3f}, {vmax:.3f}]", fontsize=14)
         
         col_titles = ["Original (RGB)", "Ground Truth", "Predictions"]
         for ax, title in zip(axes[0], col_titles):
@@ -298,7 +296,6 @@ class DownstreamModule(L.LightningModule):
         n = min(max_samples, image.shape[0])
         
         fig, axes = plt.subplots(n, 3, figsize=(12, 4 * n), squeeze=False, constrained_layout=True)
-        #fig.suptitle(f"Debug Classification ({dataset_name}) - Batch {batch_idx}", fontsize=14, fontweight='bold')
         
         col_titles = ["Original (RGB)", "Ground Truth", "Prediction"]
         for ax, title in zip(axes[0], col_titles):
@@ -307,7 +304,6 @@ class DownstreamModule(L.LightningModule):
         current_meta = None
             
         for i in range(n):
-            # 1. Image Originale
             orig = image[i].detach().cpu()
             axes[i, 0].imshow(self._to_falsecolor(orig, rgb_idx=(3, 2, 1)))
             axes[i, 0].axis("off")

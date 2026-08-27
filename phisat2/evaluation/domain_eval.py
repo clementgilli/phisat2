@@ -36,9 +36,9 @@ class DomainEvalModule(L.LightningModule):
         self.eval()
         self.requires_grad_(False)
 
-        self.stored_sim    = {l: [] for l in self.feature_layers}   # teacher(sim)
-        self.stored_before = {l: [] for l in self.feature_layers}   # teacher(real)
-        self.stored_after  = {l: [] for l in self.feature_layers}   # student(real)
+        self.stored_source    = {l: [] for l in self.feature_layers}   # teacher(source)
+        self.stored_before = {l: [] for l in self.feature_layers}   # teacher(target)
+        self.stored_after  = {l: [] for l in self.feature_layers}   # student(target)
 
     # ─────────────────────────────────────────────────────────────────────────
     # Helpers
@@ -80,6 +80,180 @@ class DomainEvalModule(L.LightningModule):
         d = os.path.join(self.trainer.default_root_dir, "visualizations", subfolder)
         os.makedirs(d, exist_ok=True)
         return d
+    
+    # ─────────────────────────────────────────────────────────────────────────
+    # Test step
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def test_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
+        img_source  = batch["sentinel2"]
+        img_target = batch["real"]
+        mask_gt  = batch.get("mask_worldcover")
+
+        feat_source    = self._to_named(self.teacher(img_source),  self.feature_layers)
+        feat_before = self._to_named(self.teacher(img_target), self.feature_layers)
+        feat_after  = self._to_named(self.student(img_target), self.feature_layers)
+
+        for layer in self.feature_layers:
+            if layer not in feat_source:
+                continue
+
+            f_source = F.adaptive_avg_pool2d(feat_source[layer], 1).flatten(1)
+            f_before = F.adaptive_avg_pool2d(feat_before[layer], 1).flatten(1)
+            f_after  = F.adaptive_avg_pool2d(feat_after[layer],  1).flatten(1)
+
+            self.log(f"before/cosine_{layer}", F.cosine_similarity(f_source, f_before).mean(), on_step=False, on_epoch=True)
+            self.log(f"after/cosine_{layer}",  F.cosine_similarity(f_source, f_after).mean(),  on_step=False, on_epoch=True)
+
+            self.stored_source[layer].append(f_source.cpu().numpy())
+            self.stored_before[layer].append(f_before.cpu().numpy())
+            self.stored_after[layer].append(f_after.cpu().numpy())
+
+        # ── Consistency downstream ─────────────────────────────────────────────
+        do_plot = (batch_idx % 1 == 0)
+        for task_name, decoder in self.decoders.items():
+            feat_list_source    = [feat_source[l]    for l in self.feature_layers if l in feat_source]
+            feat_list_before = [feat_before[l] for l in self.feature_layers if l in feat_before]
+            feat_list_after  = [feat_after[l]  for l in self.feature_layers if l in feat_after]
+
+            logits_source    = decoder(feat_list_source)
+            logits_before = decoder(feat_list_before)
+            logits_after  = decoder(feat_list_after)
+
+            is_spatial   = logits_source.ndim == 4
+            n_classes    = logits_source.shape[1]
+
+            if is_spatial and n_classes > 1:
+                # ── Segmentation ─────────────────────────────────────────────
+                for prefix, logits_target in [("before", logits_before), ("after", logits_after)]:
+                    
+                    preds_source_hard = logits_source.argmax(1)
+                    preds_target_hard = logits_target.argmax(1)
+
+                    miou = jaccard_index(
+                        preds_target_hard, preds_source_hard,
+                        task="multiclass", num_classes=n_classes, average="macro",
+                    )
+                    p_source  = F.softmax(logits_source, 1)
+                    kl = torch.sum(
+                        p_source * (F.log_softmax(logits_source, 1) - F.log_softmax(logits_target, 1)),
+                        dim=1,
+                    ).mean()
+                    self.log(f"{prefix}/consistency_{task_name}_miou", miou, on_step=False, on_epoch=True)
+                    self.log(f"{prefix}/consistency_{task_name}_kl",   kl,   on_step=False, on_epoch=True)
+
+                mask_gt_aligned = None
+                if task_name == "lulc" and mask_gt is not None:
+                    mask_gt_int = mask_gt.long()
+
+                    # 1. MAPPING WORLDCOVER -> DYNAMIC WORLD
+                    # Index source (WorldCover): 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+                    wc_to_dw = torch.tensor([2, 6, 3, 5, 7, 8, 9, 1, 4, 4, 0], device=self.device)
+                    mask_gt_aligned = wc_to_dw[mask_gt_int]
+
+                    preds_source_hard = logits_source.argmax(1)
+                    preds_before_hard = logits_before.argmax(1)
+                    preds_after_hard = logits_after.argmax(1)
+
+                    macro_mapping = torch.tensor([0, 1, 2, 2, 1, 2, 2, 3, 4, 4, 0], device=self.device)
+                    n_macro_classes = 5
+
+                    eval_configs = [
+                        ("upper_bound", preds_source_hard),
+                        ("before", preds_before_hard),
+                        ("after", preds_after_hard)
+                    ]
+                    
+                    for prefix, preds in eval_configs:
+                        
+                        iou = jaccard_index(preds, mask_gt_aligned, task="multiclass", num_classes=n_classes, average="macro", ignore_index=0)
+                        f1  = f1_score(preds, mask_gt_aligned, task="multiclass", num_classes=n_classes, average="macro", ignore_index=0)
+                        
+                        self.log(f"{prefix}/{task_name}_iou", iou, on_step=False, on_epoch=True)
+                        self.log(f"{prefix}/{task_name}_f1",  f1,  on_step=False, on_epoch=True)
+                        
+                        preds_m = macro_mapping[preds]
+                        gt_m    = macro_mapping[mask_gt_aligned]
+                        
+                        m_iou = jaccard_index(preds_m, gt_m, task="multiclass", num_classes=n_macro_classes, average="macro", ignore_index=0)
+                        m_f1  = f1_score(preds_m, gt_m, task="multiclass", num_classes=n_macro_classes, average="macro", ignore_index=0)
+                        
+                        self.log(f"{prefix}/{task_name}_macro_iou", m_iou, on_step=False, on_epoch=True)
+                        self.log(f"{prefix}/{task_name}_macro_f1",  m_f1,  on_step=False, on_epoch=True)
+
+                if do_plot:
+                    self._visualize_seg(
+                        img_source, img_target,
+                        logits_source, logits_before, logits_after,
+                        task_name, batch_idx,
+                        mask_gt=mask_gt_aligned
+                    )
+
+            elif not is_spatial and n_classes > 1:
+                # ── Global Classification ────────────────────────────────────
+                for prefix, logits_target in [("before", logits_before), ("after", logits_after)]:
+                    acc = (logits_target.argmax(1) == logits_source.argmax(1)).float().mean()
+                    kl = torch.sum(
+                        F.softmax(logits_source, 1) * (
+                            F.log_softmax(logits_source, 1) - F.log_softmax(logits_target, 1)
+                        ),
+                        dim=1,
+                    ).mean()
+                    self.log(f"{prefix}/consistency_{task_name}_acc", acc, on_step=False, on_epoch=True)
+                    self.log(f"{prefix}/consistency_{task_name}_kl",  kl,  on_step=False, on_epoch=True)
+                
+                if do_plot:
+                    self._visualize_cls(
+                        img_source, img_target,
+                        logits_source, logits_before, logits_after,
+                        task_name, batch_idx,
+                    )
+
+            else:
+                # ── Regression ────────────────────────────────────────────────
+                for prefix, logits_target in [("before", logits_before), ("after", logits_after)]:
+                    mse = F.mse_loss(logits_target, logits_source)
+                    self.log(f"{prefix}/consistency_{task_name}_mse", mse, on_step=False, on_epoch=True)
+
+                if do_plot and is_spatial:
+                    self._visualize_reg(
+                        img_source, img_target,
+                        logits_source, logits_before, logits_after,
+                        task_name, batch_idx,
+                    )
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # End epoch : PAD + t-SNE
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def on_test_epoch_end(self) -> None:
+        print("\n" + "=" * 60)
+        print("  PAD SCORES — Before vs After DA")
+        print("=" * 60)
+        print(f"  {'Layer':<12} {'PAD Before':>12} {'PAD After':>12}  {'Diff':>10}")
+        print("-" * 60)
+
+        for layer in self.feature_layers:
+            if not self.stored_source[layer]:
+                continue
+
+            X_source    = np.concatenate(self.stored_source[layer])
+            X_before = np.concatenate(self.stored_before[layer])
+            X_after  = np.concatenate(self.stored_after[layer])
+
+            pad_before = self._compute_pad(X_source, X_before)
+            pad_after  = self._compute_pad(X_source, X_after)
+            delta      = pad_after - pad_before
+
+            self.log(f"before/pad_{layer}", pad_before)
+            self.log(f"after/pad_{layer}",  pad_after)
+
+            sign = "↓" if delta < 0 else "↑"
+            print(f"  {layer:<12} {pad_before:>12.4f} {pad_after:>12.4f}  {sign} {abs(delta):.4f}")
+
+            self._plot_tsne_comparison(X_source, X_before, X_after, layer)
+
+        print("=" * 60 + "\n")
 
     # ─────────────────────────────────────────────────────────────────────────
     # Visualisation
@@ -87,7 +261,7 @@ class DomainEvalModule(L.LightningModule):
 
     def _plot_tsne_comparison(
         self,
-        X_sim: np.ndarray,
+        X_source: np.ndarray,
         X_before: np.ndarray,
         X_after: np.ndarray,
         layer: str,
@@ -96,38 +270,38 @@ class DomainEvalModule(L.LightningModule):
         from sklearn.manifold import TSNE
 
         MAX = 2000
-        for arr, name in [(X_sim, "sim"), (X_before, "before"), (X_after, "after")]:
+        for arr, name in [(X_source, "source"), (X_before, "before"), (X_after, "after")]:
             if len(arr) > MAX:
                 idx = np.random.choice(len(arr), MAX, replace=False)
-                if name == "sim":    X_sim    = arr[idx]
+                if name == "source":    X_source    = arr[idx]
                 elif name == "before": X_before = arr[idx]
                 else:                X_after  = arr[idx]
 
-        n_sim, n_before, n_after = len(X_sim), len(X_before), len(X_after)
-        X_all = np.vstack([X_sim, X_before, X_after])
+        n_source, n_before, n_after = len(X_source), len(X_before), len(X_after)
+        X_all = np.vstack([X_source, X_before, X_after])
 
         emb = TSNE(n_components=2, perplexity=30, random_state=42, n_jobs=-1).fit_transform(X_all)
-        e_sim    = emb[:n_sim]
-        e_before = emb[n_sim: n_sim + n_before]
-        e_after  = emb[n_sim + n_before:]
+        e_source    = emb[:n_source]
+        e_before = emb[n_source: n_source + n_before]
+        e_after  = emb[n_source + n_before:]
 
         fig, axes = plt.subplots(1, 2, figsize=(14, 6))
         fig.suptitle(f"t-SNE — {layer}", fontsize=14, fontweight="bold")
 
         kw = dict(s=12, alpha=0.85, edgecolors="none")
-        color_sim    = "mediumblue"
+        color_source    = "mediumblue"
         color_before = "crimson"
         color_after  = "crimson"
 
         axes[0].set_title("Before DA")
-        axes[0].scatter(e_sim[:,0],    e_sim[:,1],    color=color_sim,    label="teacher(sim)",   **kw)
-        axes[0].scatter(e_before[:,0], e_before[:,1], color=color_before, label="teacher(real)",  **kw)
+        axes[0].scatter(e_source[:,0],    e_source[:,1],    color=color_source,    label="teacher(source)",   **kw)
+        axes[0].scatter(e_before[:,0], e_before[:,1], color=color_before, label="teacher(target)",  **kw)
         axes[0].legend(markerscale=2, fontsize=10)
         axes[0].axis("off")
 
         axes[1].set_title("After DA")
-        axes[1].scatter(e_sim[:,0],   e_sim[:,1],   color=color_sim,   label="teacher(sim)",   **kw)
-        axes[1].scatter(e_after[:,0], e_after[:,1], color=color_after, label="student(real)",  **kw)
+        axes[1].scatter(e_source[:,0],   e_source[:,1],   color=color_source,   label="teacher(source)",   **kw)
+        axes[1].scatter(e_after[:,0], e_after[:,1], color=color_after, label="student(target)",  **kw)
         axes[1].legend(markerscale=2, fontsize=10)
         axes[1].axis("off")
 
@@ -139,9 +313,9 @@ class DomainEvalModule(L.LightningModule):
 
     def _visualize_seg(
         self,
-        img_sim: torch.Tensor,
-        img_real: torch.Tensor,
-        logits_sim: torch.Tensor,
+        img_source: torch.Tensor,
+        img_target: torch.Tensor,
+        logits_source: torch.Tensor,
         logits_before: torch.Tensor,
         logits_after: torch.Tensor,
         task_name: str,
@@ -153,23 +327,22 @@ class DomainEvalModule(L.LightningModule):
         def argmax(t: torch.Tensor) -> np.ndarray:
             return t.argmax(dim=1).detach().cpu().numpy() if t.ndim == 4 else t.detach().cpu().numpy()
 
-        preds_sim    = argmax(logits_sim)
+        preds_source = argmax(logits_source)
         preds_before = argmax(logits_before)
         preds_after  = argmax(logits_after)
         
-        n = min(max_samples, img_sim.shape[0])
-        #sampled_indices = np.random.choice(img_sim.shape[0], n, replace=False)
+        n = min(max_samples, img_source.shape[0])
+        #sampled_indices = np.random.choice(img_source.shape[0], n, replace=False)
         sampled_indices = np.arange(n)  # For consistent visualization across batches
         
         has_gt = mask_gt is not None
         n_cols = 6 if has_gt else 5
 
         fig, axes = plt.subplots(n, n_cols, figsize=(5 * n_cols, 4 * n), squeeze=False, constrained_layout=True)
-        #fig.suptitle(f"Consistency Segmentation — {task_name} — Batch {batch_idx}", fontsize=14)
         
-        titles = ["Image SIM", "Pred SIM", "Image REAL", "Pred REAL (before DA)", "Pred REAL (after DA)"]
+        titles = ["Image SOURCE", "Pred SOURCE", "Image TARGET", "Pred TARGET (before DA)", "Pred TARGET (after DA)"]
         if has_gt:
-            titles.append("Ground Truth REAL")
+            titles.append("Ground Truth")
             mask_gt_np = mask_gt.detach().cpu().numpy()
 
         for ax, title in zip(axes[0], titles):
@@ -177,14 +350,13 @@ class DomainEvalModule(L.LightningModule):
 
         meta = None
         for row, idx in enumerate(sampled_indices):
-            axes[row, 0].imshow(self._to_falsecolor(img_sim[idx].cpu()))
-            axes[row, 2].imshow(self._to_falsecolor(img_real[idx].cpu()))
+            axes[row, 0].imshow(self._to_falsecolor(img_source[idx].cpu()))
+            axes[row, 2].imshow(self._to_falsecolor(img_target[idx].cpu()))
             
-            for ax_col, pred_np in [(1, preds_sim), (3, preds_before), (4, preds_after)]:
+            for ax_col, pred_np in [(1, preds_source), (3, preds_before), (4, preds_after)]:
                 rgb, meta = mask_to_rgb(pred_np[idx], task_name)
                 axes[row, ax_col].imshow(rgb)
             
-            # <-- AJOUT : Affichage de la Ground Truth dans la dernière colonne
             if has_gt:
                 rgb_gt, meta = mask_to_rgb(mask_gt_np[idx], task_name)
                 axes[row, 5].imshow(rgb_gt)
@@ -209,9 +381,9 @@ class DomainEvalModule(L.LightningModule):
 
     def _visualize_reg(
         self,
-        img_sim: torch.Tensor,
-        img_real: torch.Tensor,
-        preds_sim: torch.Tensor,
+        img_source: torch.Tensor,
+        img_target: torch.Tensor,
+        preds_source: torch.Tensor,
         preds_before: torch.Tensor,
         preds_after: torch.Tensor,
         task_name: str,
@@ -222,29 +394,29 @@ class DomainEvalModule(L.LightningModule):
             t = t if t.ndim == 3 else (t.squeeze(1) if t.shape[1] == 1 else t[:, 0])
             return t.detach().cpu().float().numpy()
 
-        ps = squeeze(preds_sim)
+        ps = squeeze(preds_source)
         pb = squeeze(preds_before)
         pa = squeeze(preds_after)
         vmin = min(np.percentile(ps, 2), np.percentile(pb, 2), np.percentile(pa, 2))
         vmax = max(np.percentile(ps, 98), np.percentile(pb, 98), np.percentile(pa, 98))
         
-        n = min(max_samples, img_sim.shape[0])
+        n = min(max_samples, img_source.shape[0])
         
-        #sampled_indices = np.random.choice(img_sim.shape[0], n, replace=False)
+        #sampled_indices = np.random.choice(img_source.shape[0], n, replace=False)
         sampled_indices = np.arange(n)
 
         fig, axes = plt.subplots(n, 5, figsize=(25, 4 * n), squeeze=False, constrained_layout=True)
         #fig.suptitle(f"Consistency Regression — {task_name} — Batch {batch_idx}", fontsize=14)
         for ax, title in zip(
             axes[0],
-            ["Image SIM", "Pred SIM", "Image REAL", "Pred REAL (before DA)", "Pred REAL (after DA)"],
+            ["Image SOURCE", "Pred SOURCE", "Image TARGET", "Pred TARGET (before DA)", "Pred TARGET (after DA)"],
         ):
             ax.set_title(title, fontsize=11)
 
         im_ref = None
         for row, idx in enumerate(sampled_indices):
-            axes[row, 0].imshow(self._to_falsecolor(img_sim[idx].cpu()))
-            axes[row, 2].imshow(self._to_falsecolor(img_real[idx].cpu()))
+            axes[row, 0].imshow(self._to_falsecolor(img_source[idx].cpu()))
+            axes[row, 2].imshow(self._to_falsecolor(img_target[idx].cpu()))
             for ax_col, pred in [(1, ps), (3, pb), (4, pa)]:
                 im_ref = axes[row, ax_col].imshow(pred[idx], cmap="viridis", vmin=vmin, vmax=vmax)
             for ax in axes[row]:
@@ -262,9 +434,9 @@ class DomainEvalModule(L.LightningModule):
         
     def _visualize_cls(
         self,
-        img_sim: torch.Tensor,
-        img_real: torch.Tensor,
-        logits_sim: torch.Tensor,
+        img_source: torch.Tensor,
+        img_target: torch.Tensor,
+        logits_source: torch.Tensor,
         logits_before: torch.Tensor,
         logits_after: torch.Tensor,
         task_name: str,
@@ -275,29 +447,29 @@ class DomainEvalModule(L.LightningModule):
         def argmax(t: torch.Tensor) -> np.ndarray:
             return t.argmax(dim=1).detach().cpu().numpy() if t.ndim == 2 else t.detach().cpu().numpy()
 
-        preds_sim    = argmax(logits_sim).astype(int)
+        preds_source    = argmax(logits_source).astype(int)
         preds_before = argmax(logits_before).astype(int)
         preds_after  = argmax(logits_after).astype(int)
         
-        n = min(max_samples, img_sim.shape[0])
+        n = min(max_samples, img_source.shape[0])
         
-        #sampled_indices = np.random.choice(img_sim.shape[0], n, replace=False)
+        #sampled_indices = np.random.choice(img_source.shape[0], n, replace=False)
         sampled_indices = np.arange(n)  # For consistent visualization across batches
         
         fig, axes = plt.subplots(n, 5, figsize=(25, 4 * n), squeeze=False, constrained_layout=True)
         #fig.suptitle(f"Consistency Classification — {task_name} — Batch {batch_idx}", fontsize=16, fontweight='bold')
         
-        col_titles = ["Image SIM", "Pred SIM", "Image REAL", "Pred REAL (before DA)", "Pred REAL (after DA)"]
+        col_titles = ["Image SOURCE", "Pred SOURCE", "Image TARGET", "Pred TARGET (before DA)", "Pred TARGET (after DA)"]
         for ax, title in zip(axes[0], col_titles):
             ax.set_title(title, fontsize=14)
 
         current_meta = None
         
         for row, idx in enumerate(sampled_indices):
-            axes[row, 0].imshow(self._to_falsecolor(img_sim[idx].cpu()))            
-            axes[row, 2].imshow(self._to_falsecolor(img_real[idx].cpu()))
+            axes[row, 0].imshow(self._to_falsecolor(img_source[idx].cpu()))            
+            axes[row, 2].imshow(self._to_falsecolor(img_target[idx].cpu()))
             
-            for ax_col, pred_array in [(1, preds_sim), (3, preds_before), (4, preds_after)]:
+            for ax_col, pred_array in [(1, preds_source), (3, preds_before), (4, preds_after)]:
                 pred_idx = pred_array[idx]
                 
                 dummy_mask = np.full((128, 128), pred_idx, dtype=np.uint8)
@@ -332,175 +504,4 @@ class DomainEvalModule(L.LightningModule):
         plt.close(fig)
         print(f"[Viz] saved → {save_path}")
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # Test step
-    # ─────────────────────────────────────────────────────────────────────────
-
-    def test_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
-        img_sim  = batch["sentinel2"]
-        img_real = batch["real"]
-        mask_gt  = batch.get("mask_worldcover")
-
-        feat_sim    = self._to_named(self.teacher(img_sim),  self.feature_layers)
-        feat_before = self._to_named(self.teacher(img_real), self.feature_layers)
-        feat_after  = self._to_named(self.student(img_real), self.feature_layers)
-
-        for layer in self.feature_layers:
-            if layer not in feat_sim:
-                continue
-
-            f_sim    = F.adaptive_avg_pool2d(feat_sim[layer],    1).flatten(1)
-            f_before = F.adaptive_avg_pool2d(feat_before[layer], 1).flatten(1)
-            f_after  = F.adaptive_avg_pool2d(feat_after[layer],  1).flatten(1)
-
-            self.log(f"before/cosine_{layer}", F.cosine_similarity(f_sim, f_before).mean(), on_step=False, on_epoch=True)
-            self.log(f"after/cosine_{layer}",  F.cosine_similarity(f_sim, f_after).mean(),  on_step=False, on_epoch=True)
-
-            self.stored_sim[layer].append(f_sim.cpu().numpy())
-            self.stored_before[layer].append(f_before.cpu().numpy())
-            self.stored_after[layer].append(f_after.cpu().numpy())
-
-        # ── Consistency downstream ─────────────────────────────────────────────
-        do_plot = (batch_idx % 1 == 0)
-        for task_name, decoder in self.decoders.items():
-            feat_list_sim    = [feat_sim[l]    for l in self.feature_layers if l in feat_sim]
-            feat_list_before = [feat_before[l] for l in self.feature_layers if l in feat_before]
-            feat_list_after  = [feat_after[l]  for l in self.feature_layers if l in feat_after]
-
-            logits_sim    = decoder(feat_list_sim)
-            logits_before = decoder(feat_list_before)
-            logits_after  = decoder(feat_list_after)
-
-            is_spatial   = logits_sim.ndim == 4
-            n_classes    = logits_sim.shape[1]
-
-            if is_spatial and n_classes > 1:
-                # ── Segmentation ─────────────────────────────────────────────
-                for prefix, logits_real in [("before", logits_before), ("after", logits_after)]:
-                    preds_sim_hard  = logits_sim.argmax(1)
-                    preds_real_hard = logits_real.argmax(1)
-
-                    miou = jaccard_index(
-                        preds_real_hard, preds_sim_hard,
-                        task="multiclass", num_classes=n_classes, average="macro",
-                    )
-                    p_sim  = F.softmax(logits_sim, 1)
-                    kl = torch.sum(
-                        p_sim * (F.log_softmax(logits_sim, 1) - F.log_softmax(logits_real, 1)),
-                        dim=1,
-                    ).mean()
-                    self.log(f"{prefix}/consistency_{task_name}_miou", miou, on_step=False, on_epoch=True)
-                    self.log(f"{prefix}/consistency_{task_name}_kl",   kl,   on_step=False, on_epoch=True)
-
-                mask_gt_aligned = None
-                if task_name == "lulc" and mask_gt is not None:
-                    mask_gt_int = mask_gt.long()
-
-                    # 1. MAPPING WORLDCOVER -> DYNAMIC WORLD
-                    # Index source (WorldCover): 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
-                    wc_to_dw = torch.tensor([2, 6, 3, 5, 7, 8, 9, 1, 4, 4, 0], device=self.device)
-                    mask_gt_aligned = wc_to_dw[mask_gt_int]
-
-                    preds_sim_hard = logits_sim.argmax(1)
-                    preds_before_hard = logits_before.argmax(1)
-                    preds_after_hard = logits_after.argmax(1)
-
-                    macro_mapping = torch.tensor([0, 1, 2, 2, 1, 2, 2, 3, 4, 4, 0], device=self.device)
-                    n_macro_classes = 5
-
-                    eval_configs = [
-                        ("upper_bound", preds_sim_hard),
-                        ("before", preds_before_hard),
-                        ("after", preds_after_hard)
-                    ]
-                    
-                    for prefix, preds in eval_configs:
-                        
-                        iou = jaccard_index(preds, mask_gt_aligned, task="multiclass", num_classes=n_classes, average="macro", ignore_index=0)
-                        f1  = f1_score(preds, mask_gt_aligned, task="multiclass", num_classes=n_classes, average="macro", ignore_index=0)
-                        
-                        self.log(f"{prefix}/{task_name}_iou", iou, on_step=False, on_epoch=True)
-                        self.log(f"{prefix}/{task_name}_f1",  f1,  on_step=False, on_epoch=True)
-                        
-                        preds_m = macro_mapping[preds]
-                        gt_m    = macro_mapping[mask_gt_aligned]
-                        
-                        m_iou = jaccard_index(preds_m, gt_m, task="multiclass", num_classes=n_macro_classes, average="macro", ignore_index=0)
-                        m_f1  = f1_score(preds_m, gt_m, task="multiclass", num_classes=n_macro_classes, average="macro", ignore_index=0)
-                        
-                        self.log(f"{prefix}/{task_name}_macro_iou", m_iou, on_step=False, on_epoch=True)
-                        self.log(f"{prefix}/{task_name}_macro_f1",  m_f1,  on_step=False, on_epoch=True)
-
-                if do_plot:
-                    self._visualize_seg(
-                        img_sim, img_real,
-                        logits_sim, logits_before, logits_after,
-                        task_name, batch_idx,
-                        mask_gt=mask_gt_aligned
-                    )
-
-            elif not is_spatial and n_classes > 1:
-                # ── Global Classification ────────────────────────────────────
-                for prefix, logits_real in [("before", logits_before), ("after", logits_after)]:
-                    acc = (logits_real.argmax(1) == logits_sim.argmax(1)).float().mean()
-                    kl = torch.sum(
-                        F.softmax(logits_sim, 1) * (
-                            F.log_softmax(logits_sim, 1) - F.log_softmax(logits_real, 1)
-                        ),
-                        dim=1,
-                    ).mean()
-                    self.log(f"{prefix}/consistency_{task_name}_acc", acc, on_step=False, on_epoch=True)
-                    self.log(f"{prefix}/consistency_{task_name}_kl",  kl,  on_step=False, on_epoch=True)
-                
-                if do_plot:
-                    self._visualize_cls(
-                        img_sim, img_real,
-                        logits_sim, logits_before, logits_after,
-                        task_name, batch_idx,
-                    )
-
-            else:
-                # ── Regression ────────────────────────────────────────────────
-                for prefix, logits_real in [("before", logits_before), ("after", logits_after)]:
-                    mse = F.mse_loss(logits_real, logits_sim)
-                    self.log(f"{prefix}/consistency_{task_name}_mse", mse, on_step=False, on_epoch=True)
-
-                if do_plot and is_spatial:
-                    self._visualize_reg(
-                        img_sim, img_real,
-                        logits_sim, logits_before, logits_after,
-                        task_name, batch_idx,
-                    )
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # End epoch : PAD + t-SNE
-    # ─────────────────────────────────────────────────────────────────────────
-
-    def on_test_epoch_end(self) -> None:
-        print("\n" + "=" * 60)
-        print("  PAD SCORES — Before vs After DA")
-        print("=" * 60)
-        print(f"  {'Layer':<12} {'PAD Before':>12} {'PAD After':>12}  {'Diff':>10}")
-        print("-" * 60)
-
-        for layer in self.feature_layers:
-            if not self.stored_sim[layer]:
-                continue
-
-            X_sim    = np.concatenate(self.stored_sim[layer])
-            X_before = np.concatenate(self.stored_before[layer])
-            X_after  = np.concatenate(self.stored_after[layer])
-
-            pad_before = self._compute_pad(X_sim, X_before)
-            pad_after  = self._compute_pad(X_sim, X_after)
-            delta      = pad_after - pad_before
-
-            self.log(f"before/pad_{layer}", pad_before)
-            self.log(f"after/pad_{layer}",  pad_after)
-
-            sign = "↓" if delta < 0 else "↑"
-            print(f"  {layer:<12} {pad_before:>12.4f} {pad_after:>12.4f}  {sign} {abs(delta):.4f}")
-
-            self._plot_tsne_comparison(X_sim, X_before, X_after, layer)
-
-        print("=" * 60 + "\n")
+    

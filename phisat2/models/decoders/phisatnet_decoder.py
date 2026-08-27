@@ -40,11 +40,7 @@ class PhiSatNetDecoder(nn.Module):
         
         for upsampler, decoder, skip in zip(self.upsamplers, self.decoders, reversed_skips, strict=True):
             
-            x = upsampler(x)
-            
-            #if x.shape[-2:] != skip.shape[-2:]:
-            #    x = F.interpolate(x, size=skip.shape[-2:], mode="bilinear", align_corners=False)
-                
+            x = upsampler(x)    
             x = decoder(torch.cat([x, skip], dim=1))
             
         return self.final_conv(x)

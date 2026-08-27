@@ -81,29 +81,7 @@ def mmd_loss(
 # ─────────────────────────────────────────────────────────────────────────────
 
 class DomainAdaptationModule(L.LightningModule):
-    """
-    Sim-to-Real domain adaptation (PhiSat-2 Phase 4).
-
-    Three interchangeable alignment methods, chosen via `method`:
-
-    "mse"   — Paired MSE per feature level.
-              Exploits co-registered (sim, real) pairs: f_real ≈ f_sim.
-              Strongest supervision signal but requires perfect co-registration.
-
-    "coral" — CORAL (Sun & Saenko, ECCV 2016).
-              Aligns covariance matrices of GAP features (2nd-order statistics).
-              Distributional baseline: ignores the within-batch pairing.
-
-    "mmd"   — Multi-kernel MMD (Long et al., ICML 2015).
-              Aligns RKHS mean embeddings via multiple RBF kernels (implicit
-              infinite-order moment matching).
-              Distributional baseline: ignores the within-batch pairing.
-
-    CORAL and MMD operate on GAP-pooled (B, C) vectors and treat the problem
-    as unsupervised DA — they are the natural baselines to show that the
-    paired MSE actually exploits the co-registration information.
-    """
-
+    
     def __init__(
         self,
         student_model: nn.Module,
@@ -113,6 +91,7 @@ class DomainAdaptationModule(L.LightningModule):
         lr: float,
         weight_decay: float,
         method: Literal["mse", "coral", "mmd"] = "mse",
+        level_processing: Literal["L1C", "L0"] = "L1C",
         loss_weights: dict[str, float] | None = None,
         mmd_sigmas: list[float] | None = None,   # only used when method="mmd"
     ) -> None:
@@ -122,6 +101,7 @@ class DomainAdaptationModule(L.LightningModule):
         self.spec         = spec
         self.lr           = lr
         self.weight_decay = weight_decay
+        self.level_processing = level_processing
         self.method       = method
         self.mmd_sigmas   = mmd_sigmas   # None → use default in mmd_loss
 
@@ -140,7 +120,7 @@ class DomainAdaptationModule(L.LightningModule):
             param.requires_grad_(False)
 
         self.save_hyperparameters(ignore=["student_model", "teacher_model"])
-        print(f"[DA] method={method}" + (
+        print(f"[DA] method={method}, level_processing={self.level_processing}" + (
             f" | sigmas={mmd_sigmas or '[0.5,1,2,4,8]'}" if method == "mmd" else ""
         ))
 
@@ -154,18 +134,18 @@ class DomainAdaptationModule(L.LightningModule):
 
     def _level_loss(
         self,
-        f_real: torch.Tensor,   # (B, C, H, W)
-        f_sim:  torch.Tensor,   # (B, C, H, W) — from frozen teacher
+        f_target: torch.Tensor,   # (B, C, H, W)
+        f_source:  torch.Tensor,   # (B, C, H, W) — from frozen teacher
     ) -> torch.Tensor:
         """Compute the per-level loss according to the chosen method."""
 
         if self.method == "mse":
             # Point-to-point alignment (exploits co-registration)
-            return F.mse_loss(f_real, f_sim)
+            return F.mse_loss(f_target, f_source)
 
         # Distributional methods: GAP → (B, C)
-        s_gap = F.adaptive_avg_pool2d(f_real, 1).flatten(1)  # student (real)
-        t_gap = F.adaptive_avg_pool2d(f_sim,  1).flatten(1)  # teacher (sim)
+        s_gap = F.adaptive_avg_pool2d(f_target, 1).flatten(1)  # student
+        t_gap = F.adaptive_avg_pool2d(f_source,  1).flatten(1)  # teacher
 
         if self.method == "coral":
             return coral_loss(s_gap, t_gap)
@@ -176,20 +156,24 @@ class DomainAdaptationModule(L.LightningModule):
     def _shared_step(
         self, batch: dict[str, torch.Tensor], prefix: str
     ) -> torch.Tensor:
-        img_real = batch["real"]
-        img_sim  = batch["sentinel2"]
+        if self.level_processing == "L0":
+            img_target = batch["real_L0"]
+        else:
+            img_target = batch["real"]
+        
+        img_source  = batch["sentinel2"]
 
         with torch.no_grad():
-            feat_sim = self.teacher(img_sim)
+            feat_source = self.teacher(img_source)
 
-        feat_real = self.student(img_real)
+        feat_target = self.student(img_target)
 
         losses = []
         for i, (layer_name, weight) in enumerate(self.loss_weights.items()):
-            if i >= len(feat_sim) or i >= len(feat_real):
+            if i >= len(feat_source) or i >= len(feat_target):
                 break
 
-            lvl_loss = self._level_loss(feat_real[i], feat_sim[i])
+            lvl_loss = self._level_loss(feat_target[i], feat_source[i])
             losses.append(lvl_loss * weight)
 
             self.log(
@@ -201,14 +185,14 @@ class DomainAdaptationModule(L.LightningModule):
             raise RuntimeError(
                 f"No features mapped. "
                 f"loss_weights={list(self.loss_weights)}, "
-                f"len(feat_sim)={len(feat_sim)}"
+                f"len(feat_source)={len(feat_source)}"
             )
 
         total = sum(losses)
         self.log(
             f"{prefix}_loss", total,
             prog_bar=True, on_step=False, on_epoch=True,
-            sync_dist=True, batch_size=img_real.shape[0],
+            sync_dist=True, batch_size=img_target.shape[0],
         )
         return total
 

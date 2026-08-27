@@ -46,7 +46,7 @@ _EUROSAT      = $(_BASE)/classification/eurosat/$(MODEL)/full_dataset/seed_42/ch
 ifneq ($(filter eval-domain-gap submit-eval-domain-gap, $(MAKECMDGOALS) $(TARGET)),)
 
 JOB_NAME  = $(BASE_NAME)_eval
-WALLTIME  = 03:00:00
+WALLTIME  = 00:10:00
 CPUS      = 8
 MEM       = 64gb
 

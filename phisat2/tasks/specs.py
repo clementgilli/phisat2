@@ -2,20 +2,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-TASK_SEGMENTATION = "segmentation"
-TASK_PIXEL_REGRESSION = "pixel_regression"
-TASK_CLASSIFICATION = "classification"
-TASK_GLOBAL_REGRESSION = "global_regression"
+# ─────────────────────────────────────────────────────────────────────────────
+# Task name constants
+# ─────────────────────────────────────────────────────────────────────────────
 
+TASK_SEGMENTATION            = "segmentation"
+TASK_PIXEL_REGRESSION        = "pixel_regression"
+TASK_CLASSIFICATION          = "classification"
+TASK_GLOBAL_REGRESSION       = "global_regression"
 TASK_PRETRAIN_RECONSTRUCTION = "pretrain_reconstruction"
-TASK_EVAL_ENCODER = "eval_encoder"
+TASK_KNOWLEDGE_DISTILLATION  = "knowledge_distillation"
+TASK_DOMAIN_ADAPTATION       = "domain_adaptation"
+TASK_EVAL_DOMAIN_GAP         = "eval_domain_gap"
+TASK_EVAL_ENCODER            = "eval_encoder"
 
-TASK_KNOWLEDGE_DISTILLATION = "knowledge_distillation"
-
-TASK_DOMAIN_ADAPTATION = "domain_adaptation"
-TASK_EVAL_DOMAIN_GAP = "eval_domain_gap" 
-
-TASKS = {
+TASKS: frozenset[str] = frozenset({
     TASK_SEGMENTATION,
     TASK_PIXEL_REGRESSION,
     TASK_CLASSIFICATION,
@@ -25,125 +26,132 @@ TASKS = {
     TASK_DOMAIN_ADAPTATION,
     TASK_EVAL_DOMAIN_GAP,
     TASK_EVAL_ENCODER,
+})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Dataset registries
+# ─────────────────────────────────────────────────────────────────────────────
+# Each downstream registry maps  dataset_name → num_outputs
+# Segmentation also carries ignore_index: dataset → (num_classes, ignore_index)
+
+_SEG: dict[str, tuple[int, int | None]] = {
+    # dataset      classes  ignore   train    /  val    / test
+    "lulc":    (11,  0),   # 50 080  /  5 552 /  6 544
+    "floods":  (4,   0),   # 243 904 /  9 660 / 10 792
+    "clouds":  (4,   99),  # 35 336  /  8 560 / 15 472
+    "marine":  (9,   0),   #  7 936  /  1 280 /  3 584
+    "methane": (2,   255), # 44 800  /  6 656 / 12 480
+    "burned":  (7,   255), # 76 912  / 11 012 / 19 492
 }
 
-SEGMENTATION_OUTPUTS = {
-    #"lulc": 11,
-    #"lc": 11,
-    #"marine": 9,
-    #"marine_area": 9,
-    #"anomaly_detection": 9,
-    #"burned": 4,
-    #"burned_area": 4,
-    #"clouds": 4,
-    #"floods": 3,
-    #"worldfloods": 3,
-    "lulc": 11, # train: 50080 / val: 5552 / test: 6544
-    "floods": 4, # train: 243904 / val: 9660 / test: 10792
-    "clouds": 4, # train: 35336 / val: 8560 / test: 15472
-    "marine": 9,  # train: 7936 / val: 1280 / test: 3584
-    "methane": 2, # train: 44800 / val: 6656 / test: 12480
-    "burned": 7, # train: 76912 / val: 11012 / test: 19492
-}
-
-SEGMENTATION_IGNORE_INDEX = {
-    "clouds": 99,
-    "floods": 0,
-    "lulc": 0,
-    "marine": 0,
-    "methane": 255,
-    "burned": 255,
-}
-
-PIXEL_REGRESSION_OUTPUTS = {
-    "roads": 1,
+_PIX_REG: dict[str, int] = {
+    "roads":    1,
     "building": 1,
 }
 
-GLOBAL_REGRESSION_OUTPUTS = {
-}
-
-CLASSIFICATION_OUTPUTS = {
-    "router": 5,
+_CLS: dict[str, int] = {
+    "router":  5,
     "eurosat": 10,
 }
 
-PRETRAIN_RECONSTRUCTION_OUTPUTS = {
-    "triplets": 8,
-    "ssl4eo": 8,
+_GLOBAL_REG: dict[str, int] = {}   # reserved for future tasks
+
+# Non-downstream tasks
+_PRETRAIN:  dict[str, int] = {"triplets": 8, "ssl4eo": 8}
+_KD:        dict[str, int] = {"triplets": 0, "ssl4eo": 0}
+_DA:        dict[str, int] = {"triplets": 0}
+_EVAL_GAP:  dict[str, int] = {"triplets": 0}
+_EVAL_ENC:  dict[str, int] = {"eurosat": 0}
+
+# Flat reverse-lookup for guess_task_from_dataset (downstream tasks only)
+_DOWNSTREAM_TASK: dict[str, str] = {
+    **{d: TASK_SEGMENTATION    for d in _SEG},
+    **{d: TASK_PIXEL_REGRESSION for d in _PIX_REG},
+    **{d: TASK_CLASSIFICATION  for d in _CLS},
+    **{d: TASK_GLOBAL_REGRESSION for d in _GLOBAL_REG},
 }
 
-KNOWLEDGE_DISTILLATION_OUTPUTS = {
-    "triplets": 0,
-    "ssl4eo": 0,
-}
 
-DOMAIN_ADAPTATION_OUTPUTS = {
-    "triplets": 0,
-}
-
-EVAL_DOMAIN_GAP_OUTPUTS = {
-    "triplets": 0,
-}
-
-EVAL_ENCODER_OUTPUTS = {
-    "lulc": 0,
-    "router": 0,
-    "eurosat": 0,
-}
+# ─────────────────────────────────────────────────────────────────────────────
+# TaskSpec
+# ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass(frozen=True)
 class TaskSpec:
-    task: str
-    dataset: str
-    num_outputs: int
-    target_key: str
-    loss: str
+    task:         str
+    dataset:      str
+    num_outputs:  int
+    target_key:   str
+    loss:         str
     ignore_index: int | None = None
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _get(registry: dict, dataset: str, task: str):
+    """Lookup dataset in a registry, raising a clear error on miss."""
+    if dataset not in registry:
+        valid = ", ".join(sorted(registry))
+        raise ValueError(
+            f"Dataset '{dataset}' is not registered for task '{task}'. "
+            f"Expected one of: {valid}."
+        )
+    return registry[dataset]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Public API
+# ─────────────────────────────────────────────────────────────────────────────
+
 def resolve_task_spec(task: str, dataset: str) -> TaskSpec:
-    task = task.lower()
+    task    = task.lower()
     dataset = dataset.lower()
+
     if task not in TASKS:
-        raise ValueError(f"Unknown task '{task}'. Expected one of: {', '.join(sorted(TASKS))}.")
+        raise ValueError(
+            f"Unknown task '{task}'. Expected one of: {', '.join(sorted(TASKS))}."
+        )
 
-    if task == TASK_SEGMENTATION:
-        return TaskSpec(task, dataset, _lookup(dataset, SEGMENTATION_OUTPUTS), "mask", "cross_entropy", ignore_index=SEGMENTATION_IGNORE_INDEX[dataset])
-    if task == TASK_CLASSIFICATION:
-        return TaskSpec(task, dataset, _lookup(dataset, CLASSIFICATION_OUTPUTS), "label", "cross_entropy")
-    if task == TASK_GLOBAL_REGRESSION:
-        return TaskSpec(task, dataset, _lookup(dataset, GLOBAL_REGRESSION_OUTPUTS), "target", "mse")
-    if task == TASK_PIXEL_REGRESSION:
-        return TaskSpec(task, dataset, _lookup(dataset, PIXEL_REGRESSION_OUTPUTS), "target", "mse")
-    
-    if task == TASK_PRETRAIN_RECONSTRUCTION:
-        return TaskSpec(task, dataset, _lookup(dataset, PRETRAIN_RECONSTRUCTION_OUTPUTS), "simulated", "mse")
-        
-    if task == TASK_KNOWLEDGE_DISTILLATION:
-        return TaskSpec(task, dataset, _lookup(dataset, KNOWLEDGE_DISTILLATION_OUTPUTS), "none", "kd_loss")
-    
-    if task == TASK_DOMAIN_ADAPTATION:
-        return TaskSpec(task, dataset, _lookup(dataset, DOMAIN_ADAPTATION_OUTPUTS), "none", "mse_multiscale")
-        
-    if task == TASK_EVAL_DOMAIN_GAP:
-        return TaskSpec(task, dataset, _lookup(dataset, EVAL_DOMAIN_GAP_OUTPUTS), "none", "none")
-    
-    if task == TASK_EVAL_ENCODER:
-        return TaskSpec(task, dataset, _lookup(dataset, EVAL_ENCODER_OUTPUTS), "mask", "none")
+    match task:
+        case "segmentation":
+            n, ign = _get(_SEG, dataset, task)
+            return TaskSpec(task, dataset, n, "mask", "cross_entropy", ignore_index=ign)
 
-def _lookup(dataset: str, outputs: dict[str, int]) -> int:
-    try:
-        return outputs[dataset]
-    except KeyError as exc:
-        valid = ", ".join(sorted(outputs))
-        raise ValueError(f"Dataset '{dataset}' is not valid for this task. Expected one of: {valid}.") from exc
+        case "pixel_regression":
+            return TaskSpec(task, dataset, _get(_PIX_REG, dataset, task), "target", "mse")
+
+        case "classification":
+            return TaskSpec(task, dataset, _get(_CLS, dataset, task), "label", "cross_entropy")
+
+        case "global_regression":
+            return TaskSpec(task, dataset, _get(_GLOBAL_REG, dataset, task), "target", "mse")
+
+        case "pretrain_reconstruction":
+            return TaskSpec(task, dataset, _get(_PRETRAIN, dataset, task), "simulated", "mse")
+
+        case "knowledge_distillation":
+            return TaskSpec(task, dataset, _get(_KD, dataset, task), "none", "kd_loss")
+
+        case "domain_adaptation":
+            return TaskSpec(task, dataset, _get(_DA, dataset, task), "none", "mse_multiscale")
+
+        case "eval_domain_gap":
+            return TaskSpec(task, dataset, _get(_EVAL_GAP, dataset, task), "none", "none")
+
+        case "eval_encoder":
+            return TaskSpec(task, dataset, _get(_EVAL_ENC, dataset, task), "mask", "none")
+
+    raise AssertionError(f"Unhandled task '{task}'")
+
 
 def guess_task_from_dataset(dataset: str) -> str:
     dataset = dataset.lower()
-    if dataset in SEGMENTATION_OUTPUTS: return TASK_SEGMENTATION
-    if dataset in PIXEL_REGRESSION_OUTPUTS: return TASK_PIXEL_REGRESSION
-    if dataset in CLASSIFICATION_OUTPUTS: return TASK_CLASSIFICATION
-    if dataset in GLOBAL_REGRESSION_OUTPUTS: return TASK_GLOBAL_REGRESSION
-    
-    raise ValueError(f"Cannot infer task type for unknown downstream dataset '{dataset}'.")
+    if dataset not in _DOWNSTREAM_TASK:
+        raise ValueError(
+            f"Cannot infer task for unknown downstream dataset '{dataset}'. "
+            f"Known datasets: {', '.join(sorted(_DOWNSTREAM_TASK))}."
+        )
+    return _DOWNSTREAM_TASK[dataset]

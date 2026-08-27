@@ -9,8 +9,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-#CSV_FILE = "/lustre/home/u10010021/phisat2/runs/eval_domain_gap/triplets/phisatnet/full_dataset/eval_seed_42/da_nshot.csv"
-CSV_FILE = "/lustre/home/u10010021/phisat2/domain_adaptation_final.csv"
+CSV_FILE = "/lustre/home/u10010021/phisat2/runs/eval_domain_gap/triplets/phisatnet/full_dataset/eval_seed_42/domain_adaptation_final.csv"
 
 MODELS = {
     "phisatnet": {"color": "#2563eb", "label": "PhiSatNet"},
@@ -101,24 +100,32 @@ def main():
     fig1.savefig("fig_latent_space.pdf", dpi=300, bbox_inches="tight")
     plt.close(fig1)
 
+    print("Génération de Figure 2 : Downstream Performance...")
     
-    fig2, axes2 = plt.subplots(2, 4, figsize=(18, 8))
+    # On passe en 2x3 pour coller parfaitement à tes métriques
+    fig2, axes2 = plt.subplots(2, 3, figsize=(14, 8))
     
-    tasks = ["burned", "clouds", "floods", "lulc"]
-    task_names = ["Burned Area", "Clouds", "Floods", "LULC"]
-    for i, (task, name) in enumerate(zip(tasks, task_names)):
+    # 1ère Ligne : Consistance (Burned, Clouds, Floods)
+    top_metrics = [
+        ("after/consistency_burned_miou", "before/consistency_burned_miou", None, "Burned Area Cons. (mIoU)", "Consistency"),
+        ("after/consistency_clouds_miou", "before/consistency_clouds_miou", None, "Clouds Cons. (mIoU)", ""),
+        ("after/consistency_floods_miou", "before/consistency_floods_miou", None, "Floods Cons. (mIoU)", "")
+    ]
+    
+    for i, (m_after, m_before, m_ub, name, ylabel) in enumerate(top_metrics):
         plot_metric_axis(axes2[0, i], df, 
-                         metric_after=f"after/consistency_{task}_miou", 
-                         metric_before=f"before/consistency_{task}_miou", 
+                         metric_after=m_after, 
+                         metric_before=m_before, 
+                         metric_ub=m_ub,
                          title=name, 
-                         ylabel="Consistency mIoU" if i == 0 else "", 
+                         ylabel=ylabel, 
                          x_labels=x_labels)
 
+    # 2ème Ligne : Consistance (LULC, EuroSAT) + GT (LULC Micro)
     bottom_metrics = [
-        ("after/lulc_iou", "before/lulc_iou", "upper_bound/lulc_iou", "LULC Micro (True mIoU)", "True mIoU"),
-        ("after/lulc_macro_iou", "before/lulc_macro_iou", "upper_bound/lulc_macro_iou", "LULC Macro (True mIoU)", ""),
-        ("after/consistency_building_mse", "before/consistency_building_mse", None, "Building (Consistency MSE)", "Consistency MSE"),
-        ("after/consistency_roads_mse", "before/consistency_roads_mse", None, "Roads (Consistency MSE)", "")
+        ("after/consistency_lulc_miou", "before/consistency_lulc_miou", None, "LULC Cons. (mIoU)", "Consistency / True GT"),
+        ("after/consistency_eurosat_acc", "before/consistency_eurosat_acc", None, "EuroSAT Cons. (Accuracy)", ""),
+        ("after/lulc_iou", "before/lulc_iou", "upper_bound/lulc_iou", "LULC Micro GT (True mIoU)", "")
     ]
     
     for i, (m_after, m_before, m_ub, name, ylabel) in enumerate(bottom_metrics):
@@ -133,7 +140,7 @@ def main():
     sns.despine(fig=fig2)
     handles, labels = axes2[1, 0].get_legend_handles_labels()
     by_label = dict(zip(labels, handles))
-    fig2.legend(by_label.values(), by_label.keys(), loc='upper center', ncol=5, bbox_to_anchor=(0.5, 1.05), frameon=False)
+    fig2.legend(by_label.values(), by_label.keys(), loc='upper center', ncol=3, bbox_to_anchor=(0.5, 1.05), frameon=False)
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     fig2.savefig("fig_performance.pdf", dpi=300, bbox_inches="tight")
     plt.close(fig2)
