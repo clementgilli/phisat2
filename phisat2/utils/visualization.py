@@ -254,8 +254,8 @@ def visualize_triplet_batch(
     
     modalities = [
         ("Sentinel-2", 'sentinel2'),
-        ("Simulated", 'simulated'), 
-        ("Real PhiSat-2 (L1C)", 'real'),
+        ("Simulated PhiSat-2", 'simulated'), 
+        ("Real PhiSat-2", 'real'),
         ("Real PhiSat-2 (L0)", 'real_L0')
     ]
     
