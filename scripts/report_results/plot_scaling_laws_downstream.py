@@ -103,9 +103,9 @@ def main():
             color = CUSTOM_PALETTE.get(model_name, "#333333")
             
             if model_name == "phisatnet":
-                model_label = "PhiSatNet"
+                model_label = "MiM baseline"
             elif model_name == "terramind_v1_large":
-                model_label = "TerraMind-Large"
+                model_label = "TerraMind KD"
                 
             x_coords = df_model["shots_str"].map(shot_to_x)
             

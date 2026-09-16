@@ -38,7 +38,7 @@ WALLTIME  = 02:00:00
 CPUS      = 8
 MEM       = 64gb
 
-CKPT_PATH = /lustre/home/u10010021/phisat2/runs/classification/eurosat/$(MODEL)/full_dataset/seed_42/checkpoints/best-v2.ckpt
+CKPT_PATH = /lustre/home/u10010021/phisat2/runs/classification/eurosat/$(MODEL)/full_dataset/seed_42/checkpoints/best.ckpt
 
 # ─── train / submit-train ─────────────────────────────────────────────────────
 else
