@@ -25,6 +25,8 @@ dependencies = [
     "wandb",
     "zarr",
     "imagecodecs",
+    "thop",
+    "fvcore",
 ]
 
 [project.scripts]

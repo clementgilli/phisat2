@@ -118,7 +118,11 @@ class DownstreamModule(L.LightningModule):
             return F.cross_entropy(prediction, target.long(), ignore_index=self.spec.ignore_index)
 
         elif self.spec.task in ["classification"]:
+            if getattr(self.spec, "loss", None) == "bce_with_logits":
+                pos_weight = torch.tensor([252.92, 4.75, 1.83, 1.55], device=prediction.device)
+                return F.binary_cross_entropy_with_logits(prediction, target.float(), pos_weight=pos_weight)
             return F.cross_entropy(prediction, target.long())
+            
         return F.mse_loss(prediction, target.float())
     
     @staticmethod
@@ -162,7 +166,7 @@ class DownstreamModule(L.LightningModule):
         fig, axes = plt.subplots(n, num_cols, figsize=(5 * num_cols, 4 * n), squeeze=False, constrained_layout=True)
         
         if is_lulc:
-            col_titles = ["Original (RGB)", "Micro GT", "Micro Pred", "Macro GT", "Macro Pred"]
+            col_titles = ["Original (RGB)", "Fine GT", "Fine Pred", "Coarse GT", "Coarse Pred"]
         else:
             col_titles = ["Original (RGB)", "Ground Truth", "Predictions"]
             
@@ -203,7 +207,7 @@ class DownstreamModule(L.LightningModule):
             ]
             
             if is_lulc:
-                fig.legend(handles=patches_micro, loc='upper center', bbox_to_anchor=(0.35, 0), ncol=6, title="Micro Classes", fontsize=10)
+                fig.legend(handles=patches_micro, loc='upper center', bbox_to_anchor=(0.35, 0), ncol=6, title="Fine Classes", fontsize=10)
                 
                 if current_meta_macro is not None:
                     unique_macro = {name: color for name, color in current_meta_macro.values()}
@@ -211,7 +215,7 @@ class DownstreamModule(L.LightningModule):
                         mpatches.Patch(color=np.array(color)/255.0, label=name)
                         for name, color in unique_macro.items()
                     ]
-                    fig.legend(handles=patches_macro, loc='upper center', bbox_to_anchor=(0.8, 0), ncol=4, title="Macro Classes", fontsize=10)
+                    fig.legend(handles=patches_macro, loc='upper center', bbox_to_anchor=(0.8, 0), ncol=4, title="Coarse Classes", fontsize=10)
             else:
                 fig.legend(handles=patches_micro, loc='upper center', bbox_to_anchor=(0.5, 0), ncol=len(current_meta_micro), fontsize=11)
             

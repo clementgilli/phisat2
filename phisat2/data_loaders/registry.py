@@ -13,6 +13,7 @@ from phisat2.data_loaders.eurosat import EuroSatDataModule
 from phisat2.data_loaders.ssl4eo import SSL4EODataModule
 from phisat2.data_loaders.downstream_s2 import DownstreamS2DataModule
 from phisat2.data_loaders.downstream_sim import DownstreamSimulatedDataModule
+from phisat2.data_loaders.router import RouterDataModule
 from phisat2.tasks import TaskSpec
 
 DataModuleBuilder = Callable[..., L.LightningDataModule]
@@ -60,6 +61,11 @@ REGISTRY: dict[str, DataLoaderEntry] = {
         "downstream_simulated",
         "Downstream simulated phisat2 datasets with image/mask batches.",
         DownstreamSimulatedDataModule,
+    ),
+    "router": DataLoaderEntry(
+        "router",
+        "Router dataset for multi-label classification.",
+        RouterDataModule,
     ),
 }
 
@@ -141,6 +147,14 @@ def build_datamodule(
             fast_dev_run=fast_dev_run,
             crop_size=crop_size,
             subset_csv=subset_csv,
+        )
+    if name == "router":
+        return entry.builder(
+            root_dir=root_dir,
+            spec=spec,
+            batch_size=batch_size,
+            num_workers=num_workers,
+            seed=seed,
         )
         
     return entry.builder(

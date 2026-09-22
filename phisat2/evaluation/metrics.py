@@ -140,11 +140,8 @@ def build_metrics(
         if rules is not None:
             if spec.dataset == "lulc":
                 SAFE_IGNORE = 5
-                
                 target_mapping = _make_mapping(rules, default=SAFE_IGNORE)
-                
                 pred_mapping = _make_mapping(rules, default=0)
-                
                 macro_kw = dict(num_classes=SAFE_IGNORE, ignore_index=SAFE_IGNORE)
                 
                 metrics[f"{prefix}_macro_iou"] = _RemappedMetric(
@@ -161,10 +158,8 @@ def build_metrics(
 
             elif spec.dataset in ["clouds", "floods", "burned"]:
                 SAFE_IGNORE = 2 
-                
                 target_mapping = _make_mapping(rules, default=SAFE_IGNORE)
                 pred_mapping = _make_mapping(rules, default=0) 
-                
                 bin_kw = dict(num_classes=SAFE_IGNORE, ignore_index=SAFE_IGNORE)
                 
                 base_iou_none = _RemappedMetric(
@@ -193,9 +188,14 @@ def build_metrics(
 
     # ── Classification ────────────────────────────────────────────────────────
     elif spec.task == "classification":
-        kw = dict(num_classes=spec.num_outputs)
-        metrics[f"{prefix}_f1"] = torchmetrics.classification.MulticlassF1Score(**kw, average="macro")
-        metrics[f"{prefix}_acc"] = torchmetrics.classification.MulticlassAccuracy(**kw, average="micro")
+        if getattr(spec, "loss", None) == "bce_with_logits":
+            kw = dict(num_labels=spec.num_outputs)
+            metrics[f"{prefix}_f1"] = torchmetrics.classification.MultilabelF1Score(**kw, average="macro")
+            metrics[f"{prefix}_acc"] = torchmetrics.classification.MultilabelAccuracy(**kw, average="micro")
+        else:
+            kw = dict(num_classes=spec.num_outputs)
+            metrics[f"{prefix}_f1"] = torchmetrics.classification.MulticlassF1Score(**kw, average="macro")
+            metrics[f"{prefix}_acc"] = torchmetrics.classification.MulticlassAccuracy(**kw, average="micro")
 
     # ── Regression ────────────────────────────────────────────────────────────
     elif spec.task in {"pixel_regression", "global_regression"}:

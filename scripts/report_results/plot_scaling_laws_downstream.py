@@ -7,74 +7,58 @@ os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
+
+from cvpr_style import apply_style, CVPR_TEXTWIDTH_IN, COLOR_MIM, COLOR_TERRAMIND
 
 CSV_FILE = "/lustre/home/u10010021/phisat2/runs/downstream_metrics2.csv"
 
-MODELS_TO_PLOT = [
-    "phisatnet",
-    "terramind_v1_large"
-]
+MODELS_TO_PLOT = ["phisatnet", "terramind_v1_large"]
+MODEL_LABELS = {"phisatnet": "MiM baseline", "terramind_v1_large": "TerraMind KD"}
+MODEL_COLORS = {"phisatnet": COLOR_MIM, "terramind_v1_large": COLOR_TERRAMIND}
 
-TARGET_METRIC_BY_TYPE = {
-    "segmentation": "iou",           
-    "pixel_regression": "rmse"       
-}
+TARGET_METRIC_BY_TYPE = {"segmentation": "iou", "pixel_regression": "rmse"}
+METRIC_LABELS = {"iou": "mIoU", "rmse": "RMSE"}
 
-METRIC_LABELS = {
-    "iou": "mIoU",
-    "rmse": "RMSE"
-}
-sns.set_theme(style="whitegrid", context="paper", font_scale=1.1)
-plt.rcParams['font.family'] = 'sans-serif'
-plt.rcParams['axes.edgecolor'] = '#333333'
-plt.rcParams['axes.linewidth'] = 1.0
+apply_style()
 
-palette_colors = ["#2563eb", "#dc2626", "#059669", "#7c3aed", "#ea580c", "#0891b2"]
-CUSTOM_PALETTE = {
-    MODELS_TO_PLOT[i]: palette_colors[i] for i in range(len(MODELS_TO_PLOT))
-}
 
 def sort_shots(val):
     val_str = str(val).strip().lower()
     if val_str == "full":
-        return float('inf')
+        return float("inf")
     try:
         return float(val_str)
     except ValueError:
         return -1
 
+
 def main():
     if not os.path.exists(CSV_FILE):
         print(f"[ERREUR] Le fichier {CSV_FILE} n'existe pas. Modifie le chemin dans le script.")
         return
-        
-    print(f"Chargement des données depuis {CSV_FILE}...")
+
     df = pd.read_csv(CSV_FILE)
-    
-    df = df[df['model'].isin(MODELS_TO_PLOT)].copy()
-    
+    df = df[df["model"].isin(MODELS_TO_PLOT)].copy()
     if df.empty:
-        print("[ERREUR] Aucun des modèles spécifiés n'a été trouvé dans le CSV.")
+        print("[ERREUR] Aucun des modeles specifies n'a ete trouve dans le CSV.")
         return
 
-    df = df[df['task_type'] != 'classification'].copy()
+    df = df[df["task_type"] != "classification"].copy()
+    df["shots_sort"] = df["shots"].apply(sort_shots)
+    df = df.sort_values(by=["task_name", "shots_sort"])
+    df["shots_str"] = df["shots"].astype(str)
 
-    df['shots_sort'] = df['shots'].apply(sort_shots)
-    df = df.sort_values(by=['task_name', 'shots_sort'])
-    
-    df['shots_str'] = df['shots'].astype(str)
-
-    tasks = df['task_name'].unique()
+    tasks = df["task_name"].unique()
     n_tasks = len(tasks)
-    
     if n_tasks == 0:
-        print("[ERREUR] Aucune tâche valide trouvée après filtrage.")
+        print("[ERREUR] Aucune tache valide trouvee apres filtrage.")
         return
 
-    print(f"Génération d'une figure unique pour {n_tasks} tâches...")
-
-    fig, axes = plt.subplots(1, n_tasks, figsize=(4.5 * n_tasks, 4.5))
+    # figsize: ~1.7in per panel (matches the per-panel width used in the
+    # latent-space/performance figures for visual consistency), capped at
+    # the CVPR full page width regardless of how many tasks are plotted.
+    fig_width = min(CVPR_TEXTWIDTH_IN, 1.7 * n_tasks)
+    fig, axes = plt.subplots(1, n_tasks, figsize=(fig_width, 2.3), sharey=False)
     if n_tasks == 1:
         axes = [axes]
 
@@ -82,70 +66,59 @@ def main():
 
     for i, task in enumerate(tasks):
         ax = axes[i]
-        df_task = df[df['task_name'] == task].copy()
-        
-        task_type = df_task['task_type'].iloc[0]
+        df_task = df[df["task_name"] == task].copy()
+        task_type = df_task["task_type"].iloc[0]
         target_metric = TARGET_METRIC_BY_TYPE.get(task_type)
-        
+
         if not target_metric or target_metric not in df_task.columns or df_task[target_metric].isna().all():
-            print(f"[WARN] Métrique '{target_metric}' introuvable ou vide pour la tâche : {task}")
+            print(f"[WARN] Metrique '{target_metric}' introuvable ou vide pour la tache : {task}")
             continue
 
         unique_shots = df_task["shots_str"].unique()
-        
         shot_to_x = {shot: idx for idx, shot in enumerate(unique_shots)}
-        
+
+        # The last (largest) shot count per task is the full dataset --
+        # display "full" there instead of the raw sample count (e.g.
+        # 76912), matching the x-axis convention used in the other
+        # figures ("100, 1000, 10000, full").
+        tick_display = list(unique_shots)
+        if tick_display:
+            tick_display[-1] = "full"
+
         for model_name in MODELS_TO_PLOT:
             df_model = df_task[df_task["model"] == model_name]
-            if df_model.empty: 
+            if df_model.empty:
                 continue
-                
-            color = CUSTOM_PALETTE.get(model_name, "#333333")
-            
-            if model_name == "phisatnet":
-                model_label = "MiM baseline"
-            elif model_name == "terramind_v1_large":
-                model_label = "TerraMind KD"
-                
             x_coords = df_model["shots_str"].map(shot_to_x)
-            
-            ax.plot(
-                x_coords, df_model[target_metric], 
-                marker="o", linewidth=2.5, markersize=7, 
-                color=color, label=model_label
-            )
-            
-        letter = chr(ord('a') + i)
-        formatted_type = task_type.replace('_', ' ').title()
-            
-        ax.set_title(f"{letter}) {task.capitalize()} {formatted_type}", fontsize=12, pad=12)
-        
+            ax.plot(x_coords, df_model[target_metric],
+                    marker="o", linewidth=1.8, markersize=4,
+                    color=MODEL_COLORS[model_name], label=MODEL_LABELS[model_name])
+
+        letter = chr(ord("a") + i)
+        formatted_type = task_type.replace("_", " ").title()
+        if task != "LULC":
+            ax.set_title(f"({letter}) {task.capitalize()}", pad=6)
+        else:
+            ax.set_title(f"({letter}) {task}", pad=6)
         ax.set_xticks(range(len(unique_shots)))
-        ax.set_xticklabels(unique_shots, rotation=0)
-        ax.set_xlabel("n-shot", fontsize=11)
-        
+        ax.set_xticklabels(tick_display, rotation=0)
+        ax.set_xlabel("n-shot")
+
         metric_display_name = METRIC_LABELS.get(target_metric, target_metric.upper())
-        ax.set_ylabel(metric_display_name, fontsize=11)
-        
+        ax.set_ylabel(metric_display_name)
+
         if i == 0:
             handles_list, labels_list = ax.get_legend_handles_labels()
-            
-        ax.grid(True, which='major', color='#e5e5e5', linestyle='-', linewidth=0.7)
 
-    sns.despine()
+    fig.tight_layout()
+    fig.legend(handles_list, labels_list, loc="lower center", ncol=len(MODELS_TO_PLOT),
+               bbox_to_anchor=(0.5, 0.95), frameon=False)
 
-    fig.legend(handles_list, labels_list, 
-               loc='lower center', 
-               ncol=len(MODELS_TO_PLOT), 
-               bbox_to_anchor=(0.5, -0.05),
-               frameon=True, 
-               fontsize=11)
-
-    plt.tight_layout()
     output_filename = "downstream_merged_figure.pdf"
-    plt.savefig(output_filename, format="pdf", bbox_inches="tight")
-    print(f"[INFO] Figure panoramique générée avec succès : {output_filename}")
-    plt.close()
+    fig.savefig(output_filename, bbox_inches="tight")
+    print(f"[INFO] Figure generee avec succes : {output_filename}")
+    plt.close(fig)
+
 
 if __name__ == "__main__":
     main()

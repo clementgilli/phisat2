@@ -32,11 +32,9 @@ TASKS: frozenset[str] = frozenset({
 # ─────────────────────────────────────────────────────────────────────────────
 # Dataset registries
 # ─────────────────────────────────────────────────────────────────────────────
-# Each downstream registry maps  dataset_name → num_outputs
-# Segmentation also carries ignore_index: dataset → (num_classes, ignore_index)
 
 _SEG: dict[str, tuple[int, int | None]] = {
-    # dataset      classes  ignore   train    /  val    / test
+     # dataset      classes  ignore   train    /  val    / test
     "lulc":    (11,  0),   # 50 080  /  5 552 /  6 544
     "floods":  (4,   0),   # 243 904 /  9 660 / 10 792
     "clouds":  (4,   99),  # 35 336  /  8 560 / 15 472
@@ -50,21 +48,19 @@ _PIX_REG: dict[str, int] = {
     "building": 1,
 }
 
-_CLS: dict[str, int] = {
-    "router":  5,
-    "eurosat": 10,
+_CLS: dict[str, tuple[int, str]] = {
+    "eurosat": (10, "cross_entropy"),      
+    "router":  (4,  "bce_with_logits"),      # Multi-label (Fire, Burned, Water, Clouds)
 }
 
-_GLOBAL_REG: dict[str, int] = {}   # reserved for future tasks
+_GLOBAL_REG: dict[str, int] = {} 
 
-# Non-downstream tasks
 _PRETRAIN:  dict[str, int] = {"triplets": 8, "ssl4eo": 8}
 _KD:        dict[str, int] = {"triplets": 0, "ssl4eo": 0}
 _DA:        dict[str, int] = {"triplets": 0}
 _EVAL_GAP:  dict[str, int] = {"triplets": 0}
 _EVAL_ENC:  dict[str, int] = {"eurosat": 0}
 
-# Flat reverse-lookup for guess_task_from_dataset (downstream tasks only)
 _DOWNSTREAM_TASK: dict[str, str] = {
     **{d: TASK_SEGMENTATION    for d in _SEG},
     **{d: TASK_PIXEL_REGRESSION for d in _PIX_REG},
@@ -92,7 +88,6 @@ class TaskSpec:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _get(registry: dict, dataset: str, task: str):
-    """Lookup dataset in a registry, raising a clear error on miss."""
     if dataset not in registry:
         valid = ", ".join(sorted(registry))
         raise ValueError(
@@ -124,7 +119,8 @@ def resolve_task_spec(task: str, dataset: str) -> TaskSpec:
             return TaskSpec(task, dataset, _get(_PIX_REG, dataset, task), "target", "mse")
 
         case "classification":
-            return TaskSpec(task, dataset, _get(_CLS, dataset, task), "label", "cross_entropy")
+            n_classes, loss_type = _get(_CLS, dataset, task)
+            return TaskSpec(task, dataset, n_classes, "label", loss_type)
 
         case "global_regression":
             return TaskSpec(task, dataset, _get(_GLOBAL_REG, dataset, task), "target", "mse")
